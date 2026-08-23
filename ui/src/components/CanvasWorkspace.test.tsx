@@ -62,6 +62,7 @@ describe('CanvasWorkspace', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Database/ }))
     expect(screen.queryByRole('complementary', { name: 'Properties inspector' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Component name').closest('.architecture-node')).toHaveClass('architecture-node-database')
 
     fireEvent.change(screen.getByLabelText('Component name'), { target: { value: 'Orders Database' } })
     fireEvent.blur(screen.getByLabelText('Component name'))

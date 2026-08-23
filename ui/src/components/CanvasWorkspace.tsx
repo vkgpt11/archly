@@ -235,7 +235,6 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
         kind,
         label: definition.label,
         subtitle: definition.subtitle,
-        fill: kind === 'note' ? '#fef3c7' : undefined,
       },
       style: size,
       zIndex: kind === 'container' ? -1 : 0,
