@@ -8,6 +8,10 @@ import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import { common, createLowlight } from 'lowlight'
+import {
+  Bold, Code2, Heading1, Heading2, Italic, Link2, List, ListOrdered,
+  Quote, Redo2, SquareCode, Strikethrough, Undo2,
+} from 'lucide-react'
 import { api } from '../api'
 import type { CanvasData, Project } from '../types'
 
@@ -137,22 +141,22 @@ export default function Editor({ token, initialProject, onBack }: Props) {
         {showDocument && (
           <section className="document-panel" style={view === 'split' ? { flexBasis: `${documentWidth}%` } : undefined}>
             <div className="rich-text-toolbar" role="toolbar" aria-label="Document formatting">
-              <button className={richTextEditor?.isActive('heading', { level: 1 }) ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleHeading({ level: 1 }).run()} title="Heading 1">H1</button>
-              <button className={richTextEditor?.isActive('heading', { level: 2 }) ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleHeading({ level: 2 }).run()} title="Heading 2">H2</button>
+              <button className={richTextEditor?.isActive('heading', { level: 1 }) ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleHeading({ level: 1 }).run()} title="Heading 1" aria-label="Heading 1"><Heading1 /></button>
+              <button className={richTextEditor?.isActive('heading', { level: 2 }) ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleHeading({ level: 2 }).run()} title="Heading 2" aria-label="Heading 2"><Heading2 /></button>
               <span className="toolbar-divider" />
-              <button className={richTextEditor?.isActive('bold') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleBold().run()} title="Bold"><strong>B</strong></button>
-              <button className={richTextEditor?.isActive('italic') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleItalic().run()} title="Italic"><em>I</em></button>
-              <button className={richTextEditor?.isActive('strike') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleStrike().run()} title="Strikethrough"><s>S</s></button>
-              <button className={richTextEditor?.isActive('code') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleCode().run()} title="Highlight selected text as inline code">Inline code</button>
+              <button className={richTextEditor?.isActive('bold') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleBold().run()} title="Bold" aria-label="Bold"><Bold /></button>
+              <button className={richTextEditor?.isActive('italic') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleItalic().run()} title="Italic" aria-label="Italic"><Italic /></button>
+              <button className={richTextEditor?.isActive('strike') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleStrike().run()} title="Strikethrough" aria-label="Strikethrough"><Strikethrough /></button>
+              <button className={richTextEditor?.isActive('code') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleCode().run()} title="Highlight selected text as inline code" aria-label="Inline code"><Code2 /></button>
               <span className="toolbar-divider" />
-              <button className={richTextEditor?.isActive('bulletList') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleBulletList().run()} title="Bullet list">• List</button>
-              <button className={richTextEditor?.isActive('orderedList') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleOrderedList().run()} title="Numbered list">1. List</button>
-              <button className={richTextEditor?.isActive('blockquote') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleBlockquote().run()} title="Quote">Quote</button>
-              <button className={richTextEditor?.isActive('codeBlock') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleCodeBlock().run()} title="Create a multiline syntax-highlighted code snippet">Code snippet</button>
-              <button className={richTextEditor?.isActive('link') ? 'active' : ''} onClick={editLink} title="Add or edit link">Link</button>
+              <button className={richTextEditor?.isActive('bulletList') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleBulletList().run()} title="Bullet list" aria-label="Bullet list"><List /></button>
+              <button className={richTextEditor?.isActive('orderedList') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleOrderedList().run()} title="Numbered list" aria-label="Numbered list"><ListOrdered /></button>
+              <button className={richTextEditor?.isActive('blockquote') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleBlockquote().run()} title="Quote" aria-label="Quote"><Quote /></button>
+              <button className={richTextEditor?.isActive('codeBlock') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleCodeBlock().run()} title="Create a multiline syntax-highlighted code snippet" aria-label="Code snippet"><SquareCode /></button>
+              <button className={richTextEditor?.isActive('link') ? 'active' : ''} onClick={editLink} title="Add or edit link" aria-label="Add or edit link"><Link2 /></button>
               <span className="toolbar-spacer" />
-              <button onClick={() => richTextEditor?.chain().focus().undo().run()} disabled={!richTextEditor?.can().undo()} title="Undo">↶</button>
-              <button onClick={() => richTextEditor?.chain().focus().redo().run()} disabled={!richTextEditor?.can().redo()} title="Redo">↷</button>
+              <button onClick={() => richTextEditor?.chain().focus().undo().run()} disabled={!richTextEditor?.can().undo()} title="Undo" aria-label="Undo"><Undo2 /></button>
+              <button onClick={() => richTextEditor?.chain().focus().redo().run()} disabled={!richTextEditor?.can().redo()} title="Redo" aria-label="Redo"><Redo2 /></button>
             </div>
             <EditorContent editor={richTextEditor} className="rich-text-editor" />
           </section>

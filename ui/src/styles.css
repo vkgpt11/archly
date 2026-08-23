@@ -55,7 +55,8 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .panel-resizer:hover span, .panel-resizer:focus-visible span { background: #6d4aff; }
 .resizing-panels, .resizing-panels * { cursor: col-resize !important; user-select: none !important; }
 .rich-text-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 9px 12px; border-bottom: 1px solid #e6e6ed; background: #fafafd; }
-.rich-text-toolbar button { min-width: 32px; height: 32px; padding: 0 8px; border: 1px solid transparent; border-radius: 7px; color: #55596a; background: transparent; font-size: 12px; }
+.rich-text-toolbar button { width: 34px; height: 34px; display: inline-grid; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 8px; color: #55596a; background: transparent; }
+.rich-text-toolbar button svg { width: 17px; height: 17px; stroke-width: 2; }
 .rich-text-toolbar button:hover:not(:disabled) { color: #3e2ca0; background: #f0edff; }
 .rich-text-toolbar button.active { border-color: #cfc5ff; color: #5338cf; background: #e9e4ff; }
 .rich-text-toolbar button:disabled { cursor: default; opacity: .35; }
