@@ -15,7 +15,7 @@ import {
   Bold, Code2, Heading1, Heading2, Italic, Link2, List, ListOrdered,
   Highlighter, Palette, Quote, Redo2, RotateCcw, SquareCode, Strikethrough, Undo2,
 } from 'lucide-react'
-import { api } from '../api'
+import { ApiError, api } from '../api'
 import type { CanvasData, Project } from '../types'
 import ThemeToggle from './ThemeToggle'
 
@@ -43,6 +43,10 @@ export default function Editor({ token, initialProject, onBack }: Props) {
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error'>('saved')
   const latestProject = useRef(project)
   const editorBody = useRef<HTMLDivElement>(null)
+  const saveInFlight = useRef(false)
+  const changeVersion = useRef(0)
+  const initialSaveSkipped = useRef(false)
+  const conflictRetryUsed = useRef(false)
 
   useEffect(() => { latestProject.current = project }, [project])
 
@@ -79,28 +83,72 @@ export default function Editor({ token, initialProject, onBack }: Props) {
     setNodes((current) => [...current, node])
   }
 
+  const flushSave = useCallback(async () => {
+    if (saveInFlight.current) return
+    saveInFlight.current = true
+    const savingVersion = changeVersion.current
+    let retryConflict = false
+
+    try {
+      const saved = await api.saveProject(token, latestProject.current)
+      const merged = {
+        ...latestProject.current,
+        revision: saved.revision,
+        createdAt: saved.createdAt,
+        updatedAt: saved.updatedAt,
+      }
+      latestProject.current = merged
+      setProject((current) => ({
+        ...current,
+        revision: saved.revision,
+        createdAt: saved.createdAt,
+        updatedAt: saved.updatedAt,
+      }))
+      conflictRetryUsed.current = false
+      if (changeVersion.current === savingVersion) setSaveState('saved')
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409 && !conflictRetryUsed.current) {
+        conflictRetryUsed.current = true
+        try {
+          const serverProject = await api.getProject(token, latestProject.current.id)
+          latestProject.current = {
+            ...latestProject.current,
+            revision: serverProject.revision,
+            createdAt: serverProject.createdAt,
+            updatedAt: serverProject.updatedAt,
+          }
+          retryConflict = true
+          setSaveState('saving')
+        } catch {
+          setSaveState('error')
+        }
+      } else {
+        setSaveState('error')
+      }
+    } finally {
+      saveInFlight.current = false
+      if (retryConflict || changeVersion.current > savingVersion) {
+        queueMicrotask(() => void flushSave())
+      }
+    }
+  }, [token])
+
   useEffect(() => {
-    const next = {
+    latestProject.current = {
       ...latestProject.current,
       name: project.name,
       markdown: project.markdown,
       canvasJson: JSON.stringify({ nodes, edges }),
     }
-    latestProject.current = next
+    if (!initialSaveSkipped.current) {
+      initialSaveSkipped.current = true
+      return
+    }
+    changeVersion.current += 1
     setSaveState('saving')
-    const timer = window.setTimeout(async () => {
-      try {
-        const saved = await api.saveProject(token, latestProject.current)
-        latestProject.current = saved
-        setProject(saved)
-        setSaveState('saved')
-      } catch {
-        setSaveState('error')
-      }
-    }, 900)
+    const timer = window.setTimeout(() => void flushSave(), 900)
     return () => window.clearTimeout(timer)
-    // Project field changes update latestProject directly; canvas changes trigger persistence.
-  }, [nodes, edges, project.name, project.markdown, token])
+  }, [nodes, edges, project.name, project.markdown, flushSave])
 
   const showCanvas = view !== 'document'
   const showDocument = view !== 'canvas'
