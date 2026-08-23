@@ -47,7 +47,7 @@ describe('CanvasWorkspace', () => {
     expect(fullTitle).toBe('Customer identity and access management service')
   })
 
-  it('adds a searchable component and edits its properties', () => {
+  it('adds a searchable component and edits it inline', () => {
     render(<Harness />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Add component' }))
@@ -55,7 +55,7 @@ describe('CanvasWorkspace', () => {
     expect(screen.getByRole('button', { name: /Database/ })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /Database/ }))
-    expect(screen.getByRole('complementary', { name: 'Properties inspector' })).toBeInTheDocument()
+    expect(screen.queryByRole('complementary', { name: 'Properties inspector' })).not.toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('Component name'), { target: { value: 'Orders Database' } })
     fireEvent.blur(screen.getByLabelText('Component name'))
@@ -65,9 +65,6 @@ describe('CanvasWorkspace', () => {
     expect(screen.getByLabelText('Component subtitle')).toHaveValue('')
     expect(screen.getByLabelText('Component name').closest('.react-flow__node')).toHaveStyle({ width: '122px', height: '68px' })
     expect(screen.getByLabelText('Lock component')).toBeInTheDocument()
-    expect(screen.getByRole('complementary', { name: 'Properties inspector' }).querySelector('input[aria-label="Name"]')).not.toBeInTheDocument()
-    expect(screen.getByRole('complementary', { name: 'Properties inspector' }).querySelector('input[type="checkbox"]')).not.toBeInTheDocument()
-
     fireEvent.click(screen.getByLabelText('Lock component'))
     expect(screen.getByLabelText('Unlock component')).toBeInTheDocument()
   })

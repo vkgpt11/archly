@@ -134,10 +134,10 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .canvas-toolbox { left: 14px; top: 14px; flex-direction: column; }
 .canvas-history { left: 50%; top: 14px; transform: translateX(-50%); }
 .canvas-navigation { right: 14px; bottom: 14px; }
-.canvas-toolbox button, .canvas-history button, .canvas-navigation button, .component-library header button, .canvas-inspector header button, .open-inspector { width: 34px; height: 34px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 8px; background: transparent; }
+.canvas-toolbox button, .canvas-history button, .canvas-navigation button, .component-library header button { width: 34px; height: 34px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 8px; background: transparent; }
 .canvas-toolbox button:hover:not(:disabled), .canvas-history button:hover:not(:disabled), .canvas-navigation button:hover:not(:disabled), .canvas-toolbox button.active, .canvas-navigation button.active { color: var(--accent); background: var(--accent-soft); }
 .canvas-toolbox button:disabled, .canvas-history button:disabled { cursor: default; opacity: .35; }
-.canvas-toolbox svg, .canvas-history svg, .canvas-navigation svg, .component-library svg, .canvas-inspector svg, .open-inspector svg { width: 17px; height: 17px; }
+.canvas-toolbox svg, .canvas-history svg, .canvas-navigation svg, .component-library svg { width: 17px; height: 17px; }
 .canvas-toolbox > span { width: 22px; height: 1px; align-self: center; margin: 2px; background: var(--border); }
 .canvas-history > span, .canvas-navigation > span { width: 1px; margin: 5px 2px; background: var(--border); }
 .canvas-history i { display: none; }
@@ -156,12 +156,11 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .connection-label-input { width: 112px; height: 32px; padding: 0 9px; border: 1px solid transparent; border-radius: 8px; outline: 0; color: var(--text); background: var(--surface-soft); font-size: 11px; }
 .connection-label-input:focus { border-color: var(--accent); }
 .connection-toolbar .connection-delete:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
-.component-library, .canvas-inspector { position: absolute; z-index: 9; top: 14px; bottom: 14px; width: min(290px, calc(100% - 90px)); overflow: auto; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); box-shadow: 0 18px 50px rgba(24,25,35,.16); }
+.component-library { position: absolute; z-index: 9; top: 14px; bottom: 14px; width: min(290px, calc(100% - 90px)); overflow: auto; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); box-shadow: 0 18px 50px rgba(24,25,35,.16); }
 .component-library { left: 62px; padding: 14px; }
-.canvas-inspector { right: 14px; padding: 16px; }
-.component-library header, .canvas-inspector header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.component-library header > div, .canvas-inspector header > div { display: flex; flex-direction: column; gap: 2px; }
-.component-library header span, .canvas-inspector header span { color: var(--muted); font-size: 11px; }
+.component-library header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.component-library header > div { display: flex; flex-direction: column; gap: 2px; }
+.component-library header span { color: var(--muted); font-size: 11px; }
 .canvas-search { height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-soft); }
 .canvas-search input { min-width: 0; flex: 1; border: 0; outline: 0; color: var(--text); background: transparent; font-size: 12px; }
 .component-list { display: grid; gap: 6px; margin-top: 12px; }
@@ -196,16 +195,6 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .react-flow__edge-textbg { fill: var(--surface); }
 .edge-inline-label { position: absolute; z-index: 3; height: 20px; padding: 0 6px; border: 0; border-radius: 0; outline: 0; color: var(--text-soft); background: var(--canvas-bg); box-shadow: 0 0 0 3px var(--canvas-bg); font-size: 9px; text-align: center; pointer-events: all; }
 .edge-inline-label:hover, .edge-inline-label:focus, .edge-inline-label.selected:focus { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
-.inspector-fields { display: grid; gap: 13px; }
-.inspector-hint { margin: 0; padding: 9px 10px; border-radius: 9px; color: var(--text-soft); background: var(--surface-soft); font-size: 11px; line-height: 1.5; }
-.inspector-fields label { display: grid; gap: 6px; color: var(--text-soft); font-size: 11px; font-weight: 700; }
-.inspector-fields input:not([type="checkbox"]):not([type="color"]), .inspector-fields textarea, .inspector-fields select { width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; outline: 0; color: var(--text); background: var(--surface-soft); font-size: 12px; font-weight: 400; resize: vertical; }
-.inspector-fields input:focus, .inspector-fields textarea:focus, .inspector-fields select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
-.inspector-colors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.inspector-colors input[type="color"], .inspector-fields > label > input[type="color"] { width: 100%; height: 32px; padding: 3px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-soft); }
-.inspector-fields .inspector-check { display: flex; grid-template-columns: none; align-items: center; gap: 8px; }
-.danger-action { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 9px; border: 1px solid color-mix(in srgb, var(--danger) 30%, var(--border)); border-radius: 9px; color: var(--danger) !important; background: transparent; font-size: 12px; }
-.open-inspector { position: absolute; z-index: 8; right: 14px; top: 14px; border: 1px solid var(--border); background: var(--surface); box-shadow: 0 8px 24px rgba(24,25,35,.1); }
 .canvas-panel:fullscreen { background: var(--page); }
 @media (max-width: 760px) { .sign-in-card { padding: 36px 22px; }.dashboard-heading { align-items: stretch; flex-direction: column; gap: 22px; }.editor-header { grid-template-columns: minmax(0, 1fr) auto; padding: 0 14px; }.view-switcher { display: none; }.editor-header-right { grid-column: 2; }.editor-body { flex-direction: column; }.document-panel { min-height: 45%; }.canvas-panel { min-height: 55%; }.panel-resizer { display: none; } }
 

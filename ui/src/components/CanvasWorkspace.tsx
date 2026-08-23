@@ -7,7 +7,7 @@ import {
 import {
   AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, AppWindow, Box, Boxes,
   ArrowLeft, ArrowRight, Braces, Cloud, Database, Expand, ExternalLink, FileText, Focus, Hand,
-  Layers3, LocateFixed, Lock, MessageSquareText, Minus, MousePointer2, Network, Plus, Redo2,
+  LocateFixed, Lock, MessageSquareText, Minus, MousePointer2, Network, Plus, Redo2,
   Search, Server, Smartphone, Spline, Trash2, Undo2, Unlock, UserRound, Workflow, X, ZoomIn, ZoomOut,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
@@ -162,7 +162,6 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
   const stableEdgeTypes = useMemo(() => ({ editable: EditableConnectionEdge }), [])
   const [tool, setTool] = useState<CanvasTool>('select')
   const [libraryOpen, setLibraryOpen] = useState(false)
-  const [inspectorOpen, setInspectorOpen] = useState(true)
   const [minimapVisible, setMinimapVisible] = useState(true)
   const [search, setSearch] = useState('')
   const [zoom, setZoom] = useState(100)
@@ -191,7 +190,6 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
 
   const selectedNodes = useMemo(() => nodes.filter((node) => node.selected), [nodes])
   const selectedEdges = useMemo(() => edges.filter((edge) => edge.selected), [edges])
-  const selectedNode = selectedNodes.length === 1 ? selectedNodes[0] : undefined
   const selectedEdge = selectedEdges.length === 1 ? selectedEdges[0] : undefined
 
   function remember(snapshot: Snapshot = { nodes: nodesRef.current, edges: edgesRef.current }) {
@@ -242,16 +240,6 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
     remember()
     setNodes((current) => [...current.map((item) => ({ ...item, selected: false })), { ...node, selected: true }])
     setLibraryOpen(false)
-  }
-
-  function updateSelectedNode(patch: Partial<ArchitectureNodeData>) {
-    if (!selectedNode) return
-    remember()
-    setNodes((current) => current.map((node) => node.id === selectedNode.id ? {
-      ...node,
-      draggable: patch.locked === undefined ? node.draggable : !patch.locked,
-      data: { ...node.data, ...patch },
-    } : node))
   }
 
   function updateSelectedEdge(patch: Partial<Edge>) {
@@ -421,30 +409,8 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
 
       {selectedEdge && <ConnectionToolbar edge={selectedEdge} update={updateSelectedEdge} onDelete={deleteSelection} />}
 
-      {selectedNode && !selectedEdge && inspectorOpen && (
-        <aside className="canvas-inspector" aria-label="Properties inspector">
-          <header><div><strong>Properties</strong><span>Component</span></div><button onClick={() => setInspectorOpen(false)} aria-label="Close properties"><X /></button></header>
-          <NodeInspector node={selectedNode} update={updateSelectedNode} onDelete={deleteSelection} />
-        </aside>
-      )}
-      {selectedNode && !selectedEdge && !inspectorOpen && <button className="open-inspector" onClick={() => setInspectorOpen(true)} title="Open properties" aria-label="Open properties"><Layers3 /></button>}
     </div>
   )
-}
-
-function NodeInspector({ node, update, onDelete }: { node: Node; update: (patch: Partial<ArchitectureNodeData>) => void; onDelete: () => void }) {
-  const data = node.data as ArchitectureNodeData
-  return <div className="inspector-fields">
-    <p className="inspector-hint">Select the component name or subtitle on the canvas to edit it inline.</p>
-    <label>Description<textarea value={data.description || ''} onChange={(event) => update({ description: event.target.value })} rows={3} /></label>
-    <label>Documentation URL<input value={data.documentationUrl || ''} onChange={(event) => update({ documentationUrl: event.target.value })} placeholder="https:// or #heading" /></label>
-    <div className="inspector-colors">
-      <label>Fill<input type="color" value={data.fill || '#ffffff'} onChange={(event) => update({ fill: event.target.value })} /></label>
-      <label>Border<input type="color" value={data.border || '#68708a'} onChange={(event) => update({ border: event.target.value })} /></label>
-      <label>Text<input type="color" value={data.textColor || '#20222d'} onChange={(event) => update({ textColor: event.target.value })} /></label>
-    </div>
-    <button className="danger-action" onClick={onDelete}><Trash2 /> Delete component</button>
-  </div>
 }
 
 function ConnectionToolbar({ edge, update, onDelete }: { edge: Edge; update: (patch: Partial<Edge>) => void; onDelete: () => void }) {
