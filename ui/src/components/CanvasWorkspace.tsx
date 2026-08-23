@@ -82,7 +82,7 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
       className={`architecture-node architecture-node-${kind} ${iconDensity}${selected ? ' selected' : ''}${data.locked ? ' locked' : ''}`}
       style={{ background: data.fill, borderColor: data.border, color: data.textColor }}
     >
-      <NodeResizer isVisible={selected && !data.locked} minWidth={kind === 'text' ? 100 : 140} minHeight={kind === 'text' ? 36 : kind === 'note' ? 72 : 52} lineClassName="component-resizer-line" handleClassName="component-resizer-handle" />
+      <NodeResizer isVisible={selected && !data.locked} minWidth={10} minHeight={10} lineClassName="component-resizer-line" handleClassName="component-resizer-handle" />
       {kind !== 'text' && <Icon className="component-kind-icon" aria-hidden="true" />}
       <button className="component-lock nodrag nowheel" onClick={toggleLock} title={data.locked ? 'Unlock component' : 'Lock component'} aria-label={data.locked ? 'Unlock component' : 'Lock component'}>{data.locked ? <Lock /> : <Unlock />}</button>
       <div className="architecture-node-copy">
