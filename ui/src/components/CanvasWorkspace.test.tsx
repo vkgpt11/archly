@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import CanvasWorkspace from './CanvasWorkspace'
-import { getComponentSize, truncateCanvasText } from './canvasSizing'
+import { getComponentSize, getEdgeLabelWidth, truncateCanvasText } from './canvasSizing'
 import { useState } from 'react'
 import type { Edge, Node } from '@xyflow/react'
 
@@ -45,6 +45,12 @@ describe('CanvasWorkspace', () => {
     const fullTitle = 'Customer identity and access management service'
     expect(truncateCanvasText(fullTitle, 28)).toBe('Customer identity and acces…')
     expect(fullTitle).toBe('Customer identity and access management service')
+  })
+
+  it('keeps arrow labels compact around their text', () => {
+    expect(getEdgeLabelWidth('')).toBe(46)
+    expect(getEdgeLabelWidth('HTTPS')).toBe(33)
+    expect(getEdgeLabelWidth('A very long connection label that should be capped')).toBeLessThanOrEqual(144)
   })
 
   it('adds a searchable component and edits it inline', () => {

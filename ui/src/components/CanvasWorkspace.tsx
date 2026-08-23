@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import {
-  COMPONENT_SUBTITLE_LIMIT, COMPONENT_TITLE_LIMIT, getComponentSize, truncateCanvasText,
+  COMPONENT_SUBTITLE_LIMIT, COMPONENT_TITLE_LIMIT, getComponentSize, getEdgeLabelWidth, truncateCanvasText,
   type ArchitectureKind,
 } from './canvasSizing'
 
@@ -140,7 +140,10 @@ function EditableConnectionEdge(props: EdgeProps<Edge>) {
         value={label}
         onChange={(event) => updateEdge(props.id, { label: event.target.value })}
         placeholder="Add label"
-        style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`, width: `${Math.max(72, Math.min(180, label.length * 7 + 28))}px` }}
+        style={{
+          transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+          width: `${getEdgeLabelWidth(label)}px`,
+        }}
       />
     </EdgeLabelRenderer>}
   </>

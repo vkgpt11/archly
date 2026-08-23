@@ -8,6 +8,10 @@ export function truncateCanvasText(value: string, limit: number) {
   return `${value.slice(0, Math.max(0, limit - 1)).trimEnd()}…`
 }
 
+export function getEdgeLabelWidth(label: string) {
+  return label ? Math.min(144, Math.max(18, Math.ceil(label.length * 5.25 + 6))) : 46
+}
+
 export function getComponentSize(label: string, subtitle: string, kind: ArchitectureKind, editing = false) {
   if (kind === 'container') return { width: 360, height: 240 }
   const visibleLabel = truncateCanvasText(label.trim(), COMPONENT_TITLE_LIMIT)
