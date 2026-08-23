@@ -171,7 +171,7 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .component-list button span { display: flex; flex-direction: column; gap: 2px; }
 .component-list button strong { color: var(--text); font-size: 12px; }
 .component-list button small { color: var(--muted); font-size: 10px; }
-.architecture-node { position: relative; width: 100%; height: 100%; min-height: 64px; display: flex; align-items: center; padding: 11px 12px; border: 1.5px solid var(--border); border-radius: 12px; color: var(--text); background: var(--surface); box-shadow: 0 4px 14px rgba(20,21,30,.08); }
+.architecture-node { position: relative; width: 100%; height: 100%; min-height: 52px; display: flex; align-items: center; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 12px; color: var(--text); background: var(--surface); box-shadow: 0 4px 14px rgba(20,21,30,.08); }
 .architecture-node .component-kind-icon { position: absolute; z-index: 4; left: -7px; top: -7px; width: 30px; height: 30px; padding: 6px; border: 1px solid var(--border); border-radius: 9px; color: var(--accent); background: var(--surface); box-shadow: 0 4px 10px rgba(20,21,30,.14); }
 .architecture-node.icon-medium .component-kind-icon { width: 27px; height: 27px; padding: 5px; }
 .architecture-node.icon-compact .component-kind-icon { width: 24px; height: 24px; padding: 5px; border-radius: 8px; }
@@ -190,7 +190,7 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .component-lock svg { width: 9px; height: 9px; stroke-width: 2.25; }
 .component-resizer-line { border-color: var(--accent) !important; }
 .component-resizer-handle { width: 8px !important; height: 8px !important; border: 2px solid var(--surface) !important; border-radius: 50% !important; background: var(--accent) !important; }
-.architecture-node-note { align-items: flex-start; min-height: 96px; border-color: #e4c34f; color: #3f3511; box-shadow: 0 4px 12px rgba(80,65,10,.1); }
+.architecture-node-note { align-items: flex-start; min-height: 72px; border-color: #e4c34f; color: #3f3511; box-shadow: 0 4px 12px rgba(80,65,10,.1); }
 .architecture-node-container { width: 100%; height: 100%; align-items: flex-start; border-style: dashed; background: color-mix(in srgb, var(--accent-soft) 35%, transparent); box-shadow: none; }
 .architecture-node-text { min-height: 36px; padding: 7px 9px; border-color: transparent; background: transparent; box-shadow: none; }
 .react-flow__handle { width: 8px; height: 8px; border: 2px solid var(--surface); background: var(--accent); }

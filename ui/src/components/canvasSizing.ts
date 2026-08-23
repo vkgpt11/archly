@@ -9,6 +9,6 @@ export function getComponentSize(label: string, subtitle: string, kind: Architec
   const maximumWidth = kind === 'text' ? 420 : 360
   return {
     width: Math.round(Math.min(maximumWidth, Math.max(minimumWidth, longestText * characterWidth + reservedSpace))),
-    height: kind === 'note' ? 96 : kind === 'text' ? 40 : subtitle.trim() ? 72 : 60,
+    height: kind === 'note' ? 88 : kind === 'text' ? 36 : subtitle.trim() ? 64 : 52,
   }
 }

@@ -24,8 +24,11 @@ function ConnectionHarness() {
 
 describe('CanvasWorkspace', () => {
   it('sizes components according to their visible content', () => {
-    expect(getComponentSize('API', '', 'service').width).toBe(150)
-    expect(getComponentSize('Customer identity and access service', 'OAuth and account lifecycle', 'service').width).toBeGreaterThan(250)
+    const compact = getComponentSize('API', '', 'service')
+    const expanded = getComponentSize('Customer identity and access service', 'OAuth and account lifecycle', 'service')
+    expect(compact).toEqual({ width: 150, height: 52 })
+    expect(expanded.width).toBeGreaterThan(250)
+    expect(expanded.height).toBeGreaterThan(compact.height)
     expect(getComponentSize('Boundary', '', 'container')).toEqual({ width: 360, height: 240 })
   })
 
