@@ -171,10 +171,10 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .component-list button span { display: flex; flex-direction: column; gap: 2px; }
 .component-list button strong { color: var(--text); font-size: 12px; }
 .component-list button small { color: var(--muted); font-size: 10px; }
-.architecture-node { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 6px 8px; border: 0; border-radius: 12px; color: var(--text); background: var(--surface); box-shadow: 0 4px 14px rgba(20,21,30,.08); }
-.architecture-node .component-kind-icon { position: static; z-index: 4; width: 26px; height: 26px; padding: 2px; align-self: center; flex: 0 0 auto; color: var(--accent); }
-.architecture-node.icon-medium .component-kind-icon { width: 24px; height: 24px; }
-.architecture-node.icon-compact .component-kind-icon { width: 22px; height: 22px; }
+.architecture-node { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; padding: 28px 8px 6px; border: 0; border-radius: 12px; color: var(--text); background: var(--surface); box-shadow: 0 4px 14px rgba(20,21,30,.08); }
+.architecture-node .component-kind-icon { position: absolute; z-index: 4; left: 50%; top: -26px; width: 52px; height: 52px; padding: 4px; color: var(--accent); transform: translateX(-50%); }
+.architecture-node.icon-medium .component-kind-icon { top: -24px; width: 48px; height: 48px; }
+.architecture-node.icon-compact .component-kind-icon { top: -22px; width: 44px; height: 44px; }
 .architecture-node-copy { min-width: 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 0; text-align: center; }
 .architecture-node-copy strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .architecture-node-copy span { overflow: hidden; color: var(--text-soft); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
@@ -185,7 +185,7 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .component-lock { position: absolute; z-index: 4; right: -8px; bottom: -8px; width: 17px; height: 17px; display: grid; place-items: center; padding: 0; border: 1px solid var(--border); border-radius: 5px; color: var(--muted); background: var(--surface); box-shadow: 0 3px 7px rgba(20,21,30,.13); }
 .component-lock:hover, .architecture-node.locked .component-lock { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .component-lock svg { width: 9px; height: 9px; stroke-width: 2.25; }
-.architecture-node-note { align-items: flex-start; justify-content: flex-start; border-color: #e4c34f; color: #3f3511; box-shadow: 0 4px 12px rgba(80,65,10,.1); }
+.architecture-node-note { align-items: center; justify-content: flex-end; border-color: #e4c34f; color: #3f3511; box-shadow: 0 4px 12px rgba(80,65,10,.1); }
 .architecture-node-container { width: 100%; height: 100%; align-items: flex-start; border: 1.5px dashed var(--border); background: color-mix(in srgb, var(--accent-soft) 35%, transparent); box-shadow: none; }
 .architecture-node-text { display: block; padding: 4px 6px; border-color: transparent; background: transparent; box-shadow: none; }
 .react-flow__handle { width: 8px; height: 8px; border: 2px solid var(--surface); background: var(--accent); }
