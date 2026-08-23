@@ -62,6 +62,8 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
   const [subtitle, setSubtitle] = useState(data.subtitle || '')
   const kind = data.kind || 'service'
   const Icon = iconByKind[kind]
+  const labelLength = (data.label || label).length
+  const iconDensity = labelLength > 24 ? 'icon-compact' : labelLength > 14 ? 'icon-medium' : 'icon-large'
 
   useEffect(() => setLabel(data.label || ''), [data.label])
   useEffect(() => setSubtitle(data.subtitle || ''), [data.subtitle])
@@ -81,7 +83,7 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
 
   return (
     <div
-      className={`architecture-node architecture-node-${kind}${selected ? ' selected' : ''}${data.locked ? ' locked' : ''}`}
+      className={`architecture-node architecture-node-${kind} ${iconDensity}${selected ? ' selected' : ''}${data.locked ? ' locked' : ''}`}
       style={{ background: data.fill, borderColor: data.border, color: data.textColor }}
     >
       <NodeResizer isVisible={selected && !data.locked} minWidth={kind === 'text' ? 100 : 140} minHeight={kind === 'text' ? 36 : 64} lineClassName="component-resizer-line" handleClassName="component-resizer-handle" />
