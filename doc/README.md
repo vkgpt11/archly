@@ -2,6 +2,11 @@
 
 This directory contains the product and technical documentation for Archly.
 
+## Current documents
+
+- [V1 product requirements](requirements-v1.md)
+- [V1 canvas requirements](canvas-requirements-v1.md)
+
 ## Planned documentation
 
 - Product requirements and prototype scope

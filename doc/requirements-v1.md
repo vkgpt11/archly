@@ -79,6 +79,8 @@ Priorities are Must, Should, and Could.
 
 ### 5.3 Canvas
 
+Detailed canvas behavior, visual layout, and acceptance criteria are defined in [V1 canvas requirements](canvas-requirements-v1.md).
+
 | ID | Priority | Requirement |
 | --- | --- | --- |
 | CAN-001 | Must | The canvas supports pan, zoom, fit-to-screen, and reset view. |
