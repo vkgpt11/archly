@@ -68,12 +68,13 @@ Priorities are Must, Should, and Could.
 
 | ID | Priority | Requirement |
 | --- | --- | --- |
-| NOD-001 | Must | Users can add, select, move, resize, duplicate, and delete nodes. |
+| NOD-001 | Must | Users can add, select, move, duplicate, and delete nodes. |
+| NOD-001A | Must | Node dimensions adjust automatically to visible title and subtitle content; manual resizing is not provided. |
 | NOD-002 | Must | Users can edit node text directly and through the properties inspector. |
 | NOD-003 | Must | Text and note elements support multiline content. |
 | NOD-004 | Must | Nodes expose connection handles when selected or when the Connect tool is active. |
-| NOD-005 | Must | Resize handles and selection outlines remain clearly visible in both themes. |
-| NOD-006 | Should | Users can lock a node to prevent accidental movement or resizing. |
+| NOD-005 | Must | Selection outlines remain clearly visible in both themes. |
+| NOD-006 | Should | Users can lock a node to prevent accidental movement. |
 | NOD-007 | Should | Users can bring a node forward or send it backward. |
 
 ### 4.4 Connections
@@ -118,7 +119,7 @@ Priorities are Must, Should, and Could.
 | ID | Priority | Requirement |
 | --- | --- | --- |
 | LAY-001 | Must | The canvas provides a visible grid and optional snap-to-grid behavior. |
-| LAY-002 | Must | Alignment guides appear while elements are moved or resized. |
+| LAY-002 | Must | Alignment guides appear while elements are moved. |
 | LAY-003 | Must | Multiple selected elements can be aligned left, center, right, top, middle, or bottom. |
 | LAY-004 | Must | Multiple selected elements can be distributed horizontally or vertically. |
 | LAY-005 | Should | Selected elements can be made equal width or equal height. |
@@ -223,7 +224,7 @@ The V1 canvas should provide the following shortcuts while respecting platform c
 The canvas is ready for V1 prototype testing when:
 
 1. A user can build a recognizable architecture diagram using the generic component library.
-2. Nodes can be edited, moved, resized, duplicated, grouped, and connected without losing data after reload.
+2. Nodes can be edited, moved, duplicated, grouped, and connected without losing data after reload, and their dimensions follow visible content.
 3. Connections can be labeled, restyled, rerouted, and reconnected.
 4. Multi-selection, keyboard shortcuts, undo, redo, alignment, and distribution work consistently.
 5. Containers retain membership and move their contained elements correctly.

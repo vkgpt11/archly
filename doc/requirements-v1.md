@@ -84,7 +84,7 @@ Detailed canvas behavior, visual layout, and acceptance criteria are defined in 
 | ID | Priority | Requirement |
 | --- | --- | --- |
 | CAN-001 | Must | The canvas supports pan, zoom, fit-to-screen, and reset view. |
-| CAN-002 | Must | Users can add, select, move, resize, duplicate, and delete nodes. |
+| CAN-002 | Must | Users can add, select, move, duplicate, and delete nodes; node dimensions adjust automatically to visible content. |
 | CAN-003 | Must | Users can connect nodes with directional, labeled edges. |
 | CAN-004 | Must | Users can select and move multiple elements. |
 | CAN-005 | Must | The editor supports undo, redo, copy, and paste. |
