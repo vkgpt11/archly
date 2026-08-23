@@ -85,7 +85,7 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
       className={`architecture-node architecture-node-${kind} ${iconDensity}${selected ? ' selected' : ''}${data.locked ? ' locked' : ''}`}
       style={{ background: data.fill, borderColor: data.border, color: data.textColor }}
     >
-      {kind !== 'text' && <Icon className="component-kind-icon" aria-hidden="true" />}
+      {kind !== 'text' && <span className="component-kind-icon" aria-hidden="true"><Icon /></span>}
       <button className="component-lock nodrag nowheel" onClick={toggleLock} title={data.locked ? 'Unlock component' : 'Lock component'} aria-label={data.locked ? 'Unlock component' : 'Lock component'}>{data.locked ? <Lock /> : <Unlock />}</button>
       <div className="architecture-node-copy">
         {selected ? <input className="nodrag nowheel" aria-label="Component name" value={label} onChange={(event) => updateContent(event.target.value, subtitle)} onBlur={() => updateContent(label.trim() || 'Untitled component', subtitle.trim())} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} /> : <strong title={data.label}>{truncateCanvasText(data.label || 'Untitled component', COMPONENT_TITLE_LIMIT)}</strong>}
