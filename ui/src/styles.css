@@ -142,6 +142,20 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .canvas-history > span, .canvas-navigation > span { width: 1px; margin: 5px 2px; background: var(--border); }
 .canvas-history i { display: none; }
 .canvas-navigation .zoom-value { width: 48px; font-size: 11px; font-weight: 750; }
+.connection-toolbar { position: absolute; z-index: 10; left: 50%; top: 64px; display: flex; align-items: center; gap: 5px; max-width: calc(100% - 120px); padding: 6px; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in srgb, var(--surface) 96%, transparent); box-shadow: 0 12px 32px rgba(24,25,35,.18); transform: translateX(-50%); backdrop-filter: blur(10px); }
+.connection-toolbar button, .connection-color, .connection-select { width: 34px; height: 34px; display: grid; place-items: center; flex: 0 0 auto; padding: 0; border: 0; border-radius: 8px; color: var(--text-soft); background: transparent; }
+.connection-toolbar button:hover, .connection-toolbar button.active, .connection-color:hover, .connection-select:hover { color: var(--accent); background: var(--accent-soft); }
+.connection-toolbar svg { width: 17px; height: 17px; }
+.connection-color { position: relative; cursor: pointer; }
+.connection-color span { width: 18px; height: 18px; border: 2px solid var(--surface); border-radius: 50%; box-shadow: 0 0 0 1px var(--border); }
+.connection-color input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.connection-select { position: relative; cursor: pointer; }
+.connection-select select { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.connection-divider { width: 1px; height: 22px; flex: 0 0 auto; margin: 0 3px; background: var(--border); }
+.connection-toolbar .dashed-line { padding-bottom: 7px; font-size: 17px; font-weight: 800; letter-spacing: 2px; }
+.connection-label-input { width: 112px; height: 32px; padding: 0 9px; border: 1px solid transparent; border-radius: 8px; outline: 0; color: var(--text); background: var(--surface-soft); font-size: 11px; }
+.connection-label-input:focus { border-color: var(--accent); }
+.connection-toolbar .connection-delete:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
 .component-library, .canvas-inspector { position: absolute; z-index: 9; top: 14px; bottom: 14px; width: min(290px, calc(100% - 90px)); overflow: auto; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); box-shadow: 0 18px 50px rgba(24,25,35,.16); }
 .component-library { left: 62px; padding: 14px; }
 .canvas-inspector { right: 14px; padding: 16px; }

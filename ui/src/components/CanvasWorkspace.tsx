@@ -5,9 +5,9 @@ import {
 } from '@xyflow/react'
 import {
   AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, AppWindow, Box, Boxes,
-  Braces, Cloud, Database, Expand, ExternalLink, FileText, Focus, Hand, Layers3, LocateFixed,
-  MessageSquareText, MousePointer2, Network, Plus, Redo2, Search, Server, Smartphone,
-  Trash2, Undo2, UserRound, Workflow, X, ZoomIn, ZoomOut,
+  ArrowLeft, ArrowRight, Braces, Cloud, Database, Expand, ExternalLink, FileText, Focus, Hand,
+  Layers3, LocateFixed, MessageSquareText, Minus, MousePointer2, Network, Plus, Redo2, Search,
+  Server, Smartphone, Spline, Trash2, Undo2, UserRound, Workflow, X, ZoomIn, ZoomOut,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 
@@ -356,14 +356,15 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
         <button onClick={() => document.fullscreenElement ? document.exitFullscreen() : document.querySelector('.canvas-panel')?.requestFullscreen()} title="Fullscreen" aria-label="Fullscreen"><Expand /></button>
       </div>
 
-      {(selectedNode || selectedEdge) && inspectorOpen && (
+      {selectedEdge && <ConnectionToolbar edge={selectedEdge} update={updateSelectedEdge} onDelete={deleteSelection} />}
+
+      {selectedNode && !selectedEdge && inspectorOpen && (
         <aside className="canvas-inspector" aria-label="Properties inspector">
-          <header><div><strong>Properties</strong><span>{selectedNode ? 'Component' : 'Connection'}</span></div><button onClick={() => setInspectorOpen(false)} aria-label="Close properties"><X /></button></header>
-          {selectedNode && <NodeInspector node={selectedNode} update={updateSelectedNode} onDelete={deleteSelection} />}
-          {selectedEdge && <EdgeInspector edge={selectedEdge} update={updateSelectedEdge} onDelete={deleteSelection} />}
+          <header><div><strong>Properties</strong><span>Component</span></div><button onClick={() => setInspectorOpen(false)} aria-label="Close properties"><X /></button></header>
+          <NodeInspector node={selectedNode} update={updateSelectedNode} onDelete={deleteSelection} />
         </aside>
       )}
-      {(selectedNode || selectedEdge) && !inspectorOpen && <button className="open-inspector" onClick={() => setInspectorOpen(true)} title="Open properties" aria-label="Open properties"><Layers3 /></button>}
+      {selectedNode && !selectedEdge && !inspectorOpen && <button className="open-inspector" onClick={() => setInspectorOpen(true)} title="Open properties" aria-label="Open properties"><Layers3 /></button>}
     </div>
   )
 }
@@ -384,15 +385,20 @@ function NodeInspector({ node, update, onDelete }: { node: Node; update: (patch:
   </div>
 }
 
-function EdgeInspector({ edge, update, onDelete }: { edge: Edge; update: (patch: Partial<Edge>) => void; onDelete: () => void }) {
+function ConnectionToolbar({ edge, update, onDelete }: { edge: Edge; update: (patch: Partial<Edge>) => void; onDelete: () => void }) {
   const color = String(edge.style?.stroke || '#68708a')
-  return <div className="inspector-fields">
-    <label>Label<input value={String(edge.label || '')} onChange={(event) => update({ label: event.target.value })} /></label>
-    <label>Routing<select value={edge.type || 'smoothstep'} onChange={(event) => update({ type: event.target.value })}><option value="straight">Straight</option><option value="default">Curved</option><option value="smoothstep">Stepped</option></select></label>
-    <label>Line style<select value={edge.style?.strokeDasharray ? 'dashed' : 'solid'} onChange={(event) => update({ style: { ...edge.style, strokeDasharray: event.target.value === 'dashed' ? '7 5' : undefined } })}><option value="solid">Solid</option><option value="dashed">Dashed</option></select></label>
-    <label>Line color<input type="color" value={color} onChange={(event) => update({ style: { ...edge.style, stroke: event.target.value } })} /></label>
-    <label className="inspector-check"><input type="checkbox" checked={Boolean(edge.markerEnd)} onChange={(event) => update({ markerEnd: event.target.checked ? { type: MarkerType.ArrowClosed } : undefined })} /> Direction arrow</label>
-    <button className="danger-action" onClick={onDelete}><Trash2 /> Delete connection</button>
+  const width = Number(edge.style?.strokeWidth || 2)
+  return <div className="connection-toolbar" role="toolbar" aria-label="Connection formatting">
+    <label className="connection-color" title="Line color" aria-label="Line color"><span style={{ background: color }} /><input type="color" value={color} onChange={(event) => update({ style: { ...edge.style, stroke: event.target.value } })} /></label>
+    <label className="connection-select" title="Connection routing"><Spline /><select aria-label="Connection routing" value={edge.type || 'smoothstep'} onChange={(event) => update({ type: event.target.value })}><option value="straight">Straight</option><option value="default">Curved</option><option value="smoothstep">Stepped</option></select></label>
+    <label className="connection-select line-width" title="Line weight"><Minus /><select aria-label="Line weight" value={width} onChange={(event) => update({ style: { ...edge.style, strokeWidth: Number(event.target.value) } })}><option value="1">Thin</option><option value="2">Regular</option><option value="3">Bold</option><option value="5">Heavy</option></select></label>
+    <span className="connection-divider" />
+    <button className={edge.markerStart ? 'active' : ''} onClick={() => update({ markerStart: edge.markerStart ? undefined : { type: MarkerType.ArrowClosed } })} title="Toggle start arrow" aria-label="Toggle start arrow"><ArrowLeft /></button>
+    <button className={edge.markerEnd ? 'active' : ''} onClick={() => update({ markerEnd: edge.markerEnd ? undefined : { type: MarkerType.ArrowClosed } })} title="Toggle end arrow" aria-label="Toggle end arrow"><ArrowRight /></button>
+    <button className={edge.style?.strokeDasharray ? 'active dashed-line' : 'dashed-line'} onClick={() => update({ style: { ...edge.style, strokeDasharray: edge.style?.strokeDasharray ? undefined : '7 5' } })} title="Toggle dashed line" aria-label="Toggle dashed line">•••</button>
+    <span className="connection-divider" />
+    <input className="connection-label-input" aria-label="Connection label" value={String(edge.label || '')} onChange={(event) => update({ label: event.target.value })} placeholder="Add label" />
+    <button className="connection-delete" onClick={onDelete} title="Delete connection" aria-label="Delete connection"><Trash2 /></button>
   </div>
 }
 
