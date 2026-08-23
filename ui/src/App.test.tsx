@@ -28,4 +28,9 @@ describe('App', () => {
     expect(document.documentElement).toHaveAttribute('data-theme', 'dark')
     expect(localStorage.getItem('archly-theme')).toBe('dark')
   })
+
+  it('does not initialize Google sign-in when it is not configured', () => {
+    render(<App googleEnabled={false} />)
+    expect(screen.queryByRole('button', { name: /sign in with google/i })).not.toBeInTheDocument()
+  })
 })

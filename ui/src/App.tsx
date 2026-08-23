@@ -3,7 +3,9 @@ import { GoogleLogin } from '@react-oauth/google'
 import Dashboard from './components/Dashboard'
 import ThemeToggle from './components/ThemeToggle'
 
-export default function App() {
+type Props = { googleEnabled?: boolean }
+
+export default function App({ googleEnabled = true }: Props) {
   const [credential, setCredential] = useState<string | null>(null)
   const [error, setError] = useState('')
   const devBypassEnabled = import.meta.env.VITE_DEV_AUTH === 'true'
@@ -20,13 +22,15 @@ export default function App() {
         <p className="eyebrow">Technical design, in one place</p>
         <h1>Build systems people understand.</h1>
         <p className="lede">Create architecture diagrams and the documents that explain them.</p>
-        <div className="google-button">
-          <GoogleLogin
-            onSuccess={(response) => response.credential && setCredential(response.credential)}
-            onError={() => setError('Google sign-in failed. Please try again.')}
-            useOneTap={false}
-          />
-        </div>
+        {googleEnabled && (
+          <div className="google-button">
+            <GoogleLogin
+              onSuccess={(response) => response.credential && setCredential(response.credential)}
+              onError={() => setError('Google sign-in failed. Please try again.')}
+              useOneTap={false}
+            />
+          </div>
+        )}
         {devBypassEnabled && (
           <button className="dev-bypass-button" onClick={() => setCredential('archly-local-dev')}>
             Continue as local developer

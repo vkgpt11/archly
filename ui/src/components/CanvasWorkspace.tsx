@@ -117,8 +117,6 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
   )
 }
 
-const nodeTypes = { architecture: ArchitectureNode }
-
 function EditableConnectionEdge(props: EdgeProps<Edge>) {
   const { updateEdge } = useReactFlow()
   const routing = String(props.data?.routing || 'smoothstep')
@@ -148,8 +146,6 @@ function EditableConnectionEdge(props: EdgeProps<Edge>) {
   </>
 }
 
-const edgeTypes = { editable: EditableConnectionEdge }
-
 function normalizedNode(node: Node): Node {
   if (node.type === 'architecture') return node
   return {
@@ -162,6 +158,8 @@ function normalizedNode(node: Node): Node {
 
 function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
   const flow = useReactFlow()
+  const stableNodeTypes = useMemo(() => ({ architecture: ArchitectureNode }), [])
+  const stableEdgeTypes = useMemo(() => ({ editable: EditableConnectionEdge }), [])
   const [tool, setTool] = useState<CanvasTool>('select')
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [inspectorOpen, setInspectorOpen] = useState(true)
@@ -356,8 +354,8 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
+        nodeTypes={stableNodeTypes}
+        edgeTypes={stableEdgeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
