@@ -36,6 +36,9 @@ export default function Editor({ token, initialProject, onBack }: Props) {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialCanvas.edges)
   const [view, setView] = useState<View>('split')
   const [documentWidth, setDocumentWidth] = useState(45)
+  const [linkEditorOpen, setLinkEditorOpen] = useState(false)
+  const [linkUrl, setLinkUrl] = useState('https://')
+  const [linkError, setLinkError] = useState('')
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error'>('saved')
   const latestProject = useRef(project)
   const editorBody = useRef<HTMLDivElement>(null)
@@ -124,13 +127,28 @@ export default function Editor({ token, initialProject, onBack }: Props) {
   function editLink() {
     if (!richTextEditor) return
     const currentUrl = richTextEditor.getAttributes('link').href as string | undefined
-    const url = window.prompt('Enter a URL', currentUrl || 'https://')
-    if (url === null) return
-    if (url.trim() === '') {
-      richTextEditor.chain().focus().extendMarkRange('link').unsetLink().run()
+    setLinkUrl(currentUrl || 'https://')
+    setLinkError('')
+    setLinkEditorOpen(true)
+  }
+
+  function applyLink() {
+    const url = linkUrl.trim()
+    if (!richTextEditor || !url || url === 'https://') return
+    try {
+      const parsed = new URL(url)
+      if (!['http:', 'https:', 'mailto:'].includes(parsed.protocol)) throw new Error('Unsupported protocol')
+    } catch {
+      setLinkError('Enter a valid HTTP, HTTPS, or email link.')
       return
     }
-    richTextEditor.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run()
+    richTextEditor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+    setLinkEditorOpen(false)
+  }
+
+  function removeLink() {
+    richTextEditor?.chain().focus().extendMarkRange('link').unsetLink().run()
+    setLinkEditorOpen(false)
   }
 
   return (
@@ -179,7 +197,28 @@ export default function Editor({ token, initialProject, onBack }: Props) {
               <button className={richTextEditor?.isActive('orderedList') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleOrderedList().run()} title="Numbered list" aria-label="Numbered list"><ListOrdered /></button>
               <button className={richTextEditor?.isActive('blockquote') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleBlockquote().run()} title="Quote" aria-label="Quote"><Quote /></button>
               <button className={richTextEditor?.isActive('codeBlock') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleCodeBlock().run()} title="Create a multiline syntax-highlighted code snippet" aria-label="Code snippet"><SquareCode /></button>
-              <button className={richTextEditor?.isActive('link') ? 'active' : ''} onClick={editLink} title="Add or edit link" aria-label="Add or edit link"><Link2 /></button>
+              <div className="link-menu">
+                <button className={richTextEditor?.isActive('link') || linkEditorOpen ? 'active' : ''} onClick={editLink} title="Add or edit link" aria-label="Add or edit link"><Link2 /></button>
+                {linkEditorOpen && (
+                  <div className="link-popover" role="dialog" aria-label="Edit link" onKeyDown={(event) => event.key === 'Escape' && setLinkEditorOpen(false)}>
+                    <label htmlFor="editor-link-url">Link URL</label>
+                    <input
+                      id="editor-link-url"
+                      value={linkUrl}
+                      onChange={(event) => { setLinkUrl(event.target.value); setLinkError('') }}
+                      onKeyDown={(event) => event.key === 'Enter' && applyLink()}
+                      placeholder="https://example.com"
+                      autoFocus
+                    />
+                    {linkError && <p className="link-error" role="alert">{linkError}</p>}
+                    <div className="link-actions">
+                      {richTextEditor?.isActive('link') && <button className="remove-link" onClick={removeLink}>Remove</button>}
+                      <button className="cancel-link" onClick={() => setLinkEditorOpen(false)}>Cancel</button>
+                      <button className="apply-link" onClick={applyLink} disabled={!linkUrl.trim() || linkUrl.trim() === 'https://'}>Apply</button>
+                    </div>
+                  </div>
+                )}
+              </div>
               <span className="toolbar-spacer" />
               <button onClick={() => richTextEditor?.chain().focus().undo().run()} disabled={!richTextEditor?.can().undo()} title="Undo" aria-label="Undo"><Undo2 /></button>
               <button onClick={() => richTextEditor?.chain().focus().redo().run()} disabled={!richTextEditor?.can().redo()} title="Redo" aria-label="Redo"><Redo2 /></button>
