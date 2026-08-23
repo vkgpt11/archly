@@ -200,6 +200,9 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .architecture-node-text { display: block; padding: 4px 6px; border-color: transparent; background: transparent; box-shadow: none; }
 .react-flow__handle { width: 8px; height: 8px; border: 2px solid var(--canvas-bg); opacity: 0; background: var(--node-accent); transition: opacity .15s ease; }
 .architecture-node:hover .react-flow__handle, .architecture-node.selected .react-flow__handle, .connect-mode .react-flow__handle { opacity: 1; }
+.react-flow__edgeupdater { cursor: grab; fill: transparent; stroke: transparent; }
+.react-flow__edgeupdater:active { cursor: grabbing; }
+.react-flow__edge.selected .react-flow__edge-path { stroke-width: 3; filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 45%, transparent)); }
 .edge-inline-label { position: absolute; z-index: 3; height: 16px; padding: 0 2px; border: 0; border-radius: 0; outline: 0; color: var(--text-soft); background: var(--canvas-bg); box-shadow: 0 0 0 1px var(--canvas-bg); font-size: 9px; line-height: 16px; text-align: center; pointer-events: all; }
 .edge-inline-label:hover, .edge-inline-label:focus, .edge-inline-label.selected:focus { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
 .canvas-panel:fullscreen { background: var(--page); }

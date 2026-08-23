@@ -1,7 +1,7 @@
 import {
   Background, BackgroundVariant, BaseEdge, ConnectionMode, Controls, EdgeLabelRenderer, Handle, MarkerType,
   MiniMap, ReactFlow, ReactFlowProvider, Position, addEdge, applyEdgeChanges,
-  applyNodeChanges, getBezierPath, getSmoothStepPath, getStraightPath, useReactFlow,
+  applyNodeChanges, getBezierPath, getSmoothStepPath, getStraightPath, reconnectEdge, useReactFlow,
   type Connection, type Edge, type EdgeChange, type EdgeProps, type Node, type NodeChange, type NodeProps,
 } from '@xyflow/react'
 import {
@@ -56,6 +56,13 @@ const iconByKind = {
   note: MessageSquareText, text: FileText,
 }
 
+function BidirectionalHandle({ position, id }: { position: Position; id: string }) {
+  return <>
+    <Handle type="source" position={position} id={id} />
+    <Handle type="target" position={position} id={id} />
+  </>
+}
+
 function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNodeData>>) {
   const { getNode, updateNode } = useReactFlow()
   const kind = data.kind || 'service'
@@ -102,10 +109,10 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
       </div>
       {kind !== 'text' && kind !== 'note' && kind !== 'container' && (
         <>
-          <Handle type="target" position={Position.Left} id="left" />
-          <Handle type="source" position={Position.Right} id="right" />
-          <Handle type="target" position={Position.Top} id="top" />
-          <Handle type="source" position={Position.Bottom} id="bottom" />
+          <BidirectionalHandle position={Position.Left} id="left" />
+          <BidirectionalHandle position={Position.Right} id="right" />
+          <BidirectionalHandle position={Position.Top} id="top" />
+          <BidirectionalHandle position={Position.Bottom} id="bottom" />
         </>
       )}
     </div>
@@ -113,7 +120,7 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
 }
 
 function EditableConnectionEdge(props: EdgeProps<Edge>) {
-  const { updateEdge } = useReactFlow()
+  const { setEdges, updateEdge } = useReactFlow()
   const routing = String(props.data?.routing || 'smoothstep')
   const pathArgs = {
     sourceX: props.sourceX, sourceY: props.sourceY, sourcePosition: props.sourcePosition,
@@ -126,6 +133,10 @@ function EditableConnectionEdge(props: EdgeProps<Edge>) {
       : getSmoothStepPath(pathArgs)
   const label = String(props.label || '')
 
+  function selectThisEdge() {
+    setEdges((current) => current.map((edge) => ({ ...edge, selected: edge.id === props.id })))
+  }
+
   return <>
     <BaseEdge id={props.id} path={path} markerStart={props.markerStart} markerEnd={props.markerEnd} style={props.style} interactionWidth={20} />
     {(label || props.selected) && <EdgeLabelRenderer>
@@ -133,6 +144,8 @@ function EditableConnectionEdge(props: EdgeProps<Edge>) {
         className={`edge-inline-label nodrag nopan${props.selected ? ' selected' : ''}`}
         aria-label="Line text"
         value={label}
+        onFocus={selectThisEdge}
+        onPointerDown={(event) => { event.stopPropagation(); selectThisEdge() }}
         onChange={(event) => updateEdge(props.id, { label: event.target.value })}
         placeholder="Add label"
         style={{
@@ -288,6 +301,11 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
     }, current))
   }, [setEdges])
 
+  function onReconnect(oldEdge: Edge, connection: Connection) {
+    remember()
+    setEdges((current) => reconnectEdge(oldEdge, connection, current))
+  }
+
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     setNodes((current) => applyNodeChanges(changes, current))
   }, [setNodes])
@@ -343,12 +361,16 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onReconnect={onReconnect}
         onNodeDragStart={() => { dragSnapshot.current = structuredClone({ nodes: nodesRef.current, edges: edgesRef.current }) }}
         onNodeDragStop={() => { if (dragSnapshot.current) remember(dragSnapshot.current); dragSnapshot.current = null }}
         onMove={(_, viewport) => setZoom(Math.round(viewport.zoom * 100))}
         panOnDrag={tool === 'pan' ? true : [1]}
         nodesDraggable={tool !== 'pan'}
         nodesConnectable={tool === 'connect' || tool === 'select'}
+        edgesReconnectable={tool !== 'pan'}
+        reconnectRadius={18}
+        elevateEdgesOnSelect
         connectionMode={ConnectionMode.Loose}
         selectionOnDrag={tool === 'select'}
         snapToGrid
