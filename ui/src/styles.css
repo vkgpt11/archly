@@ -180,9 +180,9 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .architecture-node-copy input:hover, .architecture-node-copy input:focus { border-color: var(--accent); background: color-mix(in srgb, var(--surface) 85%, transparent); }
 .architecture-node-copy .subtitle-input { color: var(--text-soft); font-size: 9px; font-weight: 400; }
 .architecture-node.selected { outline: 2px solid var(--accent); outline-offset: 2px; }
-.component-lock { position: absolute; z-index: 4; right: 10px; bottom: -11px; width: 24px; height: 24px; display: grid; place-items: center; padding: 0; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); background: var(--surface); box-shadow: 0 4px 10px rgba(20,21,30,.14); }
+.component-lock { position: absolute; z-index: 4; right: 9px; bottom: -8px; width: 17px; height: 17px; display: grid; place-items: center; padding: 0; border: 1px solid var(--border); border-radius: 5px; color: var(--muted); background: var(--surface); box-shadow: 0 3px 7px rgba(20,21,30,.13); }
 .component-lock:hover, .architecture-node.locked .component-lock { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
-.component-lock svg { width: 12px; height: 12px; }
+.component-lock svg { width: 9px; height: 9px; stroke-width: 2.25; }
 .component-resizer-line { border-color: var(--accent) !important; }
 .component-resizer-handle { width: 8px !important; height: 8px !important; border: 2px solid var(--surface) !important; border-radius: 50% !important; background: var(--accent) !important; }
 .architecture-node-note { align-items: flex-start; min-height: 96px; border-color: #e4c34f; color: #3f3511; box-shadow: 0 4px 12px rgba(80,65,10,.1); }
