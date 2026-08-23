@@ -16,9 +16,12 @@ export function getComponentSize(label: string, kind: ArchitectureKind) {
   const visibleLabel = truncateCanvasText(label.trim(), COMPONENT_TITLE_LIMIT)
   const characterWidth = kind === 'text' ? 7 : 6.5
   const reservedSpace = kind === 'text' ? 18 : 24
-  const maximumWidth = kind === 'text' ? 420 : 360
+  const maximumWidth = kind === 'text' ? 420 : 132
+  const width = Math.round(Math.min(maximumWidth, visibleLabel.length * characterWidth + reservedSpace))
+  const availableTextWidth = Math.max(1, width - 16)
+  const titleLines = Math.min(2, Math.max(1, Math.ceil((visibleLabel.length * characterWidth) / availableTextWidth)))
   return {
-    width: Math.round(Math.min(maximumWidth, visibleLabel.length * characterWidth + reservedSpace)),
-    height: kind === 'text' ? 30 : 52,
+    width,
+    height: kind === 'text' ? 30 : titleLines > 1 ? 64 : 52,
   }
 }

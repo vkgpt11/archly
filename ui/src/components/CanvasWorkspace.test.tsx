@@ -36,8 +36,8 @@ describe('CanvasWorkspace', () => {
     const expanded = getComponentSize('Customer identity and access service', 'service')
     expect(compact).toEqual({ width: 44, height: 52 })
     expect(expanded.width).toBeGreaterThan(compact.width)
-    expect(expanded.width).toBeLessThanOrEqual(360)
-    expect(expanded.height).toBe(compact.height)
+    expect(expanded.width).toBeLessThanOrEqual(132)
+    expect(expanded.height).toBeGreaterThan(compact.height)
     expect(getComponentSize('Boundary', 'container')).toEqual({ width: 360, height: 240 })
   })
 
@@ -69,6 +69,7 @@ describe('CanvasWorkspace', () => {
     expect(screen.getByLabelText('Component name')).toHaveValue('Orders Database')
     expect(screen.getByLabelText('Component name').closest('.architecture-node')).toHaveClass('icon-medium')
     expect(screen.queryByLabelText('Component subtitle')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Component name')).toHaveAttribute('rows', '2')
     expect(screen.getByLabelText('Component name').closest('.react-flow__node')).toHaveStyle({ width: '122px', height: '52px' })
     expect(screen.getByLabelText('Lock component')).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Lock component'))
