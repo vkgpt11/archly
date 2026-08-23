@@ -191,9 +191,8 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .react-flow__handle { width: 8px; height: 8px; border: 2px solid var(--surface); background: var(--accent); }
 .react-flow__edge-text { fill: var(--text-soft); font-size: 10px; }
 .react-flow__edge-textbg { fill: var(--surface); }
-.edge-inline-label { position: absolute; z-index: 3; height: 26px; padding: 0 7px; border: 1px solid var(--border); border-radius: 7px; outline: 0; color: var(--text); background: var(--surface); box-shadow: 0 2px 7px rgba(20,21,30,.1); font-size: 10px; text-align: center; pointer-events: all; }
-.edge-inline-label:hover, .edge-inline-label:focus, .edge-inline-label.selected { border-color: var(--accent); }
-.edge-inline-label:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
+.edge-inline-label { position: absolute; z-index: 3; height: 20px; padding: 0 4px; border: 0; border-radius: 5px; outline: 0; color: var(--text-soft); background: transparent; box-shadow: none; font-size: 9px; text-align: center; text-shadow: 0 0 3px var(--surface), 0 0 3px var(--surface), 0 0 5px var(--surface); pointer-events: all; }
+.edge-inline-label:hover, .edge-inline-label:focus, .edge-inline-label.selected:focus { color: var(--text); background: color-mix(in srgb, var(--surface) 82%, transparent); }
 .inspector-fields { display: grid; gap: 13px; }
 .inspector-hint { margin: 0; padding: 9px 10px; border-radius: 9px; color: var(--text-soft); background: var(--surface-soft); font-size: 11px; line-height: 1.5; }
 .inspector-fields label { display: grid; gap: 6px; color: var(--text-soft); font-size: 11px; font-weight: 700; }
