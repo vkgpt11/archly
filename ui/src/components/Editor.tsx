@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { api } from '../api'
 import type { CanvasData, Project } from '../types'
+import ThemeToggle from './ThemeToggle'
 
 type View = 'canvas' | 'document' | 'split'
 type Props = { token: string; initialProject: Project; onBack: (project: Project) => void }
@@ -73,7 +74,7 @@ export default function Editor({ token, initialProject, onBack }: Props) {
       id: crypto.randomUUID(),
       position: { x: 120 + nodes.length * 32, y: 100 + nodes.length * 24 },
       data: { label: `Service ${nodes.length + 1}` },
-      style: { border: '1px solid #8b5cf6', borderRadius: 12, padding: 12, background: '#fff' },
+      style: { border: '1px solid var(--accent)', borderRadius: 12, padding: 12, color: 'var(--text)', background: 'var(--surface)' },
     }
     setNodes((current) => [...current, node])
   }
@@ -161,6 +162,7 @@ export default function Editor({ token, initialProject, onBack }: Props) {
             <button key={option} className={view === option ? 'active' : ''} onClick={() => setView(option)}>{option}</button>
           ))}
         </div>
+        <ThemeToggle />
         <span className={`save-state ${saveState}`}>{saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Save failed' : 'Saved'}</span>
       </header>
       <div className="editor-body" ref={editorBody}>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api'
 import type { Project } from '../types'
 import Editor from './Editor'
+import ThemeToggle from './ThemeToggle'
 
 type Props = { token: string; onSignOut: () => void }
 
@@ -52,6 +53,7 @@ export default function Dashboard({ token, onSignOut }: Props) {
     <main className="dashboard-shell">
       <header className="topbar">
         <a className="brand" href="#" aria-label="Archly home"><span>A</span> Archly</a>
+        <ThemeToggle />
         <button className="text-button" onClick={onSignOut}>Sign out</button>
       </header>
       <section className="dashboard-content">
