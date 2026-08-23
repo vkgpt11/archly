@@ -18,14 +18,12 @@ import {
 
 type CanvasTool = 'select' | 'pan' | 'connect'
 
-export type ArchitectureNodeData = {
+type ArchitectureNodeData = {
   label?: string
   kind?: ArchitectureKind
-  description?: string
   fill?: string
   border?: string
   textColor?: string
-  documentationUrl?: string
   locked?: boolean
 }
 
@@ -69,14 +67,14 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
   useEffect(() => {
     if (kind === 'container') return
     const current = getNode(id)
-    const size = getComponentSize(label, kind)
+    const size = getComponentSize(label, kind, selected)
     if (current?.width === size.width && current?.height === size.height) return
     updateNode(id, { ...size, style: { ...current?.style, ...size } })
-  }, [getNode, id, kind, label, updateNode])
+  }, [getNode, id, kind, label, selected, updateNode])
 
   function updateContent(nextLabel: string) {
     const current = getNode(id)
-    const nextSize = kind === 'container' ? {} : getComponentSize(nextLabel, kind)
+    const nextSize = kind === 'container' ? {} : getComponentSize(nextLabel, kind, selected)
     const nextStyle = kind === 'container' ? current?.style : { ...current?.style, ...nextSize }
     updateNode(id, { ...nextSize, data: { ...data, label: nextLabel }, style: nextStyle })
   }

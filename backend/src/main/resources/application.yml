@@ -21,6 +21,12 @@ server:
   error:
     include-message: always
 
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    display-request-duration: true
+    operations-sorter: method
+
 management:
   endpoints:
     web:

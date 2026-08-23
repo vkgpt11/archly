@@ -38,6 +38,7 @@ describe('CanvasWorkspace', () => {
     expect(expanded.width).toBeGreaterThan(compact.width)
     expect(expanded.width).toBeLessThanOrEqual(132)
     expect(expanded.height).toBeGreaterThan(compact.height)
+    expect(getComponentSize('API', 'service', true).height).toBe(64)
     expect(getComponentSize('Boundary', 'container')).toEqual({ width: 360, height: 240 })
   })
 
@@ -70,7 +71,7 @@ describe('CanvasWorkspace', () => {
     expect(screen.getByLabelText('Component name').closest('.architecture-node')).toHaveClass('icon-medium')
     expect(screen.queryByLabelText('Component subtitle')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Component name')).toHaveAttribute('rows', '2')
-    expect(screen.getByLabelText('Component name').closest('.react-flow__node')).toHaveStyle({ width: '122px', height: '52px' })
+    expect(screen.getByLabelText('Component name').closest('.react-flow__node')).toHaveStyle({ width: '122px', height: '64px' })
     fireEvent.change(screen.getByLabelText('Component name'), { target: { value: 'Orders\nDatabase' } })
     expect(screen.getByLabelText('Component name')).toHaveValue('Orders\nDatabase')
     expect(screen.getByLabelText('Component name').closest('.react-flow__node')).toHaveStyle({ height: '64px' })

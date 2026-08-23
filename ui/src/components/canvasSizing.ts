@@ -11,7 +11,7 @@ export function getEdgeLabelWidth(label: string) {
   return label ? Math.min(144, Math.max(18, Math.ceil(label.length * 5.25 + 6))) : 46
 }
 
-export function getComponentSize(label: string, kind: ArchitectureKind) {
+export function getComponentSize(label: string, kind: ArchitectureKind, editing = false) {
   if (kind === 'container') return { width: 360, height: 240 }
   const visibleLabel = truncateCanvasText(label.trim(), COMPONENT_TITLE_LIMIT)
   const labelLines = visibleLabel.split(/\r?\n/)
@@ -26,6 +26,6 @@ export function getComponentSize(label: string, kind: ArchitectureKind) {
   )))
   return {
     width,
-    height: kind === 'text' ? 30 : titleLines > 1 ? 64 : 52,
+    height: kind === 'text' ? 30 : editing || titleLines > 1 ? 64 : 52,
   }
 }
