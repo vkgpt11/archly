@@ -105,7 +105,7 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .rich-text-content li + li { margin-top: .3em; }
 .rich-text-content li > p { margin: 0; }
 .rich-text-content li > ul, .rich-text-content li > ol { margin: .3em 0; }
-.rich-text-content li::marker { color: #6d4aff; font-weight: 700; }
+.rich-text-content li::marker { color: var(--text); font-weight: 600; }
 .rich-text-content p.is-editor-empty:first-child::before { content: 'Describe your architecture…'; float: left; height: 0; color: #a2a5b1; pointer-events: none; }
 .rich-text-content a { color: #5d42db; text-decoration: underline; text-underline-offset: 2px; }
 .rich-text-content code { padding: 2px 5px; border-radius: 5px; color: #8b2950; background: #f5eef2; font-family: "SFMono-Regular", Consolas, monospace; font-size: .88em; }
