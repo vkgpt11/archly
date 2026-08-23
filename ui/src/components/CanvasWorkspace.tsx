@@ -100,7 +100,7 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
         aria-label={data.locked ? 'Unlock component' : 'Lock component'}
       >{data.locked ? <Lock /> : <Unlock />}</button>
       <div className="architecture-node-copy">
-        {selected ? <textarea className="nodrag nowheel" aria-label="Component name" value={label} onChange={(event) => updateContent(event.target.value.replace(/\r?\n/g, ' '))} onBlur={() => updateContent(label.trim() || 'Untitled component')} rows={2} /> : <strong title={data.label}>{truncateCanvasText(data.label || 'Untitled component', COMPONENT_TITLE_LIMIT)}</strong>}
+        {selected ? <textarea className="nodrag nowheel" aria-label="Component name" value={label} onChange={(event) => updateContent(event.target.value)} onBlur={() => updateContent(label.trim() || 'Untitled component')} rows={2} /> : <strong title={data.label}>{truncateCanvasText(data.label || 'Untitled component', COMPONENT_TITLE_LIMIT)}</strong>}
       </div>
       {kind !== 'text' && kind !== 'note' && kind !== 'container' && (
         <>
