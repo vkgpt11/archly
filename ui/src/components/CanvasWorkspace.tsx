@@ -94,7 +94,13 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
       style={{ background: data.fill, borderColor: data.border, color: data.textColor }}
     >
       {kind !== 'text' && <span className="component-kind-icon" aria-hidden="true"><Icon /></span>}
-      <button className="component-lock nodrag nowheel" onClick={toggleLock} title={data.locked ? 'Unlock component' : 'Lock component'} aria-label={data.locked ? 'Unlock component' : 'Lock component'}>{data.locked ? <Lock /> : <Unlock />}</button>
+      <button
+        className="component-lock nodrag nowheel"
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => { event.stopPropagation(); toggleLock() }}
+        title={data.locked ? 'Unlock component' : 'Lock component'}
+        aria-label={data.locked ? 'Unlock component' : 'Lock component'}
+      >{data.locked ? <Lock /> : <Unlock />}</button>
       <div className="architecture-node-copy">
         {selected ? <input className="nodrag nowheel" aria-label="Component name" value={label} onChange={(event) => updateContent(event.target.value, subtitle)} onBlur={() => updateContent(label.trim() || 'Untitled component', subtitle.trim())} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} /> : <strong title={data.label}>{truncateCanvasText(data.label || 'Untitled component', COMPONENT_TITLE_LIMIT)}</strong>}
         {selected ? <input className="nodrag nowheel subtitle-input" aria-label="Component subtitle" value={subtitle} onChange={(event) => updateContent(label, event.target.value)} onBlur={() => updateContent(label.trim() || 'Untitled component', subtitle.trim())} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} placeholder="Add subtitle" /> : data.subtitle && <span title={data.subtitle}>{truncateCanvasText(data.subtitle, COMPONENT_SUBTITLE_LIMIT)}</span>}

@@ -22,6 +22,14 @@ function ConnectionHarness() {
   return <div style={{ width: 1000, height: 700 }}><CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} /></div>
 }
 
+function UnselectedComponentHarness() {
+  const [nodes, setNodes] = useState<Node[]>([
+    { id: 'service', type: 'architecture', position: { x: 0, y: 0 }, data: { label: 'API', kind: 'service' }, style: { width: 44, height: 52 } },
+  ])
+  const [edges, setEdges] = useState<Edge[]>([])
+  return <div style={{ width: 1000, height: 700 }}><CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} /></div>
+}
+
 describe('CanvasWorkspace', () => {
   it('sizes components according to their visible content', () => {
     const compact = getComponentSize('API', '', 'service')
@@ -76,5 +84,15 @@ describe('CanvasWorkspace', () => {
     expect(screen.queryByRole('complementary', { name: 'Properties inspector' })).not.toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Connection label'), { target: { value: 'HTTPS' } })
     expect(screen.getByLabelText('Connection label')).toHaveValue('HTTPS')
+  })
+
+  it('locks a component without entering edit mode', () => {
+    render(<UnselectedComponentHarness />)
+
+    fireEvent.pointerDown(screen.getByLabelText('Lock component'))
+    fireEvent.click(screen.getByLabelText('Lock component'))
+
+    expect(screen.getByLabelText('Unlock component')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Component name')).not.toBeInTheDocument()
   })
 })
