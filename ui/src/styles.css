@@ -16,6 +16,12 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .fine-print, .muted { color: #85899a; font-size: 13px; }
 .error { padding: 10px 14px; color: #a51d31; background: #fff0f2; border-radius: 10px; }
 .topbar, .editor-header { height: 68px; display: flex; align-items: center; gap: 18px; padding: 0 28px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.editor-header { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+.editor-header-left, .editor-header-right { min-width: 0; display: flex; align-items: center; gap: 12px; }
+.editor-header-left { grid-column: 1; }
+.editor-header .view-switcher { grid-column: 2; }
+.editor-header-right { justify-content: flex-end; }
+.editor-header-right { grid-column: 3; }
 .theme-toggle { width: 36px; height: 36px; display: inline-grid; place-items: center; flex: 0 0 auto; padding: 0; border: 1px solid var(--border); border-radius: 10px; color: var(--text-soft); background: var(--surface); }
 .theme-toggle:hover { color: var(--accent); background: var(--accent-soft); }
 .theme-toggle svg { width: 17px; height: 17px; }
@@ -46,7 +52,7 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .editor-shell { height: 100vh; display: flex; flex-direction: column; }
 .editor-header { flex: 0 0 auto; }
 .icon-button { font-size: 22px; }
-.project-name { min-width: 160px; flex: 1; border: 0; outline: 0; color: #242632; font-weight: 750; }
+.project-name { width: min(100%, 360px); min-width: 0; border: 0; outline: 0; color: #242632; background: transparent; font-weight: 750; }
 .view-switcher { display: flex; padding: 3px; border-radius: 10px; background: #f0f0f5; }
 .view-switcher button { padding: 7px 11px; border: 0; border-radius: 8px; color: #707485; background: transparent; font-size: 12px; text-transform: capitalize; }
 .view-switcher .active { color: #292c38; background: white; box-shadow: 0 2px 7px rgba(0,0,0,.08); }
@@ -123,7 +129,7 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .canvas-panel { position: relative; background: #fafafe; }
 .canvas-toolbar { position: absolute; z-index: 5; left: 16px; top: 16px; }
 .canvas-panel .react-flow { height: 100%; }
-@media (max-width: 760px) { .sign-in-card { padding: 36px 22px; }.dashboard-heading { align-items: stretch; flex-direction: column; gap: 22px; }.view-switcher { display: none; }.editor-body { flex-direction: column; }.document-panel { min-height: 45%; }.canvas-panel { min-height: 55%; }.panel-resizer { display: none; } }
+@media (max-width: 760px) { .sign-in-card { padding: 36px 22px; }.dashboard-heading { align-items: stretch; flex-direction: column; gap: 22px; }.editor-header { grid-template-columns: minmax(0, 1fr) auto; padding: 0 14px; }.view-switcher { display: none; }.editor-header-right { grid-column: 2; }.editor-body { flex-direction: column; }.document-panel { min-height: 45%; }.canvas-panel { min-height: 55%; }.panel-resizer { display: none; } }
 
 :root[data-theme="dark"] .sign-in-shell { background: radial-gradient(circle at 20% 10%, #292143, transparent 34%), radial-gradient(circle at 80% 80%, #17273c, transparent 32%), var(--page); }
 :root[data-theme="dark"] .sign-in-card, :root[data-theme="dark"] .project-card, :root[data-theme="dark"] .empty-state { color: var(--text); background: rgba(27,29,39,.96); border-color: var(--border); }

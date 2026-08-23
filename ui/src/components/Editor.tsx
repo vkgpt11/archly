@@ -155,15 +155,19 @@ export default function Editor({ token, initialProject, onBack }: Props) {
   return (
     <main className="editor-shell">
       <header className="editor-header">
-        <button className="icon-button" onClick={() => onBack(latestProject.current)} aria-label="Back to projects">←</button>
-        <input className="project-name" value={project.name} onChange={(event) => setProject({ ...project, name: event.target.value })} aria-label="Project name" />
+        <div className="editor-header-left">
+          <button className="icon-button" onClick={() => onBack(latestProject.current)} aria-label="Back to projects">←</button>
+          <input className="project-name" value={project.name} onChange={(event) => setProject({ ...project, name: event.target.value })} aria-label="Project name" />
+        </div>
         <div className="view-switcher" aria-label="Editor view">
           {(['document', 'split', 'canvas'] as View[]).map((option) => (
             <button key={option} className={view === option ? 'active' : ''} onClick={() => setView(option)}>{option}</button>
           ))}
         </div>
-        <ThemeToggle />
-        <span className={`save-state ${saveState}`}>{saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Save failed' : 'Saved'}</span>
+        <div className="editor-header-right">
+          <ThemeToggle />
+          <span className={`save-state ${saveState}`}>{saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Save failed' : 'Saved'}</span>
+        </div>
       </header>
       <div className="editor-body" ref={editorBody}>
         {showDocument && (
