@@ -48,15 +48,30 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .save-state { min-width: 64px; color: #6c7182; font-size: 12px; }.save-state.error { color: #b4233a; }
 .editor-body { min-height: 0; flex: 1; display: flex; }
 .document-panel, .canvas-panel { min-width: 0; flex: 1 1 0; }
-.document-panel { display: grid; grid-template-rows: 1fr 1fr; background: white; }
+.document-panel { display: flex; flex-direction: column; background: white; }
 .panel-resizer { position: relative; z-index: 10; width: 9px; flex: 0 0 9px; cursor: col-resize; background: #ececf2; outline: none; transition: background .15s; touch-action: none; }
 .panel-resizer span { position: absolute; left: 3px; top: 50%; width: 3px; height: 36px; border-radius: 3px; background: #b9b8c6; transform: translateY(-50%); }
 .panel-resizer:hover, .panel-resizer:focus-visible { background: #ddd7ff; }
 .panel-resizer:hover span, .panel-resizer:focus-visible span { background: #6d4aff; }
 .resizing-panels, .resizing-panels * { cursor: col-resize !important; user-select: none !important; }
-.document-panel textarea { width: 100%; padding: 28px; resize: none; border: 0; border-bottom: 1px solid #e6e6ed; outline: 0; color: #303341; line-height: 1.6; }
-.markdown-preview { overflow: auto; padding: 28px; color: #3c4050; line-height: 1.65; }
-.markdown-preview h1 { font-size: 28px; }
+.rich-text-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 9px 12px; border-bottom: 1px solid #e6e6ed; background: #fafafd; }
+.rich-text-toolbar button { min-width: 32px; height: 32px; padding: 0 8px; border: 1px solid transparent; border-radius: 7px; color: #55596a; background: transparent; font-size: 12px; }
+.rich-text-toolbar button:hover:not(:disabled) { color: #3e2ca0; background: #f0edff; }
+.rich-text-toolbar button.active { border-color: #cfc5ff; color: #5338cf; background: #e9e4ff; }
+.rich-text-toolbar button:disabled { cursor: default; opacity: .35; }
+.toolbar-divider { width: 1px; height: 22px; margin: 0 4px; background: #dddde6; }
+.toolbar-spacer { flex: 1; }
+.rich-text-editor { min-height: 0; flex: 1; overflow: auto; }
+.rich-text-content { min-height: 100%; padding: 28px 34px 80px; outline: none; color: #303341; line-height: 1.7; }
+.rich-text-content > *:first-child { margin-top: 0; }
+.rich-text-content h1 { font-size: 30px; letter-spacing: -.03em; }
+.rich-text-content h2 { margin-top: 1.5em; font-size: 22px; }
+.rich-text-content p.is-editor-empty:first-child::before { content: 'Describe your architecture…'; float: left; height: 0; color: #a2a5b1; pointer-events: none; }
+.rich-text-content a { color: #5d42db; text-decoration: underline; text-underline-offset: 2px; }
+.rich-text-content code { padding: 2px 5px; border-radius: 5px; color: #8b2950; background: #f5eef2; font-family: "SFMono-Regular", Consolas, monospace; font-size: .88em; }
+.rich-text-content pre { overflow-x: auto; padding: 18px; border-radius: 12px; color: #e7e9f3; background: #20222d; }
+.rich-text-content pre code { padding: 0; color: inherit; background: transparent; }
+.rich-text-content blockquote { margin-left: 0; padding-left: 18px; border-left: 3px solid #9b87ee; color: #666a78; }
 .canvas-panel { position: relative; background: #fafafe; }
 .canvas-toolbar { position: absolute; z-index: 5; left: 16px; top: 16px; }
 .canvas-panel .react-flow { height: 100%; }

@@ -35,7 +35,7 @@ public class Project {
         this.ownerEmail = ownerEmail;
         this.name = name;
         this.canvasJson = "{\"nodes\":[],\"edges\":[]}";
-        this.markdown = "# " + name + "\n\nDescribe your architecture here.";
+        this.markdown = "<h1>" + escapeHtml(name) + "</h1><p>Describe your architecture here.</p>";
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
     }
@@ -55,4 +55,12 @@ public class Project {
     public long getRevision() { return revision; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+
+    private static String escapeHtml(String value) {
+        return value.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&#39;");
+    }
 }

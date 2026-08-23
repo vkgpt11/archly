@@ -3,7 +3,9 @@ import {
   addEdge, Background, Controls, MiniMap, ReactFlow,
   useEdgesState, useNodesState, type Connection, type Node,
 } from '@xyflow/react'
-import ReactMarkdown from 'react-markdown'
+import { EditorContent, useEditor } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
+import Link from '@tiptap/extension-link'
 import { api } from '../api'
 import type { CanvasData, Project } from '../types'
 
@@ -26,6 +28,23 @@ export default function Editor({ token, initialProject, onBack }: Props) {
   const editorBody = useRef<HTMLDivElement>(null)
 
   useEffect(() => { latestProject.current = project }, [project])
+
+  const richTextEditor = useEditor({
+    extensions: [
+      StarterKit,
+      Link.configure({ openOnClick: false, autolink: true, linkOnPaste: true }),
+    ],
+    content: initialProject.markdown,
+    editorProps: {
+      attributes: {
+        class: 'rich-text-content',
+        'aria-label': 'Design documentation',
+      },
+    },
+    onUpdate: ({ editor }) => {
+      setProject((current) => ({ ...current, markdown: editor.getHTML() }))
+    },
+  })
 
   const onConnect = useCallback((connection: Connection) => setEdges((current) => addEdge(connection, current)), [setEdges])
 
@@ -85,6 +104,18 @@ export default function Editor({ token, initialProject, onBack }: Props) {
     document.addEventListener('pointerup', onEnd)
   }
 
+  function editLink() {
+    if (!richTextEditor) return
+    const currentUrl = richTextEditor.getAttributes('link').href as string | undefined
+    const url = window.prompt('Enter a URL', currentUrl || 'https://')
+    if (url === null) return
+    if (url.trim() === '') {
+      richTextEditor.chain().focus().extendMarkRange('link').unsetLink().run()
+      return
+    }
+    richTextEditor.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run()
+  }
+
   return (
     <main className="editor-shell">
       <header className="editor-header">
@@ -100,8 +131,25 @@ export default function Editor({ token, initialProject, onBack }: Props) {
       <div className="editor-body" ref={editorBody}>
         {showDocument && (
           <section className="document-panel" style={view === 'split' ? { flexBasis: `${documentWidth}%` } : undefined}>
-            <textarea value={project.markdown} onChange={(event) => setProject({ ...project, markdown: event.target.value })} aria-label="Markdown document" />
-            <article className="markdown-preview"><ReactMarkdown>{project.markdown}</ReactMarkdown></article>
+            <div className="rich-text-toolbar" role="toolbar" aria-label="Document formatting">
+              <button className={richTextEditor?.isActive('heading', { level: 1 }) ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleHeading({ level: 1 }).run()} title="Heading 1">H1</button>
+              <button className={richTextEditor?.isActive('heading', { level: 2 }) ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleHeading({ level: 2 }).run()} title="Heading 2">H2</button>
+              <span className="toolbar-divider" />
+              <button className={richTextEditor?.isActive('bold') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleBold().run()} title="Bold"><strong>B</strong></button>
+              <button className={richTextEditor?.isActive('italic') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleItalic().run()} title="Italic"><em>I</em></button>
+              <button className={richTextEditor?.isActive('strike') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleStrike().run()} title="Strikethrough"><s>S</s></button>
+              <button className={richTextEditor?.isActive('code') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleCode().run()} title="Inline code">&lt;/&gt;</button>
+              <span className="toolbar-divider" />
+              <button className={richTextEditor?.isActive('bulletList') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleBulletList().run()} title="Bullet list">• List</button>
+              <button className={richTextEditor?.isActive('orderedList') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleOrderedList().run()} title="Numbered list">1. List</button>
+              <button className={richTextEditor?.isActive('blockquote') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleBlockquote().run()} title="Quote">Quote</button>
+              <button className={richTextEditor?.isActive('codeBlock') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleCodeBlock().run()} title="Code block">Code block</button>
+              <button className={richTextEditor?.isActive('link') ? 'active' : ''} onClick={editLink} title="Add or edit link">Link</button>
+              <span className="toolbar-spacer" />
+              <button onClick={() => richTextEditor?.chain().focus().undo().run()} disabled={!richTextEditor?.can().undo()} title="Undo">↶</button>
+              <button onClick={() => richTextEditor?.chain().focus().redo().run()} disabled={!richTextEditor?.can().redo()} title="Redo">↷</button>
+            </div>
+            <EditorContent editor={richTextEditor} className="rich-text-editor" />
           </section>
         )}
         {view === 'split' && (
