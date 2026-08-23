@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
-import {
-  addEdge, Background, Controls, MiniMap, ReactFlow,
-  useEdgesState, useNodesState, type Connection, type Node,
-} from '@xyflow/react'
+import { useEdgesState, useNodesState } from '@xyflow/react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
@@ -17,6 +14,7 @@ import {
 } from 'lucide-react'
 import { ApiError, api } from '../api'
 import type { CanvasData, Project } from '../types'
+import CanvasWorkspace from './CanvasWorkspace'
 import ThemeToggle from './ThemeToggle'
 
 type View = 'canvas' | 'document' | 'split'
@@ -33,8 +31,8 @@ function parseCanvas(value: string): CanvasData {
 export default function Editor({ token, initialProject, onBack }: Props) {
   const initialCanvas = parseCanvas(initialProject.canvasJson)
   const [project, setProject] = useState(initialProject)
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialCanvas.nodes)
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialCanvas.edges)
+  const [nodes, setNodes] = useNodesState(initialCanvas.nodes)
+  const [edges, setEdges] = useEdgesState(initialCanvas.edges)
   const [view, setView] = useState<View>('split')
   const [documentWidth, setDocumentWidth] = useState(45)
   const [linkEditorOpen, setLinkEditorOpen] = useState(false)
@@ -70,18 +68,6 @@ export default function Editor({ token, initialProject, onBack }: Props) {
       setProject((current) => ({ ...current, markdown: editor.getHTML() }))
     },
   })
-
-  const onConnect = useCallback((connection: Connection) => setEdges((current) => addEdge(connection, current)), [setEdges])
-
-  function addNode() {
-    const node: Node = {
-      id: crypto.randomUUID(),
-      position: { x: 120 + nodes.length * 32, y: 100 + nodes.length * 24 },
-      data: { label: `Service ${nodes.length + 1}` },
-      style: { border: '1px solid var(--accent)', borderRadius: 12, padding: 12, color: 'var(--text)', background: 'var(--surface)' },
-    }
-    setNodes((current) => [...current, node])
-  }
 
   const flushSave = useCallback(async () => {
     if (saveInFlight.current) return
@@ -299,10 +285,7 @@ export default function Editor({ token, initialProject, onBack }: Props) {
         )}
         {showCanvas && (
           <section className="canvas-panel" style={view === 'split' ? { flexBasis: `${100 - documentWidth}%` } : undefined}>
-            <div className="canvas-toolbar"><button className="primary-button compact" onClick={addNode}>+ Add service</button></div>
-            <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect} fitView>
-              <Background gap={20} color="#d8dce7" /><MiniMap /><Controls />
-            </ReactFlow>
+            <CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} />
           </section>
         )}
       </div>
