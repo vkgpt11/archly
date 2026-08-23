@@ -58,31 +58,17 @@ const iconByKind = {
 
 function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNodeData>>) {
   const { getNode, updateNode } = useReactFlow()
-  const [label, setLabel] = useState(data.label || '')
-  const [subtitle, setSubtitle] = useState(data.subtitle || '')
   const kind = data.kind || 'service'
   const Icon = iconByKind[kind]
-  const labelLength = (data.label || label).length
+  const label = data.label || ''
+  const subtitle = data.subtitle || ''
+  const labelLength = label.length
   const iconDensity = labelLength > 24 ? 'icon-compact' : labelLength > 14 ? 'icon-medium' : 'icon-large'
 
-  function resizeForContent(nextLabel: string, nextSubtitle: string) {
-    if (kind === 'container') return
+  function updateContent(nextLabel: string, nextSubtitle: string) {
     const current = getNode(id)
-    const size = getComponentSize(nextLabel, nextSubtitle, kind)
-    updateNode(id, { ...size, style: { ...current?.style, ...size } })
-  }
-
-  useEffect(() => setLabel(data.label || ''), [data.label])
-  useEffect(() => setSubtitle(data.subtitle || ''), [data.subtitle])
-
-  function saveInlineText() {
-    const nextLabel = label.trim() || 'Untitled component'
-    const nextSubtitle = subtitle.trim()
-    setLabel(nextLabel)
-    setSubtitle(nextSubtitle)
-    const current = getNode(id)
-    const nextStyle = kind === 'container' ? current?.style : { ...current?.style, ...getComponentSize(nextLabel, nextSubtitle, kind) }
     const nextSize = kind === 'container' ? {} : getComponentSize(nextLabel, nextSubtitle, kind)
+    const nextStyle = kind === 'container' ? current?.style : { ...current?.style, ...nextSize }
     updateNode(id, { ...nextSize, data: { ...data, label: nextLabel, subtitle: nextSubtitle }, style: nextStyle })
   }
 
@@ -100,8 +86,8 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
       {kind !== 'text' && <Icon className="component-kind-icon" aria-hidden="true" />}
       <button className="component-lock nodrag nowheel" onClick={toggleLock} title={data.locked ? 'Unlock component' : 'Lock component'} aria-label={data.locked ? 'Unlock component' : 'Lock component'}>{data.locked ? <Lock /> : <Unlock />}</button>
       <div className="architecture-node-copy">
-        {selected ? <input className="nodrag nowheel" aria-label="Component name" value={label} onChange={(event) => { setLabel(event.target.value); resizeForContent(event.target.value, subtitle) }} onBlur={saveInlineText} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} /> : <strong>{data.label || 'Untitled component'}</strong>}
-        {selected ? <input className="nodrag nowheel subtitle-input" aria-label="Component subtitle" value={subtitle} onChange={(event) => { setSubtitle(event.target.value); resizeForContent(label, event.target.value) }} onBlur={saveInlineText} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} placeholder="Add subtitle" /> : data.subtitle && <span>{data.subtitle}</span>}
+        {selected ? <input className="nodrag nowheel" aria-label="Component name" value={label} onChange={(event) => updateContent(event.target.value, subtitle)} onBlur={() => updateContent(label.trim() || 'Untitled component', subtitle.trim())} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} /> : <strong>{data.label || 'Untitled component'}</strong>}
+        {selected ? <input className="nodrag nowheel subtitle-input" aria-label="Component subtitle" value={subtitle} onChange={(event) => updateContent(label, event.target.value)} onBlur={() => updateContent(label.trim() || 'Untitled component', subtitle.trim())} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} placeholder="Add subtitle" /> : data.subtitle && <span>{data.subtitle}</span>}
       </div>
       {kind !== 'text' && kind !== 'note' && kind !== 'container' && (
         <>
