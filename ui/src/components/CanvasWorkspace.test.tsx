@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import CanvasWorkspace from './CanvasWorkspace'
+import { getComponentSize } from './canvasSizing'
 import { useState } from 'react'
 import type { Edge, Node } from '@xyflow/react'
 
@@ -22,6 +23,12 @@ function ConnectionHarness() {
 }
 
 describe('CanvasWorkspace', () => {
+  it('sizes components according to their visible content', () => {
+    expect(getComponentSize('API', '', 'service').width).toBe(150)
+    expect(getComponentSize('Customer identity and access service', 'OAuth and account lifecycle', 'service').width).toBeGreaterThan(250)
+    expect(getComponentSize('Boundary', '', 'container')).toEqual({ width: 360, height: 240 })
+  })
+
   it('adds a searchable component and edits its properties', () => {
     render(<Harness />)
 

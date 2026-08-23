@@ -11,9 +11,9 @@ import {
   Search, Server, Smartphone, Spline, Trash2, Undo2, Unlock, UserRound, Workflow, X, ZoomIn, ZoomOut,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { getComponentSize, type ArchitectureKind } from './canvasSizing'
 
 type CanvasTool = 'select' | 'pan' | 'connect'
-type ArchitectureKind = 'service' | 'web' | 'mobile' | 'database' | 'cache' | 'queue' | 'storage' | 'external' | 'actor' | 'container' | 'note' | 'text'
 
 export type ArchitectureNodeData = {
   label?: string
@@ -57,13 +57,20 @@ const iconByKind = {
 }
 
 function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNodeData>>) {
-  const { updateNode, updateNodeData } = useReactFlow()
+  const { getNode, updateNode } = useReactFlow()
   const [label, setLabel] = useState(data.label || '')
   const [subtitle, setSubtitle] = useState(data.subtitle || '')
   const kind = data.kind || 'service'
   const Icon = iconByKind[kind]
   const labelLength = (data.label || label).length
   const iconDensity = labelLength > 24 ? 'icon-compact' : labelLength > 14 ? 'icon-medium' : 'icon-large'
+
+  function resizeForContent(nextLabel: string, nextSubtitle: string) {
+    if (kind === 'container') return
+    const current = getNode(id)
+    const size = getComponentSize(nextLabel, nextSubtitle, kind)
+    updateNode(id, { style: { ...current?.style, ...size } })
+  }
 
   useEffect(() => setLabel(data.label || ''), [data.label])
   useEffect(() => setSubtitle(data.subtitle || ''), [data.subtitle])
@@ -73,7 +80,9 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
     const nextSubtitle = subtitle.trim()
     setLabel(nextLabel)
     setSubtitle(nextSubtitle)
-    updateNodeData(id, { label: nextLabel, subtitle: nextSubtitle })
+    const current = getNode(id)
+    const nextStyle = kind === 'container' ? current?.style : { ...current?.style, ...getComponentSize(nextLabel, nextSubtitle, kind) }
+    updateNode(id, { data: { ...data, label: nextLabel, subtitle: nextSubtitle }, style: nextStyle })
   }
 
   function toggleLock() {
@@ -90,8 +99,8 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
       {kind !== 'text' && <Icon className="component-kind-icon" aria-hidden="true" />}
       <button className="component-lock nodrag nowheel" onClick={toggleLock} title={data.locked ? 'Unlock component' : 'Lock component'} aria-label={data.locked ? 'Unlock component' : 'Lock component'}>{data.locked ? <Lock /> : <Unlock />}</button>
       <div className="architecture-node-copy">
-        {selected ? <input className="nodrag nowheel" aria-label="Component name" value={label} onChange={(event) => setLabel(event.target.value)} onBlur={saveInlineText} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} /> : <strong>{data.label || 'Untitled component'}</strong>}
-        {selected ? <input className="nodrag nowheel subtitle-input" aria-label="Component subtitle" value={subtitle} onChange={(event) => setSubtitle(event.target.value)} onBlur={saveInlineText} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} placeholder="Add subtitle" /> : data.subtitle && <span>{data.subtitle}</span>}
+        {selected ? <input className="nodrag nowheel" aria-label="Component name" value={label} onChange={(event) => { setLabel(event.target.value); resizeForContent(event.target.value, subtitle) }} onBlur={saveInlineText} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} /> : <strong>{data.label || 'Untitled component'}</strong>}
+        {selected ? <input className="nodrag nowheel subtitle-input" aria-label="Component subtitle" value={subtitle} onChange={(event) => { setSubtitle(event.target.value); resizeForContent(label, event.target.value) }} onBlur={saveInlineText} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} placeholder="Add subtitle" /> : data.subtitle && <span>{data.subtitle}</span>}
       </div>
       {kind !== 'text' && kind !== 'note' && kind !== 'container' && (
         <>
@@ -214,6 +223,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
 
   function addComponent(kind: ArchitectureKind) {
     const definition = componentDefinitions.find((item) => item.kind === kind)!
+    const size = getComponentSize(definition.label, definition.subtitle, kind)
     const viewportCenter = flow.screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
     const node: Node<ArchitectureNodeData> = {
       id: crypto.randomUUID(),
@@ -225,7 +235,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
         subtitle: definition.subtitle,
         fill: kind === 'note' ? '#fef3c7' : undefined,
       },
-      style: kind === 'container' ? { width: 360, height: 240 } : kind === 'text' ? { width: 180 } : { width: 190 },
+      style: size,
       zIndex: kind === 'container' ? -1 : 0,
     }
     remember()
