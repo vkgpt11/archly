@@ -175,7 +175,10 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .architecture-node .component-kind-icon { position: absolute; z-index: 4; left: -7px; top: -7px; width: 30px; height: 30px; padding: 6px; border: 1px solid var(--border); border-radius: 9px; color: var(--accent); background: var(--surface); box-shadow: 0 4px 10px rgba(20,21,30,.14); }
 .architecture-node.icon-medium .component-kind-icon { width: 27px; height: 27px; padding: 5px; }
 .architecture-node.icon-compact .component-kind-icon { width: 24px; height: 24px; padding: 5px; border-radius: 8px; }
-.architecture-node-copy { min-width: 0; width: 100%; display: flex; flex-direction: column; gap: 3px; }
+.architecture-node-copy { min-width: 0; width: auto; flex: 1; display: flex; flex-direction: column; gap: 3px; margin-left: 18px; }
+.architecture-node.icon-medium .architecture-node-copy { margin-left: 16px; }
+.architecture-node.icon-compact .architecture-node-copy { margin-left: 13px; }
+.architecture-node-text .architecture-node-copy { margin-left: 0; }
 .architecture-node-copy strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .architecture-node-copy span { overflow: hidden; color: var(--text-soft); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .architecture-node-copy input { width: 100%; min-width: 0; padding: 1px 3px; border: 1px solid transparent; border-radius: 4px; outline: 0; color: inherit; background: transparent; font-size: 12px; font-weight: 750; }
