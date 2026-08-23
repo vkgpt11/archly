@@ -114,7 +114,7 @@ Priorities are Must, Should, and Could.
 | ID | Priority | Requirement |
 | --- | --- | --- |
 | DOC-001 | Must | Every project has one rich-text document. |
-| DOC-002 | Must | The rich-text editor supports headings, bold, italic, strikethrough, lists, links, blockquotes, inline code, code blocks, undo, and redo. |
+| DOC-002 | Must | The rich-text editor supports headings, bold, italic, strikethrough, lists, links, blockquotes, highlighted inline code, syntax-highlighted multiline code snippets, undo, and redo. |
 | DOC-003 | Must | Users can choose document, canvas, or split view. |
 | DOC-004 | Must | Project diagrams can be embedded in the document. |
 | DOC-005 | Must | Rendered content is sanitized. |

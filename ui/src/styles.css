@@ -71,6 +71,14 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .rich-text-content code { padding: 2px 5px; border-radius: 5px; color: #8b2950; background: #f5eef2; font-family: "SFMono-Regular", Consolas, monospace; font-size: .88em; }
 .rich-text-content pre { overflow-x: auto; padding: 18px; border-radius: 12px; color: #e7e9f3; background: #20222d; }
 .rich-text-content pre code { padding: 0; color: inherit; background: transparent; }
+.rich-text-content pre .hljs-comment, .rich-text-content pre .hljs-quote { color: #8b93a7; font-style: italic; }
+.rich-text-content pre .hljs-keyword, .rich-text-content pre .hljs-selector-tag, .rich-text-content pre .hljs-literal { color: #c792ea; }
+.rich-text-content pre .hljs-string, .rich-text-content pre .hljs-title, .rich-text-content pre .hljs-section { color: #c3e88d; }
+.rich-text-content pre .hljs-number, .rich-text-content pre .hljs-symbol, .rich-text-content pre .hljs-bullet { color: #f78c6c; }
+.rich-text-content pre .hljs-built_in, .rich-text-content pre .hljs-type, .rich-text-content pre .hljs-class .hljs-title { color: #ffcb6b; }
+.rich-text-content pre .hljs-function, .rich-text-content pre .hljs-title.function_ { color: #82aaff; }
+.rich-text-content pre .hljs-variable, .rich-text-content pre .hljs-template-variable, .rich-text-content pre .hljs-attr { color: #f07178; }
+.rich-text-content pre .hljs-meta, .rich-text-content pre .hljs-tag { color: #89ddff; }
 .rich-text-content blockquote { margin-left: 0; padding-left: 18px; border-left: 3px solid #9b87ee; color: #666a78; }
 .canvas-panel { position: relative; background: #fafafe; }
 .canvas-toolbar { position: absolute; z-index: 5; left: 16px; top: 16px; }

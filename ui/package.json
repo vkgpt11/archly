@@ -12,10 +12,12 @@
   },
   "dependencies": {
     "@react-oauth/google": "^0.12.1",
+    "@tiptap/extension-code-block-lowlight": "^2.27.2",
     "@tiptap/extension-link": "^2.27.2",
     "@tiptap/react": "^2.27.2",
     "@tiptap/starter-kit": "^2.27.2",
     "@xyflow/react": "^12.3.6",
+    "lowlight": "^3.3.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

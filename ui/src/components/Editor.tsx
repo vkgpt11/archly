@@ -6,11 +6,15 @@ import {
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
+import { common, createLowlight } from 'lowlight'
 import { api } from '../api'
 import type { CanvasData, Project } from '../types'
 
 type View = 'canvas' | 'document' | 'split'
 type Props = { token: string; initialProject: Project; onBack: (project: Project) => void }
+
+const lowlight = createLowlight(common)
 
 function parseCanvas(value: string): CanvasData {
   try { return JSON.parse(value) as CanvasData } catch { return { nodes: [], edges: [] } }
@@ -31,7 +35,8 @@ export default function Editor({ token, initialProject, onBack }: Props) {
 
   const richTextEditor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({ codeBlock: false }),
+      CodeBlockLowlight.configure({ lowlight }),
       Link.configure({ openOnClick: false, autolink: true, linkOnPaste: true }),
     ],
     content: initialProject.markdown,
@@ -138,12 +143,12 @@ export default function Editor({ token, initialProject, onBack }: Props) {
               <button className={richTextEditor?.isActive('bold') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleBold().run()} title="Bold"><strong>B</strong></button>
               <button className={richTextEditor?.isActive('italic') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleItalic().run()} title="Italic"><em>I</em></button>
               <button className={richTextEditor?.isActive('strike') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleStrike().run()} title="Strikethrough"><s>S</s></button>
-              <button className={richTextEditor?.isActive('code') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleCode().run()} title="Inline code">&lt;/&gt;</button>
+              <button className={richTextEditor?.isActive('code') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleCode().run()} title="Highlight selected text as inline code">Inline code</button>
               <span className="toolbar-divider" />
               <button className={richTextEditor?.isActive('bulletList') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleBulletList().run()} title="Bullet list">• List</button>
               <button className={richTextEditor?.isActive('orderedList') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleOrderedList().run()} title="Numbered list">1. List</button>
               <button className={richTextEditor?.isActive('blockquote') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleBlockquote().run()} title="Quote">Quote</button>
-              <button className={richTextEditor?.isActive('codeBlock') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleCodeBlock().run()} title="Code block">Code block</button>
+              <button className={richTextEditor?.isActive('codeBlock') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleCodeBlock().run()} title="Create a multiline syntax-highlighted code snippet">Code snippet</button>
               <button className={richTextEditor?.isActive('link') ? 'active' : ''} onClick={editLink} title="Add or edit link">Link</button>
               <span className="toolbar-spacer" />
               <button onClick={() => richTextEditor?.chain().focus().undo().run()} disabled={!richTextEditor?.can().undo()} title="Undo">↶</button>
