@@ -68,9 +68,17 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
   const labelLength = label.length
   const iconDensity = labelLength > 24 ? 'icon-compact' : labelLength > 14 ? 'icon-medium' : 'icon-large'
 
+  useEffect(() => {
+    if (kind === 'container') return
+    const current = getNode(id)
+    const size = getComponentSize(label, subtitle, kind, selected)
+    if (current?.width === size.width && current?.height === size.height) return
+    updateNode(id, { ...size, style: { ...current?.style, ...size } })
+  }, [getNode, id, kind, label, selected, subtitle, updateNode])
+
   function updateContent(nextLabel: string, nextSubtitle: string) {
     const current = getNode(id)
-    const nextSize = kind === 'container' ? {} : getComponentSize(nextLabel, nextSubtitle, kind)
+    const nextSize = kind === 'container' ? {} : getComponentSize(nextLabel, nextSubtitle, kind, selected)
     const nextStyle = kind === 'container' ? current?.style : { ...current?.style, ...nextSize }
     updateNode(id, { ...nextSize, data: { ...data, label: nextLabel, subtitle: nextSubtitle }, style: nextStyle })
   }

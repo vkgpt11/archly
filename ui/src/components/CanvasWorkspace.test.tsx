@@ -26,10 +26,10 @@ describe('CanvasWorkspace', () => {
   it('sizes components according to their visible content', () => {
     const compact = getComponentSize('API', '', 'service')
     const expanded = getComponentSize('Customer identity and access service', 'OAuth and account lifecycle', 'service')
-    expect(compact).toEqual({ width: 44, height: 68 })
+    expect(compact).toEqual({ width: 44, height: 52 })
     expect(expanded.width).toBeGreaterThan(compact.width)
     expect(expanded.width).toBeLessThanOrEqual(360)
-    expect(expanded.height).toBe(compact.height)
+    expect(expanded.height).toBeGreaterThan(compact.height)
     expect(getComponentSize('Boundary', '', 'container')).toEqual({ width: 360, height: 240 })
   })
 
