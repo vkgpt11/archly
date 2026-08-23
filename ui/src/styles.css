@@ -57,6 +57,17 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .rich-text-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 9px 12px; border-bottom: 1px solid #e6e6ed; background: #fafafd; }
 .rich-text-toolbar button { width: 34px; height: 34px; display: inline-grid; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 8px; color: #55596a; background: transparent; }
 .rich-text-toolbar button svg { width: 17px; height: 17px; stroke-width: 2; }
+.color-menu { position: relative; }
+.color-menu summary { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid transparent; border-radius: 8px; color: #55596a; cursor: pointer; list-style: none; }
+.color-menu summary::-webkit-details-marker { display: none; }
+.color-menu summary:hover, .color-menu[open] summary { border-color: #cfc5ff; color: #5338cf; background: #e9e4ff; }
+.color-menu summary svg { width: 17px; height: 17px; }
+.color-popover { position: absolute; z-index: 30; left: 0; top: 40px; width: 150px; display: grid; grid-template-columns: repeat(5, 24px); gap: 5px; padding: 10px; border: 1px solid #dddde8; border-radius: 12px; background: white; box-shadow: 0 12px 28px rgba(30, 28, 50, .16); }
+.rich-text-toolbar .color-swatch { width: 24px; min-width: 24px; height: 24px; border: 2px solid white; border-radius: 7px; box-shadow: 0 0 0 1px #d8d8e1; }
+.rich-text-toolbar .color-swatch:hover { transform: scale(1.1); background: var(--swatch-color); }
+.rich-text-toolbar .color-swatch.light { box-shadow: 0 0 0 1px #c9c9d4; }
+.rich-text-toolbar .color-clear { width: 24px; min-width: 24px; height: 24px; color: #777b89; background: #f3f3f6; }
+.rich-text-toolbar .color-clear svg { width: 13px; height: 13px; }
 .rich-text-toolbar button:hover:not(:disabled) { color: #3e2ca0; background: #f0edff; }
 .rich-text-toolbar button.active { border-color: #cfc5ff; color: #5338cf; background: #e9e4ff; }
 .rich-text-toolbar button:disabled { cursor: default; opacity: .35; }

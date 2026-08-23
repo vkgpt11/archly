@@ -7,10 +7,13 @@ import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
+import Color from '@tiptap/extension-color'
+import Highlight from '@tiptap/extension-highlight'
+import TextStyle from '@tiptap/extension-text-style'
 import { common, createLowlight } from 'lowlight'
 import {
   Bold, Code2, Heading1, Heading2, Italic, Link2, List, ListOrdered,
-  Quote, Redo2, SquareCode, Strikethrough, Undo2,
+  Highlighter, Palette, Quote, Redo2, RotateCcw, SquareCode, Strikethrough, Undo2,
 } from 'lucide-react'
 import { api } from '../api'
 import type { CanvasData, Project } from '../types'
@@ -19,6 +22,8 @@ type View = 'canvas' | 'document' | 'split'
 type Props = { token: string; initialProject: Project; onBack: (project: Project) => void }
 
 const lowlight = createLowlight(common)
+const textColors = ['#20222d', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#2563eb', '#7c3aed', '#db2777']
+const highlightColors = ['#fef3c7', '#fed7aa', '#fecaca', '#fbcfe8', '#ddd6fe', '#bfdbfe', '#bbf7d0', '#d1d5db']
 
 function parseCanvas(value: string): CanvasData {
   try { return JSON.parse(value) as CanvasData } catch { return { nodes: [], edges: [] } }
@@ -41,6 +46,9 @@ export default function Editor({ token, initialProject, onBack }: Props) {
     extensions: [
       StarterKit.configure({ codeBlock: false }),
       CodeBlockLowlight.configure({ lowlight }),
+      TextStyle,
+      Color,
+      Highlight.configure({ multicolor: true }),
       Link.configure({ openOnClick: false, autolink: true, linkOnPaste: true }),
     ],
     content: initialProject.markdown,
@@ -147,6 +155,24 @@ export default function Editor({ token, initialProject, onBack }: Props) {
               <button className={richTextEditor?.isActive('bold') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleBold().run()} title="Bold" aria-label="Bold"><Bold /></button>
               <button className={richTextEditor?.isActive('italic') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleItalic().run()} title="Italic" aria-label="Italic"><Italic /></button>
               <button className={richTextEditor?.isActive('strike') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleStrike().run()} title="Strikethrough" aria-label="Strikethrough"><Strikethrough /></button>
+              <details className="color-menu">
+                <summary title="Text color" aria-label="Text color"><Palette /></summary>
+                <div className="color-popover" aria-label="Text colors">
+                  {textColors.map((color) => (
+                    <button key={color} className="color-swatch" style={{ backgroundColor: color }} onClick={() => richTextEditor?.chain().focus().setColor(color).run()} title={color} aria-label={`Set text color ${color}`} />
+                  ))}
+                  <button className="color-clear" onClick={() => richTextEditor?.chain().focus().unsetColor().run()} title="Clear text color" aria-label="Clear text color"><RotateCcw /></button>
+                </div>
+              </details>
+              <details className="color-menu">
+                <summary title="Highlight color" aria-label="Highlight color"><Highlighter /></summary>
+                <div className="color-popover" aria-label="Highlight colors">
+                  {highlightColors.map((color) => (
+                    <button key={color} className="color-swatch light" style={{ backgroundColor: color }} onClick={() => richTextEditor?.chain().focus().setHighlight({ color }).run()} title={color} aria-label={`Set highlight color ${color}`} />
+                  ))}
+                  <button className="color-clear" onClick={() => richTextEditor?.chain().focus().unsetHighlight().run()} title="Clear highlight" aria-label="Clear highlight"><RotateCcw /></button>
+                </div>
+              </details>
               <button className={richTextEditor?.isActive('code') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleCode().run()} title="Highlight selected text as inline code" aria-label="Inline code"><Code2 /></button>
               <span className="toolbar-divider" />
               <button className={richTextEditor?.isActive('bulletList') ? 'active' : ''} onClick={() => richTextEditor?.chain().focus().toggleBulletList().run()} title="Bullet list" aria-label="Bullet list"><List /></button>
