@@ -172,7 +172,7 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .component-list button strong { color: var(--text); font-size: 12px; }
 .component-list button small { color: var(--muted); font-size: 10px; }
 .architecture-node { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 3px; padding: 6px 8px; border: 1.5px solid var(--border); border-radius: 12px; color: var(--text); background: var(--surface); box-shadow: 0 4px 14px rgba(20,21,30,.08); }
-.architecture-node .component-kind-icon { position: static; z-index: 4; width: 26px; height: 26px; padding: 2px; flex: 0 0 auto; color: var(--accent); }
+.architecture-node .component-kind-icon { position: static; z-index: 4; width: 26px; height: 26px; padding: 2px; align-self: center; flex: 0 0 auto; color: var(--accent); }
 .architecture-node.icon-medium .component-kind-icon { width: 24px; height: 24px; }
 .architecture-node.icon-compact .component-kind-icon { width: 22px; height: 22px; }
 .architecture-node-copy { min-width: 0; width: 100%; display: flex; flex-direction: column; gap: 2px; margin: 0; }
