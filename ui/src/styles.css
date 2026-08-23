@@ -162,6 +162,9 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .architecture-node-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .architecture-node-copy strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .architecture-node-copy span { overflow: hidden; color: var(--text-soft); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.architecture-node-copy input { width: 100%; min-width: 0; padding: 1px 3px; border: 1px solid transparent; border-radius: 4px; outline: 0; color: inherit; background: transparent; font-size: 12px; font-weight: 750; }
+.architecture-node-copy input:hover, .architecture-node-copy input:focus { border-color: var(--accent); background: color-mix(in srgb, var(--surface) 85%, transparent); }
+.architecture-node-copy .subtitle-input { color: var(--text-soft); font-size: 9px; font-weight: 400; }
 .architecture-node.selected { outline: 2px solid var(--accent); outline-offset: 2px; }
 .architecture-node.locked::after { content: 'Locked'; position: absolute; right: 7px; top: -9px; padding: 1px 5px; border-radius: 5px; color: white; background: var(--accent); font-size: 8px; }
 .architecture-node-note { align-items: flex-start; min-height: 96px; border-color: #e4c34f; color: #3f3511; box-shadow: 0 4px 12px rgba(80,65,10,.1); }
@@ -171,6 +174,7 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .react-flow__edge-text { fill: var(--text-soft); font-size: 10px; }
 .react-flow__edge-textbg { fill: var(--surface); }
 .inspector-fields { display: grid; gap: 13px; }
+.inspector-hint { margin: 0; padding: 9px 10px; border-radius: 9px; color: var(--text-soft); background: var(--surface-soft); font-size: 11px; line-height: 1.5; }
 .inspector-fields label { display: grid; gap: 6px; color: var(--text-soft); font-size: 11px; font-weight: 700; }
 .inspector-fields input:not([type="checkbox"]):not([type="color"]), .inspector-fields textarea, .inspector-fields select { width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; outline: 0; color: var(--text); background: var(--surface-soft); font-size: 12px; font-weight: 400; resize: vertical; }
 .inspector-fields input:focus, .inspector-fields textarea:focus, .inspector-fields select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }

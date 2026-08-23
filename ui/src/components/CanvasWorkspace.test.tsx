@@ -21,8 +21,9 @@ describe('CanvasWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: /Database/ }))
     expect(screen.getByRole('complementary', { name: 'Properties inspector' })).toBeInTheDocument()
 
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Orders Database' } })
-    expect(screen.getByText('Orders Database')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Undo canvas change' })).toBeEnabled()
+    fireEvent.change(screen.getByLabelText('Component name'), { target: { value: 'Orders Database' } })
+    fireEvent.blur(screen.getByLabelText('Component name'))
+    expect(screen.getByLabelText('Component name')).toHaveValue('Orders Database')
+    expect(screen.getByRole('complementary', { name: 'Properties inspector' }).querySelector('input[aria-label="Name"]')).not.toBeInTheDocument()
   })
 })

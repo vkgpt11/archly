@@ -55,9 +55,24 @@ const iconByKind = {
   note: MessageSquareText, text: FileText,
 }
 
-function ArchitectureNode({ data, selected }: NodeProps<Node<ArchitectureNodeData>>) {
+function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNodeData>>) {
+  const { updateNodeData } = useReactFlow()
+  const [label, setLabel] = useState(data.label || '')
+  const [subtitle, setSubtitle] = useState(data.subtitle || '')
   const kind = data.kind || 'service'
   const Icon = iconByKind[kind]
+
+  useEffect(() => setLabel(data.label || ''), [data.label])
+  useEffect(() => setSubtitle(data.subtitle || ''), [data.subtitle])
+
+  function saveInlineText() {
+    const nextLabel = label.trim() || 'Untitled component'
+    const nextSubtitle = subtitle.trim()
+    setLabel(nextLabel)
+    setSubtitle(nextSubtitle)
+    updateNodeData(id, { label: nextLabel, subtitle: nextSubtitle })
+  }
+
   return (
     <div
       className={`architecture-node architecture-node-${kind}${selected ? ' selected' : ''}${data.locked ? ' locked' : ''}`}
@@ -65,8 +80,8 @@ function ArchitectureNode({ data, selected }: NodeProps<Node<ArchitectureNodeDat
     >
       {kind !== 'text' && <Icon aria-hidden="true" />}
       <div className="architecture-node-copy">
-        <strong>{data.label || 'Untitled component'}</strong>
-        {data.subtitle && <span>{data.subtitle}</span>}
+        {selected ? <input className="nodrag nowheel" aria-label="Component name" value={label} onChange={(event) => setLabel(event.target.value)} onBlur={saveInlineText} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} /> : <strong>{data.label || 'Untitled component'}</strong>}
+        {selected ? <input className="nodrag nowheel subtitle-input" aria-label="Component subtitle" value={subtitle} onChange={(event) => setSubtitle(event.target.value)} onBlur={saveInlineText} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} placeholder="Add subtitle" /> : data.subtitle && <span>{data.subtitle}</span>}
       </div>
       {kind !== 'text' && kind !== 'note' && kind !== 'container' && (
         <>
@@ -356,8 +371,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
 function NodeInspector({ node, update, onDelete }: { node: Node; update: (patch: Partial<ArchitectureNodeData>) => void; onDelete: () => void }) {
   const data = node.data as ArchitectureNodeData
   return <div className="inspector-fields">
-    <label>Name<input value={data.label || ''} onChange={(event) => update({ label: event.target.value })} /></label>
-    <label>Subtitle<input value={data.subtitle || ''} onChange={(event) => update({ subtitle: event.target.value })} /></label>
+    <p className="inspector-hint">Select the component name or subtitle on the canvas to edit it inline.</p>
     <label>Description<textarea value={data.description || ''} onChange={(event) => update({ description: event.target.value })} rows={3} /></label>
     <label>Documentation URL<input value={data.documentationUrl || ''} onChange={(event) => update({ documentationUrl: event.target.value })} placeholder="https:// or #heading" /></label>
     <div className="inspector-colors">
