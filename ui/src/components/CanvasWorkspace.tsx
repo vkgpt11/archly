@@ -338,7 +338,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
   const filteredComponents = componentDefinitions.filter((item) => `${item.label} ${item.subtitle}`.toLowerCase().includes(search.toLowerCase()))
 
   return (
-    <div className="canvas-workspace">
+    <div className={`canvas-workspace${tool === 'connect' ? ' connect-mode' : ''}`}>
       <ReactFlow
         nodes={nodes}
         edges={edges}

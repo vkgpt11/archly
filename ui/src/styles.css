@@ -190,7 +190,8 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .architecture-node-note { align-items: center; justify-content: flex-end; border-color: #e4c34f; color: #3f3511; box-shadow: 0 4px 12px rgba(80,65,10,.1); }
 .architecture-node-container { width: 100%; height: 100%; align-items: flex-start; border: 1.5px dashed var(--border); background: color-mix(in srgb, var(--accent-soft) 35%, transparent); box-shadow: none; }
 .architecture-node-text { display: block; padding: 4px 6px; border-color: transparent; background: transparent; box-shadow: none; }
-.react-flow__handle { width: 8px; height: 8px; border: 2px solid var(--surface); background: var(--accent); }
+.react-flow__handle { width: 8px; height: 8px; border: 2px solid var(--surface); opacity: 0; background: var(--accent); transition: opacity .15s ease; }
+.architecture-node:hover .react-flow__handle, .architecture-node.selected .react-flow__handle, .connect-mode .react-flow__handle { opacity: 1; }
 .react-flow__edge-text { fill: var(--text-soft); font-size: 10px; }
 .react-flow__edge-textbg { fill: var(--surface); }
 .edge-inline-label { position: absolute; z-index: 3; height: 20px; padding: 0 6px; border: 0; border-radius: 0; outline: 0; color: var(--text-soft); background: var(--canvas-bg); box-shadow: 0 0 0 3px var(--canvas-bg); font-size: 9px; text-align: center; pointer-events: all; }

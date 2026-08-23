@@ -83,6 +83,14 @@ describe('CanvasWorkspace', () => {
     expect(screen.getByLabelText('Connection label')).toHaveValue('HTTPS')
   })
 
+  it('reveals connection handles when connect mode is active', () => {
+    const { container } = render(<UnselectedComponentHarness />)
+
+    expect(container.querySelector('.canvas-workspace')).not.toHaveClass('connect-mode')
+    fireEvent.click(screen.getByRole('button', { name: 'Connect components' }))
+    expect(container.querySelector('.canvas-workspace')).toHaveClass('connect-mode')
+  })
+
   it('locks a component without entering edit mode', () => {
     render(<UnselectedComponentHarness />)
 
