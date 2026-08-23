@@ -67,6 +67,17 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .rich-text-content > *:first-child { margin-top: 0; }
 .rich-text-content h1 { font-size: 30px; letter-spacing: -.03em; }
 .rich-text-content h2 { margin-top: 1.5em; font-size: 22px; }
+.rich-text-content ul, .rich-text-content ol { margin: .75em 0; padding-left: 1.75rem; }
+.rich-text-content ul { list-style-type: disc; }
+.rich-text-content ol { list-style-type: decimal; }
+.rich-text-content ul ul { list-style-type: circle; }
+.rich-text-content ul ul ul { list-style-type: square; }
+.rich-text-content ol ol { list-style-type: lower-alpha; }
+.rich-text-content li { display: list-item; padding-left: .25rem; }
+.rich-text-content li + li { margin-top: .3em; }
+.rich-text-content li > p { margin: 0; }
+.rich-text-content li > ul, .rich-text-content li > ol { margin: .3em 0; }
+.rich-text-content li::marker { color: #6d4aff; font-weight: 700; }
 .rich-text-content p.is-editor-empty:first-child::before { content: 'Describe your architecture…'; float: left; height: 0; color: #a2a5b1; pointer-events: none; }
 .rich-text-content a { color: #5d42db; text-decoration: underline; text-underline-offset: 2px; }
 .rich-text-content code { padding: 2px 5px; border-radius: 5px; color: #8b2950; background: #f5eef2; font-family: "SFMono-Regular", Consolas, monospace; font-size: .88em; }
