@@ -187,11 +187,9 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .architecture-node.icon-compact .component-kind-icon { top: -22px; width: 44px; height: 44px; }
 .architecture-node.icon-compact .component-kind-icon svg { width: 22px; height: 22px; }
 .architecture-node-copy { min-width: 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 0; text-align: center; }
-.architecture-node-copy strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.architecture-node-copy span { overflow: hidden; color: var(--node-soft); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
-.architecture-node-copy input { width: 100%; min-width: 0; padding: 1px 3px; border: 1px solid transparent; border-radius: 4px; outline: 0; color: inherit; background: transparent; font-size: 12px; font-weight: 750; text-align: center; }
+.architecture-node-copy strong { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.architecture-node-copy input { width: 100%; min-width: 0; padding: 1px 3px; border: 1px solid transparent; border-radius: 4px; outline: 0; color: inherit; background: transparent; font-size: 10px; font-weight: 750; text-align: center; }
 .architecture-node-copy input:hover, .architecture-node-copy input:focus { border-color: var(--accent); background: color-mix(in srgb, var(--surface) 85%, transparent); }
-.architecture-node-copy .subtitle-input { color: var(--node-soft); font-size: 9px; font-weight: 400; }
 .architecture-node.selected { outline: 2px solid var(--node-accent); outline-offset: 2px; }
 .component-lock { position: absolute; z-index: 4; right: -8px; bottom: -8px; width: 17px; height: 17px; display: grid; place-items: center; padding: 0; border: 1px solid var(--border); border-radius: 5px; color: var(--muted); background: var(--surface); box-shadow: 0 3px 7px rgba(20,21,30,.13); }
 .component-lock:hover, .architecture-node.locked .component-lock { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }

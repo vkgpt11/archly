@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import {
-  COMPONENT_SUBTITLE_LIMIT, COMPONENT_TITLE_LIMIT, getComponentSize, getEdgeLabelWidth, truncateCanvasText,
+  COMPONENT_TITLE_LIMIT, getComponentSize, getEdgeLabelWidth, truncateCanvasText,
   type ArchitectureKind,
 } from './canvasSizing'
 
@@ -20,7 +20,6 @@ type CanvasTool = 'select' | 'pan' | 'connect'
 
 export type ArchitectureNodeData = {
   label?: string
-  subtitle?: string
   kind?: ArchitectureKind
   description?: string
   fill?: string
@@ -38,19 +37,19 @@ type Props = {
   setEdges: Dispatch<SetStateAction<Edge[]>>
 }
 
-const componentDefinitions: Array<{ kind: ArchitectureKind; label: string; subtitle: string }> = [
-  { kind: 'service', label: 'Service / API', subtitle: 'Backend or microservice' },
-  { kind: 'web', label: 'Web application', subtitle: 'Browser-based application' },
-  { kind: 'mobile', label: 'Mobile application', subtitle: 'iOS or Android client' },
-  { kind: 'database', label: 'Database', subtitle: 'Persistent data store' },
-  { kind: 'cache', label: 'Cache', subtitle: 'Fast temporary storage' },
-  { kind: 'queue', label: 'Queue / Event bus', subtitle: 'Asynchronous messaging' },
-  { kind: 'storage', label: 'File storage', subtitle: 'Object or file storage' },
-  { kind: 'external', label: 'External system', subtitle: 'Third-party dependency' },
-  { kind: 'actor', label: 'User / Actor', subtitle: 'Person or system actor' },
-  { kind: 'container', label: 'Container', subtitle: 'System or network boundary' },
-  { kind: 'note', label: 'Note', subtitle: 'Diagram annotation' },
-  { kind: 'text', label: 'Text', subtitle: 'Standalone label' },
+const componentDefinitions: Array<{ kind: ArchitectureKind; label: string; description: string }> = [
+  { kind: 'service', label: 'Service / API', description: 'Backend or microservice' },
+  { kind: 'web', label: 'Web application', description: 'Browser-based application' },
+  { kind: 'mobile', label: 'Mobile application', description: 'iOS or Android client' },
+  { kind: 'database', label: 'Database', description: 'Persistent data store' },
+  { kind: 'cache', label: 'Cache', description: 'Fast temporary storage' },
+  { kind: 'queue', label: 'Queue / Event bus', description: 'Asynchronous messaging' },
+  { kind: 'storage', label: 'File storage', description: 'Object or file storage' },
+  { kind: 'external', label: 'External system', description: 'Third-party dependency' },
+  { kind: 'actor', label: 'User / Actor', description: 'Person or system actor' },
+  { kind: 'container', label: 'Container', description: 'System or network boundary' },
+  { kind: 'note', label: 'Note', description: 'Diagram annotation' },
+  { kind: 'text', label: 'Text', description: 'Standalone label' },
 ]
 
 const iconByKind = {
@@ -64,23 +63,22 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
   const kind = data.kind || 'service'
   const Icon = iconByKind[kind]
   const label = data.label || ''
-  const subtitle = data.subtitle || ''
   const labelLength = label.length
   const iconDensity = labelLength > 24 ? 'icon-compact' : labelLength > 14 ? 'icon-medium' : 'icon-large'
 
   useEffect(() => {
     if (kind === 'container') return
     const current = getNode(id)
-    const size = getComponentSize(label, subtitle, kind, selected)
+    const size = getComponentSize(label, kind)
     if (current?.width === size.width && current?.height === size.height) return
     updateNode(id, { ...size, style: { ...current?.style, ...size } })
-  }, [getNode, id, kind, label, selected, subtitle, updateNode])
+  }, [getNode, id, kind, label, updateNode])
 
-  function updateContent(nextLabel: string, nextSubtitle: string) {
+  function updateContent(nextLabel: string) {
     const current = getNode(id)
-    const nextSize = kind === 'container' ? {} : getComponentSize(nextLabel, nextSubtitle, kind, selected)
+    const nextSize = kind === 'container' ? {} : getComponentSize(nextLabel, kind)
     const nextStyle = kind === 'container' ? current?.style : { ...current?.style, ...nextSize }
-    updateNode(id, { ...nextSize, data: { ...data, label: nextLabel, subtitle: nextSubtitle }, style: nextStyle })
+    updateNode(id, { ...nextSize, data: { ...data, label: nextLabel }, style: nextStyle })
   }
 
   function toggleLock() {
@@ -102,8 +100,7 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
         aria-label={data.locked ? 'Unlock component' : 'Lock component'}
       >{data.locked ? <Lock /> : <Unlock />}</button>
       <div className="architecture-node-copy">
-        {selected ? <input className="nodrag nowheel" aria-label="Component name" value={label} onChange={(event) => updateContent(event.target.value, subtitle)} onBlur={() => updateContent(label.trim() || 'Untitled component', subtitle.trim())} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} /> : <strong title={data.label}>{truncateCanvasText(data.label || 'Untitled component', COMPONENT_TITLE_LIMIT)}</strong>}
-        {selected ? <input className="nodrag nowheel subtitle-input" aria-label="Component subtitle" value={subtitle} onChange={(event) => updateContent(label, event.target.value)} onBlur={() => updateContent(label.trim() || 'Untitled component', subtitle.trim())} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} placeholder="Add subtitle" /> : data.subtitle && <span title={data.subtitle}>{truncateCanvasText(data.subtitle, COMPONENT_SUBTITLE_LIMIT)}</span>}
+        {selected ? <input className="nodrag nowheel" aria-label="Component name" value={label} onChange={(event) => updateContent(event.target.value)} onBlur={() => updateContent(label.trim() || 'Untitled component')} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} /> : <strong title={data.label}>{truncateCanvasText(data.label || 'Untitled component', COMPONENT_TITLE_LIMIT)}</strong>}
       </div>
       {kind !== 'text' && kind !== 'note' && kind !== 'container' && (
         <>
@@ -154,7 +151,7 @@ function normalizedNode(node: Node): Node {
   return {
     ...node,
     type: 'architecture',
-    data: { kind: 'service', label: String(node.data?.label || 'Service'), subtitle: 'Service' },
+    data: { kind: 'service', label: String(node.data?.label || 'Service') },
     style: undefined,
   }
 }
@@ -225,7 +222,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
 
   function addComponent(kind: ArchitectureKind) {
     const definition = componentDefinitions.find((item) => item.kind === kind)!
-    const size = getComponentSize(definition.label, definition.subtitle, kind)
+    const size = getComponentSize(definition.label, kind)
     const viewportCenter = flow.screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
     const node: Node<ArchitectureNodeData> = {
       id: crypto.randomUUID(),
@@ -234,7 +231,6 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
       data: {
         kind,
         label: definition.label,
-        subtitle: definition.subtitle,
       },
       style: size,
       zIndex: kind === 'container' ? -1 : 0,
@@ -337,7 +333,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
     return () => document.removeEventListener('keydown', handleKeyDown)
   })
 
-  const filteredComponents = componentDefinitions.filter((item) => `${item.label} ${item.subtitle}`.toLowerCase().includes(search.toLowerCase()))
+  const filteredComponents = componentDefinitions.filter((item) => `${item.label} ${item.description}`.toLowerCase().includes(search.toLowerCase()))
 
   return (
     <div className={`canvas-workspace${tool === 'connect' ? ' connect-mode' : ''}`}>
@@ -387,7 +383,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
           <div className="component-list">
             {filteredComponents.map((item) => {
               const Icon = iconByKind[item.kind]
-              return <button key={item.kind} onClick={() => addComponent(item.kind)}><Icon /><span><strong>{item.label}</strong><small>{item.subtitle}</small></span><Plus /></button>
+              return <button key={item.kind} onClick={() => addComponent(item.kind)}><Icon /><span><strong>{item.label}</strong><small>{item.description}</small></span><Plus /></button>
             })}
           </div>
         </aside>

@@ -32,13 +32,13 @@ function UnselectedComponentHarness() {
 
 describe('CanvasWorkspace', () => {
   it('sizes components according to their visible content', () => {
-    const compact = getComponentSize('API', '', 'service')
-    const expanded = getComponentSize('Customer identity and access service', 'OAuth and account lifecycle', 'service')
+    const compact = getComponentSize('API', 'service')
+    const expanded = getComponentSize('Customer identity and access service', 'service')
     expect(compact).toEqual({ width: 44, height: 52 })
     expect(expanded.width).toBeGreaterThan(compact.width)
     expect(expanded.width).toBeLessThanOrEqual(360)
-    expect(expanded.height).toBeGreaterThan(compact.height)
-    expect(getComponentSize('Boundary', '', 'container')).toEqual({ width: 360, height: 240 })
+    expect(expanded.height).toBe(compact.height)
+    expect(getComponentSize('Boundary', 'container')).toEqual({ width: 360, height: 240 })
   })
 
   it('limits read-only text without changing the full value', () => {
@@ -68,9 +68,8 @@ describe('CanvasWorkspace', () => {
     fireEvent.blur(screen.getByLabelText('Component name'))
     expect(screen.getByLabelText('Component name')).toHaveValue('Orders Database')
     expect(screen.getByLabelText('Component name').closest('.architecture-node')).toHaveClass('icon-medium')
-    fireEvent.change(screen.getByLabelText('Component subtitle'), { target: { value: '' } })
-    expect(screen.getByLabelText('Component subtitle')).toHaveValue('')
-    expect(screen.getByLabelText('Component name').closest('.react-flow__node')).toHaveStyle({ width: '122px', height: '68px' })
+    expect(screen.queryByLabelText('Component subtitle')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Component name').closest('.react-flow__node')).toHaveStyle({ width: '122px', height: '52px' })
     expect(screen.getByLabelText('Lock component')).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Lock component'))
     expect(screen.getByLabelText('Unlock component')).toBeInTheDocument()
