@@ -87,6 +87,9 @@ describe('CanvasWorkspace', () => {
     const { container } = render(<UnselectedComponentHarness />)
 
     expect(container.querySelector('.canvas-workspace')).not.toHaveClass('connect-mode')
+    expect(container.querySelectorAll('.react-flow__handle')).toHaveLength(4)
+    expect(container.querySelector('[data-handleid="left"]')).toBeInTheDocument()
+    expect(container.querySelector('[data-handleid="right"]')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Connect components' }))
     expect(container.querySelector('.canvas-workspace')).toHaveClass('connect-mode')
   })

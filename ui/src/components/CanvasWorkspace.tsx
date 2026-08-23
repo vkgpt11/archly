@@ -1,5 +1,5 @@
 import {
-  Background, BackgroundVariant, BaseEdge, Controls, EdgeLabelRenderer, Handle, MarkerType,
+  Background, BackgroundVariant, BaseEdge, ConnectionMode, Controls, EdgeLabelRenderer, Handle, MarkerType,
   MiniMap, ReactFlow, ReactFlowProvider, Position, addEdge, applyEdgeChanges,
   applyNodeChanges, getBezierPath, getSmoothStepPath, getStraightPath, useReactFlow,
   type Connection, type Edge, type EdgeChange, type EdgeProps, type Node, type NodeChange, type NodeProps,
@@ -107,8 +107,8 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
       </div>
       {kind !== 'text' && kind !== 'note' && kind !== 'container' && (
         <>
-          <Handle type="target" position={Position.Left} />
-          <Handle type="source" position={Position.Right} />
+          <Handle type="target" position={Position.Left} id="left" />
+          <Handle type="source" position={Position.Right} id="right" />
           <Handle type="target" position={Position.Top} id="top" />
           <Handle type="source" position={Position.Bottom} id="bottom" />
         </>
@@ -353,6 +353,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
         panOnDrag={tool === 'pan' ? true : [1]}
         nodesDraggable={tool !== 'pan'}
         nodesConnectable={tool === 'connect' || tool === 'select'}
+        connectionMode={ConnectionMode.Loose}
         selectionOnDrag={tool === 'select'}
         snapToGrid
         snapGrid={[16, 16]}
