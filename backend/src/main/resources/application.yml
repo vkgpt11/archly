@@ -15,7 +15,7 @@ archly:
     dev-bypass: ${ARCHLY_AUTH_DEV_BYPASS:false}
   google:
     client-id: ${GOOGLE_CLIENT_ID:local-development-client-id}
-  ui-origin: ${UI_ORIGIN:http://localhost:5173}
+  ui-origins: ${UI_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
 
 server:
   error:

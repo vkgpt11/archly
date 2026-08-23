@@ -9,4 +9,4 @@ spring:
 archly:
   google:
     client-id: test-client
-  ui-origin: http://localhost:5173
+  ui-origins: http://localhost:5173,http://127.0.0.1:5173

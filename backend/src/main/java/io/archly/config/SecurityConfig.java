@@ -1,6 +1,7 @@
 package io.archly.config;
 
 import java.util.List;
+import java.util.Arrays;
 import java.time.Instant;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -77,9 +78,12 @@ public class SecurityConfig {
     }
 
     @Bean
-    CorsConfigurationSource corsConfigurationSource(@Value("${archly.ui-origin}") String uiOrigin) {
+    CorsConfigurationSource corsConfigurationSource(@Value("${archly.ui-origins}") String uiOrigins) {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(uiOrigin));
+        configuration.setAllowedOrigins(Arrays.stream(uiOrigins.split(","))
+            .map(String::trim)
+            .filter(origin -> !origin.isBlank())
+            .toList());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "If-Match"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

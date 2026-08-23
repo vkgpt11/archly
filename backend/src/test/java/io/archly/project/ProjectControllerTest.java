@@ -3,6 +3,8 @@ package io.archly.project;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -26,6 +28,16 @@ class ProjectControllerTest {
     @Test
     void requiresAuthentication() throws Exception {
         mvc.perform(get("/api/projects")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void acceptsPreflightFromLocalIpUi() throws Exception {
+        mvc.perform(options("/api/projects")
+                .header("Origin", "http://127.0.0.1:5173")
+                .header("Access-Control-Request-Method", "POST")
+                .header("Access-Control-Request-Headers", "authorization,content-type"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("Access-Control-Allow-Origin", "http://127.0.0.1:5173"));
     }
 
     @Test
