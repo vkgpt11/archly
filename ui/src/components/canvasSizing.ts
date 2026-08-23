@@ -14,10 +14,10 @@ export function getComponentSize(label: string, subtitle: string, kind: Architec
   const visibleSubtitle = truncateCanvasText(subtitle.trim(), COMPONENT_SUBTITLE_LIMIT)
   const longestText = Math.max(visibleLabel.length, visibleSubtitle.length)
   const characterWidth = kind === 'text' ? 7 : 6.5
-  const reservedSpace = kind === 'text' ? 34 : 58
+  const reservedSpace = kind === 'text' ? 18 : 24
   const maximumWidth = kind === 'text' ? 420 : 360
   return {
     width: Math.round(Math.min(maximumWidth, longestText * characterWidth + reservedSpace)),
-    height: kind === 'note' ? 68 : kind === 'text' ? 30 : visibleSubtitle ? 58 : 42,
+    height: kind === 'note' ? 76 : kind === 'text' ? 30 : 68,
   }
 }

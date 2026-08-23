@@ -26,10 +26,10 @@ describe('CanvasWorkspace', () => {
   it('sizes components according to their visible content', () => {
     const compact = getComponentSize('API', '', 'service')
     const expanded = getComponentSize('Customer identity and access service', 'OAuth and account lifecycle', 'service')
-    expect(compact).toEqual({ width: 78, height: 42 })
+    expect(compact).toEqual({ width: 44, height: 68 })
     expect(expanded.width).toBeGreaterThan(compact.width)
     expect(expanded.width).toBeLessThanOrEqual(360)
-    expect(expanded.height).toBeGreaterThan(compact.height)
+    expect(expanded.height).toBe(compact.height)
     expect(getComponentSize('Boundary', '', 'container')).toEqual({ width: 360, height: 240 })
   })
 
@@ -55,7 +55,7 @@ describe('CanvasWorkspace', () => {
     expect(screen.getByLabelText('Component name').closest('.architecture-node')).toHaveClass('icon-medium')
     fireEvent.change(screen.getByLabelText('Component subtitle'), { target: { value: '' } })
     expect(screen.getByLabelText('Component subtitle')).toHaveValue('')
-    expect(screen.getByLabelText('Component name').closest('.react-flow__node')).toHaveStyle({ width: '156px', height: '42px' })
+    expect(screen.getByLabelText('Component name').closest('.react-flow__node')).toHaveStyle({ width: '122px', height: '68px' })
     expect(screen.getByLabelText('Lock component')).toBeInTheDocument()
     expect(screen.getByRole('complementary', { name: 'Properties inspector' }).querySelector('input[aria-label="Name"]')).not.toBeInTheDocument()
     expect(screen.getByRole('complementary', { name: 'Properties inspector' }).querySelector('input[type="checkbox"]')).not.toBeInTheDocument()
