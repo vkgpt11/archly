@@ -1,5 +1,5 @@
-:root { --page: #f7f7fb; --surface: #ffffff; --surface-soft: #fafafd; --surface-muted: #f0f0f5; --text: #151823; --text-soft: #626779; --muted: #85899a; --border: #e4e4eb; --accent: #6d4aff; --accent-soft: #e9e4ff; --danger: #b4233a; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--text); background: var(--page); font-synthesis: none; }
-:root[data-theme="dark"] { --page: #111219; --surface: #1b1d27; --surface-soft: #20232e; --surface-muted: #292c38; --text: #f0f1f6; --text-soft: #b8bbca; --muted: #8f93a5; --border: #353846; --accent: #9a83ff; --accent-soft: #342d56; --danger: #ff8799; }
+:root { --page: #f7f7fb; --canvas-bg: #fafafe; --surface: #ffffff; --surface-soft: #fafafd; --surface-muted: #f0f0f5; --text: #151823; --text-soft: #626779; --muted: #85899a; --border: #e4e4eb; --accent: #6d4aff; --accent-soft: #e9e4ff; --danger: #b4233a; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--text); background: var(--page); font-synthesis: none; }
+:root[data-theme="dark"] { --page: #111219; --canvas-bg: #151720; --surface: #1b1d27; --surface-soft: #20232e; --surface-muted: #292c38; --text: #f0f1f6; --text-soft: #b8bbca; --muted: #8f93a5; --border: #353846; --accent: #9a83ff; --accent-soft: #342d56; --danger: #ff8799; }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; min-height: 100vh; color: var(--text); background: var(--page); }
 button, input, textarea { font: inherit; }
@@ -126,7 +126,7 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .rich-text-content pre .hljs-variable, .rich-text-content pre .hljs-template-variable, .rich-text-content pre .hljs-attr { color: #f07178; }
 .rich-text-content pre .hljs-meta, .rich-text-content pre .hljs-tag { color: #89ddff; }
 .rich-text-content blockquote { margin-left: 0; padding-left: 18px; border-left: 3px solid #9b87ee; color: #666a78; }
-.canvas-panel { position: relative; background: #fafafe; }
+.canvas-panel { position: relative; background: var(--canvas-bg); }
 .canvas-panel .react-flow { height: 100%; }
 .canvas-workspace { position: absolute; inset: 0; overflow: hidden; }
 .canvas-workspace button { color: var(--text-soft); }
@@ -196,8 +196,8 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .react-flow__handle { width: 8px; height: 8px; border: 2px solid var(--surface); background: var(--accent); }
 .react-flow__edge-text { fill: var(--text-soft); font-size: 10px; }
 .react-flow__edge-textbg { fill: var(--surface); }
-.edge-inline-label { position: absolute; z-index: 3; height: 20px; padding: 0 4px; border: 0; border-radius: 5px; outline: 0; color: var(--text-soft); background: transparent; box-shadow: none; font-size: 9px; text-align: center; text-shadow: 0 0 3px var(--surface), 0 0 3px var(--surface), 0 0 5px var(--surface); pointer-events: all; }
-.edge-inline-label:hover, .edge-inline-label:focus, .edge-inline-label.selected:focus { color: var(--text); background: color-mix(in srgb, var(--surface) 82%, transparent); }
+.edge-inline-label { position: absolute; z-index: 3; height: 20px; padding: 0 6px; border: 0; border-radius: 0; outline: 0; color: var(--text-soft); background: var(--canvas-bg); box-shadow: 0 0 0 3px var(--canvas-bg); font-size: 9px; text-align: center; pointer-events: all; }
+.edge-inline-label:hover, .edge-inline-label:focus, .edge-inline-label.selected:focus { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
 .inspector-fields { display: grid; gap: 13px; }
 .inspector-hint { margin: 0; padding: 9px 10px; border-radius: 9px; color: var(--text-soft); background: var(--surface-soft); font-size: 11px; line-height: 1.5; }
 .inspector-fields label { display: grid; gap: 6px; color: var(--text-soft); font-size: 11px; font-weight: 700; }
@@ -227,7 +227,7 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 :root[data-theme="dark"] .color-popover, :root[data-theme="dark"] .link-popover { color: var(--text); background: var(--surface-soft); border-color: var(--border); }
 :root[data-theme="dark"] .link-popover input { color: var(--text); background: #161821; border-color: var(--border); }
 :root[data-theme="dark"] .link-popover label { color: var(--text-soft); }
-:root[data-theme="dark"] .canvas-panel { background: #151720; }
+:root[data-theme="dark"] .canvas-panel { background: var(--canvas-bg); }
 :root[data-theme="dark"] .panel-resizer { background: #303340; }
 :root[data-theme="dark"] .react-flow__controls button { color: var(--text); background: var(--surface); border-color: var(--border); fill: var(--text); }
 :root[data-theme="dark"] .react-flow__minimap { background: var(--surface); }
