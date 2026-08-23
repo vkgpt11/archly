@@ -1,0 +1,46 @@
+services:
+  database:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: archly
+      POSTGRES_USER: archly
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-archly-local-password}
+    volumes:
+      - archly-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U archly -d archly"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ../backend
+    environment:
+      DATABASE_URL: jdbc:postgresql://database:5432/archly
+      DATABASE_USERNAME: archly
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-archly-local-password}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      UI_ORIGIN: http://localhost:8088
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  ui:
+    build:
+      context: ../ui
+      args:
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+        VITE_API_URL: /api
+    ports:
+      - "8088:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  archly-db:

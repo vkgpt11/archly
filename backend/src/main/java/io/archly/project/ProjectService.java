@@ -1,0 +1,58 @@
+package io.archly.project;
+
+import io.archly.project.ProjectDtos.CreateProjectRequest;
+import io.archly.project.ProjectDtos.ProjectResponse;
+import io.archly.project.ProjectDtos.UpdateProjectRequest;
+import jakarta.persistence.OptimisticLockException;
+import java.util.List;
+import java.util.UUID;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+@Service
+@Transactional
+public class ProjectService {
+    private final ProjectRepository repository;
+
+    public ProjectService(ProjectRepository repository) {
+        this.repository = repository;
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProjectResponse> list(String email) {
+        return repository.findAllByOwnerEmailOrderByUpdatedAtDesc(email).stream().map(ProjectResponse::from).toList();
+    }
+
+    public ProjectResponse create(String email, CreateProjectRequest request) {
+        return ProjectResponse.from(repository.save(new Project(email, request.name().trim())));
+    }
+
+    @Transactional(readOnly = true)
+    public ProjectResponse get(String email, UUID id) {
+        return ProjectResponse.from(findOwned(email, id));
+    }
+
+    public ProjectResponse update(String email, UUID id, UpdateProjectRequest request) {
+        Project project = findOwned(email, id);
+        if (project.getRevision() != request.revision()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Project was updated elsewhere. Reload before saving.");
+        }
+        project.update(request.name().trim(), request.canvasJson(), request.markdown() == null ? "" : request.markdown());
+        try {
+            return ProjectResponse.from(repository.saveAndFlush(project));
+        } catch (OptimisticLockException exception) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Project was updated elsewhere. Reload before saving.");
+        }
+    }
+
+    public void delete(String email, UUID id) {
+        repository.delete(findOwned(email, id));
+    }
+
+    private Project findOwned(String email, UUID id) {
+        return repository.findByIdAndOwnerEmail(id, email)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
+    }
+}

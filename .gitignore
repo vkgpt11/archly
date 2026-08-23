@@ -1,0 +1,29 @@
+# Frontend
+node_modules/
+dist/
+.vite/
+
+# Java
+target/
+.gradle/
+build/
+*.class
+backend/data/
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Operating system
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+*.tsbuildinfo
