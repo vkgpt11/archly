@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import CanvasWorkspace from './CanvasWorkspace'
-import { getComponentSize } from './canvasSizing'
+import { getComponentSize, truncateCanvasText } from './canvasSizing'
 import { useState } from 'react'
 import type { Edge, Node } from '@xyflow/react'
 
@@ -27,9 +27,16 @@ describe('CanvasWorkspace', () => {
     const compact = getComponentSize('API', '', 'service')
     const expanded = getComponentSize('Customer identity and access service', 'OAuth and account lifecycle', 'service')
     expect(compact).toEqual({ width: 78, height: 42 })
-    expect(expanded.width).toBeGreaterThan(250)
+    expect(expanded.width).toBeGreaterThan(compact.width)
+    expect(expanded.width).toBeLessThanOrEqual(360)
     expect(expanded.height).toBeGreaterThan(compact.height)
     expect(getComponentSize('Boundary', '', 'container')).toEqual({ width: 360, height: 240 })
+  })
+
+  it('limits read-only text without changing the full value', () => {
+    const fullTitle = 'Customer identity and access management service'
+    expect(truncateCanvasText(fullTitle, 28)).toBe('Customer identity and acces…')
+    expect(fullTitle).toBe('Customer identity and access management service')
   })
 
   it('adds a searchable component and edits its properties', () => {
