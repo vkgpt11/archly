@@ -35,7 +35,12 @@ describe('CanvasWorkspace', () => {
     fireEvent.change(screen.getByLabelText('Component name'), { target: { value: 'Orders Database' } })
     fireEvent.blur(screen.getByLabelText('Component name'))
     expect(screen.getByLabelText('Component name')).toHaveValue('Orders Database')
+    expect(screen.getByLabelText('Lock component')).toBeInTheDocument()
     expect(screen.getByRole('complementary', { name: 'Properties inspector' }).querySelector('input[aria-label="Name"]')).not.toBeInTheDocument()
+    expect(screen.getByRole('complementary', { name: 'Properties inspector' }).querySelector('input[type="checkbox"]')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('Lock component'))
+    expect(screen.getByLabelText('Unlock component')).toBeInTheDocument()
   })
 
   it('shows connection formatting in a separate toolbar', () => {

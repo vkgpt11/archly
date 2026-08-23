@@ -1,13 +1,13 @@
 import {
   Background, BackgroundVariant, Controls, Handle, MarkerType, MiniMap, ReactFlow,
-  ReactFlowProvider, Position, addEdge, applyEdgeChanges, applyNodeChanges, useReactFlow,
+  ReactFlowProvider, Position, NodeResizer, addEdge, applyEdgeChanges, applyNodeChanges, useReactFlow,
   type Connection, type Edge, type EdgeChange, type Node, type NodeChange, type NodeProps,
 } from '@xyflow/react'
 import {
   AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, AppWindow, Box, Boxes,
   ArrowLeft, ArrowRight, Braces, Cloud, Database, Expand, ExternalLink, FileText, Focus, Hand,
-  Layers3, LocateFixed, MessageSquareText, Minus, MousePointer2, Network, Plus, Redo2, Search,
-  Server, Smartphone, Spline, Trash2, Undo2, UserRound, Workflow, X, ZoomIn, ZoomOut,
+  Layers3, LocateFixed, Lock, MessageSquareText, Minus, MousePointer2, Network, Plus, Redo2,
+  Search, Server, Smartphone, Spline, Trash2, Undo2, Unlock, UserRound, Workflow, X, ZoomIn, ZoomOut,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 
@@ -56,7 +56,7 @@ const iconByKind = {
 }
 
 function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNodeData>>) {
-  const { updateNodeData } = useReactFlow()
+  const { updateNode, updateNodeData } = useReactFlow()
   const [label, setLabel] = useState(data.label || '')
   const [subtitle, setSubtitle] = useState(data.subtitle || '')
   const kind = data.kind || 'service'
@@ -73,12 +73,19 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
     updateNodeData(id, { label: nextLabel, subtitle: nextSubtitle })
   }
 
+  function toggleLock() {
+    const locked = !data.locked
+    updateNode(id, { draggable: !locked, data: { ...data, locked } })
+  }
+
   return (
     <div
       className={`architecture-node architecture-node-${kind}${selected ? ' selected' : ''}${data.locked ? ' locked' : ''}`}
       style={{ background: data.fill, borderColor: data.border, color: data.textColor }}
     >
-      {kind !== 'text' && <Icon aria-hidden="true" />}
+      <NodeResizer isVisible={selected && !data.locked} minWidth={kind === 'text' ? 100 : 140} minHeight={kind === 'text' ? 36 : 64} lineClassName="component-resizer-line" handleClassName="component-resizer-handle" />
+      {kind !== 'text' && <Icon className="component-kind-icon" aria-hidden="true" />}
+      <button className="component-lock nodrag nowheel" onClick={toggleLock} title={data.locked ? 'Unlock component' : 'Lock component'} aria-label={data.locked ? 'Unlock component' : 'Lock component'}>{data.locked ? <Lock /> : <Unlock />}</button>
       <div className="architecture-node-copy">
         {selected ? <input className="nodrag nowheel" aria-label="Component name" value={label} onChange={(event) => setLabel(event.target.value)} onBlur={saveInlineText} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} /> : <strong>{data.label || 'Untitled component'}</strong>}
         {selected ? <input className="nodrag nowheel subtitle-input" aria-label="Component subtitle" value={subtitle} onChange={(event) => setSubtitle(event.target.value)} onBlur={saveInlineText} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} placeholder="Add subtitle" /> : data.subtitle && <span>{data.subtitle}</span>}
@@ -380,7 +387,6 @@ function NodeInspector({ node, update, onDelete }: { node: Node; update: (patch:
       <label>Border<input type="color" value={data.border || '#68708a'} onChange={(event) => update({ border: event.target.value })} /></label>
       <label>Text<input type="color" value={data.textColor || '#20222d'} onChange={(event) => update({ textColor: event.target.value })} /></label>
     </div>
-    <label className="inspector-check"><input type="checkbox" checked={Boolean(data.locked)} onChange={(event) => update({ locked: event.target.checked })} /> Lock component</label>
     <button className="danger-action" onClick={onDelete}><Trash2 /> Delete component</button>
   </div>
 }

@@ -171,9 +171,9 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .component-list button span { display: flex; flex-direction: column; gap: 2px; }
 .component-list button strong { color: var(--text); font-size: 12px; }
 .component-list button small { color: var(--muted); font-size: 10px; }
-.architecture-node { position: relative; min-height: 64px; display: flex; align-items: center; gap: 10px; padding: 12px; border: 1.5px solid var(--border); border-radius: 12px; color: var(--text); background: var(--surface); box-shadow: 0 4px 14px rgba(20,21,30,.08); }
-.architecture-node > svg { width: 23px; height: 23px; flex: 0 0 auto; color: var(--accent); }
-.architecture-node-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.architecture-node { position: relative; width: 100%; height: 100%; min-height: 64px; display: flex; align-items: center; padding: 24px 25px 10px 12px; border: 1.5px solid var(--border); border-radius: 12px; color: var(--text); background: var(--surface); box-shadow: 0 4px 14px rgba(20,21,30,.08); }
+.architecture-node .component-kind-icon { position: absolute; left: 10px; top: 8px; width: 15px; height: 15px; color: var(--accent); }
+.architecture-node-copy { min-width: 0; width: 100%; display: flex; flex-direction: column; gap: 3px; }
 .architecture-node-copy strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .architecture-node-copy span { overflow: hidden; color: var(--text-soft); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .architecture-node-copy input { width: 100%; min-width: 0; padding: 1px 3px; border: 1px solid transparent; border-radius: 4px; outline: 0; color: inherit; background: transparent; font-size: 12px; font-weight: 750; }
@@ -181,9 +181,15 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .architecture-node-copy .subtitle-input { color: var(--text-soft); font-size: 9px; font-weight: 400; }
 .architecture-node.selected { outline: 2px solid var(--accent); outline-offset: 2px; }
 .architecture-node.locked::after { content: 'Locked'; position: absolute; right: 7px; top: -9px; padding: 1px 5px; border-radius: 5px; color: white; background: var(--accent); font-size: 8px; }
+.component-lock { position: absolute; z-index: 3; right: 7px; top: 5px; width: 24px; height: 24px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; color: var(--muted); background: transparent; opacity: .55; }
+.component-lock:hover, .architecture-node.locked .component-lock { color: var(--accent); background: var(--accent-soft); opacity: 1; }
+.component-lock svg { width: 12px; height: 12px; }
+.component-resizer-line { border-color: var(--accent) !important; }
+.component-resizer-handle { width: 8px !important; height: 8px !important; border: 2px solid var(--surface) !important; border-radius: 50% !important; background: var(--accent) !important; }
 .architecture-node-note { align-items: flex-start; min-height: 96px; border-color: #e4c34f; color: #3f3511; box-shadow: 0 4px 12px rgba(80,65,10,.1); }
 .architecture-node-container { width: 100%; height: 100%; align-items: flex-start; border-style: dashed; background: color-mix(in srgb, var(--accent-soft) 35%, transparent); box-shadow: none; }
-.architecture-node-text { min-height: 36px; padding: 7px; border-color: transparent; background: transparent; box-shadow: none; }
+.architecture-node-text { min-height: 36px; padding: 7px 25px 7px 7px; border-color: transparent; background: transparent; box-shadow: none; }
+.architecture-node-text .component-lock { top: 4px; }
 .react-flow__handle { width: 8px; height: 8px; border: 2px solid var(--surface); background: var(--accent); }
 .react-flow__edge-text { fill: var(--text-soft); font-size: 10px; }
 .react-flow__edge-textbg { fill: var(--surface); }
