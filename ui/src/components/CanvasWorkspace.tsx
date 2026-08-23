@@ -1,7 +1,8 @@
 import {
-  Background, BackgroundVariant, Controls, Handle, MarkerType, MiniMap, ReactFlow,
-  ReactFlowProvider, Position, NodeResizer, addEdge, applyEdgeChanges, applyNodeChanges, useReactFlow,
-  type Connection, type Edge, type EdgeChange, type Node, type NodeChange, type NodeProps,
+  Background, BackgroundVariant, BaseEdge, Controls, EdgeLabelRenderer, Handle, MarkerType,
+  MiniMap, ReactFlow, ReactFlowProvider, Position, NodeResizer, addEdge, applyEdgeChanges,
+  applyNodeChanges, getBezierPath, getSmoothStepPath, getStraightPath, useReactFlow,
+  type Connection, type Edge, type EdgeChange, type EdgeProps, type Node, type NodeChange, type NodeProps,
 } from '@xyflow/react'
 import {
   AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, AppWindow, Box, Boxes,
@@ -104,6 +105,37 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
 
 const nodeTypes = { architecture: ArchitectureNode }
 
+function EditableConnectionEdge(props: EdgeProps<Edge>) {
+  const { updateEdge } = useReactFlow()
+  const routing = String(props.data?.routing || 'smoothstep')
+  const pathArgs = {
+    sourceX: props.sourceX, sourceY: props.sourceY, sourcePosition: props.sourcePosition,
+    targetX: props.targetX, targetY: props.targetY, targetPosition: props.targetPosition,
+  }
+  const [path, labelX, labelY] = routing === 'straight'
+    ? getStraightPath(pathArgs)
+    : routing === 'default'
+      ? getBezierPath(pathArgs)
+      : getSmoothStepPath(pathArgs)
+  const label = String(props.label || '')
+
+  return <>
+    <BaseEdge id={props.id} path={path} markerStart={props.markerStart} markerEnd={props.markerEnd} style={props.style} interactionWidth={20} />
+    {(label || props.selected) && <EdgeLabelRenderer>
+      <input
+        className={`edge-inline-label nodrag nopan${props.selected ? ' selected' : ''}`}
+        aria-label="Line text"
+        value={label}
+        onChange={(event) => updateEdge(props.id, { label: event.target.value })}
+        placeholder="Add label"
+        style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`, width: `${Math.max(72, Math.min(180, label.length * 7 + 28))}px` }}
+      />
+    </EdgeLabelRenderer>}
+  </>
+}
+
+const edgeTypes = { editable: EditableConnectionEdge }
+
 function normalizedNode(node: Node): Node {
   if (node.type === 'architecture') return node
   return {
@@ -135,6 +167,15 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
   useEffect(() => {
     if (nodes.some((node) => node.type !== 'architecture')) setNodes((current) => current.map(normalizedNode))
   }, [nodes, setNodes])
+  useEffect(() => {
+    if (edges.some((edge) => edge.type !== 'editable')) {
+      setEdges((current) => current.map((edge) => ({
+        ...edge,
+        type: 'editable',
+        data: { ...edge.data, routing: edge.type === 'straight' || edge.type === 'default' || edge.type === 'smoothstep' ? edge.type : 'smoothstep' },
+      })))
+    }
+  }, [edges, setEdges])
 
   const selectedNodes = useMemo(() => nodes.filter((node) => node.selected), [nodes])
   const selectedEdges = useMemo(() => edges.filter((edge) => edge.selected), [edges])
@@ -243,7 +284,8 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
     remember()
     setEdges((current) => addEdge({
       ...connection,
-      type: 'smoothstep',
+      type: 'editable',
+      data: { routing: 'smoothstep' },
       markerEnd: { type: MarkerType.ArrowClosed },
       label: 'depends on',
     }, current))
@@ -300,6 +342,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
@@ -394,9 +437,10 @@ function NodeInspector({ node, update, onDelete }: { node: Node; update: (patch:
 function ConnectionToolbar({ edge, update, onDelete }: { edge: Edge; update: (patch: Partial<Edge>) => void; onDelete: () => void }) {
   const color = String(edge.style?.stroke || '#68708a')
   const width = Number(edge.style?.strokeWidth || 2)
+  const routing = String(edge.data?.routing || 'smoothstep')
   return <div className="connection-toolbar" role="toolbar" aria-label="Connection formatting">
     <label className="connection-color" title="Line color" aria-label="Line color"><span style={{ background: color }} /><input type="color" value={color} onChange={(event) => update({ style: { ...edge.style, stroke: event.target.value } })} /></label>
-    <label className="connection-select" title="Connection routing"><Spline /><select aria-label="Connection routing" value={edge.type || 'smoothstep'} onChange={(event) => update({ type: event.target.value })}><option value="straight">Straight</option><option value="default">Curved</option><option value="smoothstep">Stepped</option></select></label>
+    <label className="connection-select" title="Connection routing"><Spline /><select aria-label="Connection routing" value={routing} onChange={(event) => update({ data: { ...edge.data, routing: event.target.value } })}><option value="straight">Straight</option><option value="default">Curved</option><option value="smoothstep">Stepped</option></select></label>
     <label className="connection-select line-width" title="Line weight"><Minus /><select aria-label="Line weight" value={width} onChange={(event) => update({ style: { ...edge.style, strokeWidth: Number(event.target.value) } })}><option value="1">Thin</option><option value="2">Regular</option><option value="3">Bold</option><option value="5">Heavy</option></select></label>
     <span className="connection-divider" />
     <button className={edge.markerStart ? 'active' : ''} onClick={() => update({ markerStart: edge.markerStart ? undefined : { type: MarkerType.ArrowClosed } })} title="Toggle start arrow" aria-label="Toggle start arrow"><ArrowLeft /></button>

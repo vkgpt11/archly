@@ -53,5 +53,7 @@ describe('CanvasWorkspace', () => {
     expect(screen.getByLabelText('Toggle end arrow')).toBeInTheDocument()
     expect(screen.getByLabelText('Connection label')).toBeInTheDocument()
     expect(screen.queryByRole('complementary', { name: 'Properties inspector' })).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Connection label'), { target: { value: 'HTTPS' } })
+    expect(screen.getByLabelText('Connection label')).toHaveValue('HTTPS')
   })
 })
