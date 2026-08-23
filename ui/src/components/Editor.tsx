@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import {
   addEdge, Background, Controls, MiniMap, ReactFlow,
   useEdgesState, useNodesState, type Connection, type Node,
@@ -20,8 +20,10 @@ export default function Editor({ token, initialProject, onBack }: Props) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialCanvas.nodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialCanvas.edges)
   const [view, setView] = useState<View>('split')
+  const [documentWidth, setDocumentWidth] = useState(45)
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error'>('saved')
   const latestProject = useRef(project)
+  const editorBody = useRef<HTMLDivElement>(null)
 
   useEffect(() => { latestProject.current = project }, [project])
 
@@ -63,6 +65,26 @@ export default function Editor({ token, initialProject, onBack }: Props) {
   const showCanvas = view !== 'document'
   const showDocument = view !== 'canvas'
 
+  function resizeFromClientX(clientX: number) {
+    const bounds = editorBody.current?.getBoundingClientRect()
+    if (!bounds) return
+    const nextWidth = ((clientX - bounds.left) / bounds.width) * 100
+    setDocumentWidth(Math.min(80, Math.max(20, nextWidth)))
+  }
+
+  function startResize(event: ReactPointerEvent<HTMLDivElement>) {
+    event.preventDefault()
+    const onMove = (moveEvent: PointerEvent) => resizeFromClientX(moveEvent.clientX)
+    const onEnd = () => {
+      document.removeEventListener('pointermove', onMove)
+      document.removeEventListener('pointerup', onEnd)
+      document.body.classList.remove('resizing-panels')
+    }
+    document.body.classList.add('resizing-panels')
+    document.addEventListener('pointermove', onMove)
+    document.addEventListener('pointerup', onEnd)
+  }
+
   return (
     <main className="editor-shell">
       <header className="editor-header">
@@ -75,15 +97,32 @@ export default function Editor({ token, initialProject, onBack }: Props) {
         </div>
         <span className={`save-state ${saveState}`}>{saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Save failed' : 'Saved'}</span>
       </header>
-      <div className="editor-body">
+      <div className="editor-body" ref={editorBody}>
         {showDocument && (
-          <section className="document-panel">
+          <section className="document-panel" style={view === 'split' ? { flexBasis: `${documentWidth}%` } : undefined}>
             <textarea value={project.markdown} onChange={(event) => setProject({ ...project, markdown: event.target.value })} aria-label="Markdown document" />
             <article className="markdown-preview"><ReactMarkdown>{project.markdown}</ReactMarkdown></article>
           </section>
         )}
+        {view === 'split' && (
+          <div
+            className="panel-resizer"
+            role="separator"
+            aria-label="Resize document and canvas"
+            aria-orientation="vertical"
+            aria-valuemin={20}
+            aria-valuemax={80}
+            aria-valuenow={Math.round(documentWidth)}
+            tabIndex={0}
+            onPointerDown={startResize}
+            onKeyDown={(event) => {
+              if (event.key === 'ArrowLeft') setDocumentWidth((width) => Math.max(20, width - 5))
+              if (event.key === 'ArrowRight') setDocumentWidth((width) => Math.min(80, width + 5))
+            }}
+          ><span /></div>
+        )}
         {showCanvas && (
-          <section className="canvas-panel">
+          <section className="canvas-panel" style={view === 'split' ? { flexBasis: `${100 - documentWidth}%` } : undefined}>
             <div className="canvas-toolbar"><button className="primary-button compact" onClick={addNode}>+ Add service</button></div>
             <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect} fitView>
               <Background gap={20} color="#d8dce7" /><MiniMap /><Controls />

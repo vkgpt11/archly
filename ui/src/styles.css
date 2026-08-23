@@ -47,12 +47,17 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .view-switcher .active { color: #292c38; background: white; box-shadow: 0 2px 7px rgba(0,0,0,.08); }
 .save-state { min-width: 64px; color: #6c7182; font-size: 12px; }.save-state.error { color: #b4233a; }
 .editor-body { min-height: 0; flex: 1; display: flex; }
-.document-panel, .canvas-panel { min-width: 0; flex: 1; }
-.document-panel { display: grid; grid-template-rows: 1fr 1fr; border-right: 1px solid #dddde5; background: white; }
+.document-panel, .canvas-panel { min-width: 0; flex: 1 1 0; }
+.document-panel { display: grid; grid-template-rows: 1fr 1fr; background: white; }
+.panel-resizer { position: relative; z-index: 10; width: 9px; flex: 0 0 9px; cursor: col-resize; background: #ececf2; outline: none; transition: background .15s; touch-action: none; }
+.panel-resizer span { position: absolute; left: 3px; top: 50%; width: 3px; height: 36px; border-radius: 3px; background: #b9b8c6; transform: translateY(-50%); }
+.panel-resizer:hover, .panel-resizer:focus-visible { background: #ddd7ff; }
+.panel-resizer:hover span, .panel-resizer:focus-visible span { background: #6d4aff; }
+.resizing-panels, .resizing-panels * { cursor: col-resize !important; user-select: none !important; }
 .document-panel textarea { width: 100%; padding: 28px; resize: none; border: 0; border-bottom: 1px solid #e6e6ed; outline: 0; color: #303341; line-height: 1.6; }
 .markdown-preview { overflow: auto; padding: 28px; color: #3c4050; line-height: 1.65; }
 .markdown-preview h1 { font-size: 28px; }
 .canvas-panel { position: relative; background: #fafafe; }
 .canvas-toolbar { position: absolute; z-index: 5; left: 16px; top: 16px; }
 .canvas-panel .react-flow { height: 100%; }
-@media (max-width: 760px) { .sign-in-card { padding: 36px 22px; }.dashboard-heading { align-items: stretch; flex-direction: column; gap: 22px; }.view-switcher { display: none; }.editor-body { flex-direction: column; }.document-panel { min-height: 45%; }.canvas-panel { min-height: 55%; } }
+@media (max-width: 760px) { .sign-in-card { padding: 36px 22px; }.dashboard-heading { align-items: stretch; flex-direction: column; gap: 22px; }.view-switcher { display: none; }.editor-body { flex-direction: column; }.document-panel { min-height: 45%; }.canvas-panel { min-height: 55%; }.panel-resizer { display: none; } }
