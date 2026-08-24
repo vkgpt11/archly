@@ -84,6 +84,25 @@ Priorities remain Must, Should, and Could.
 | V2-DOC-006 | Should | Multiline code blocks provide an explicit language selector for syntax highlighting. |
 | V2-DOC-007 | Should | Documentation can be imported from and exported to Markdown without losing supported formatting. |
 
+### 6.1 Future image asset storage
+
+The prototype stores PNG, JPEG, and WebP screenshots as Base64 data URLs inside the document HTML. This keeps local development self-contained but increases document, database, revision, and browser-storage size. Before production use, image binaries must move to managed object storage.
+
+| ID | Priority | Status | Requirement |
+| --- | --- | --- | --- |
+| V2-ASSET-001 | Must | Not started | The UI uploads documentation images through an authenticated asset API instead of embedding new Base64 data URLs in project content. |
+| V2-ASSET-002 | Must | Not started | The backend stores image binaries in configurable object storage, with MinIO supported for local development and an S3-compatible production implementation. |
+| V2-ASSET-003 | Must | Not started | An asset record stores its ID, owning project, storage key, media type, byte size, content hash, creator, and timestamps. |
+| V2-ASSET-004 | Must | Not started | Documents store stable asset references; resizing changes presentation metadata without creating another image binary. |
+| V2-ASSET-005 | Must | Not started | Upload validation verifies the decoded file signature, approved PNG/JPEG/WebP type, byte limit, pixel dimensions, and authorization for the owning project. |
+| V2-ASSET-006 | Must | Not started | Reading, replacing, or deleting an image requires access to its owning project; asset identifiers and storage keys must not grant access by themselves. |
+| V2-ASSET-007 | Should | Not started | Upload processing strips unnecessary metadata, corrects orientation, and creates optimized display variants or thumbnails without materially degrading screenshots. |
+| V2-ASSET-008 | Should | Not started | Identical uploads can be deduplicated by a cryptographic content hash while preserving project-level access controls. |
+| V2-ASSET-009 | Must | Not started | Removing an image reference does not immediately destroy recoverable project history; an automated retention job removes assets only after they are unreferenced beyond the configured recovery period. |
+| V2-ASSET-010 | Must | Not started | Existing Base64 screenshots can be migrated to stored assets without losing order, alternative text, dimensions, project history, or document content. |
+| V2-ASSET-011 | Should | Not started | Asset delivery uses short-lived signed URLs or an authenticated streaming endpoint with appropriate cache and content-security headers. |
+| V2-ASSET-012 | Must | Not started | Integration tests cover upload, save/reload, resize persistence, unauthorized access, invalid and oversized files, migration, deletion retention, and orphan cleanup. |
+
 ## 7. Project management, sharing, and export
 
 | ID | Priority | Requirement |

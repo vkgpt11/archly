@@ -1,8 +1,8 @@
 const allowedTags = new Set([
   'P', 'BR', 'H1', 'H2', 'H3', 'STRONG', 'B', 'EM', 'I', 'S', 'STRIKE', 'DEL',
-  'UL', 'OL', 'LI', 'BLOCKQUOTE', 'PRE', 'CODE', 'SPAN', 'MARK', 'A',
+  'UL', 'OL', 'LI', 'BLOCKQUOTE', 'PRE', 'CODE', 'SPAN', 'MARK', 'A', 'IMG',
 ])
-const removeWithContent = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'IMG', 'SVG', 'MATH'])
+const removeWithContent = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'SVG', 'MATH'])
 const colorValue = /^(#[0-9a-f]{3,8}|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\))$/i
 const codeClass = /^language-[a-z0-9_-]{1,40}$/
 
@@ -24,6 +24,8 @@ function sanitizeAttributes(element: Element) {
     const name = attribute.name.toLowerCase()
     const allowed = tag === 'A'
       ? ['href', 'title', 'target', 'rel'].includes(name)
+      : tag === 'IMG'
+        ? ['src', 'alt', 'title', 'width'].includes(name)
       : tag === 'SPAN' || tag === 'MARK'
         ? name === 'style' || tag === 'MARK' && name === 'data-color'
         : tag === 'CODE'
@@ -35,6 +37,14 @@ function sanitizeAttributes(element: Element) {
     const href = element.getAttribute('href')?.trim() || ''
     if (!/^(https?:|mailto:)/i.test(href)) element.removeAttribute('href')
     if (element.getAttribute('target') === '_blank') element.setAttribute('rel', 'noopener noreferrer')
+  }
+  if (tag === 'IMG') {
+    const src = element.getAttribute('src') || ''
+    if (!/^data:image\/(?:png|jpeg|webp);base64,[a-z0-9+/=\s]+$/i.test(src)) element.remove()
+    const width = Number(element.getAttribute('width'))
+    if (element.hasAttribute('width') && (!Number.isInteger(width) || width < 120 || width > 2000)) {
+      element.removeAttribute('width')
+    }
   }
   if ((tag === 'SPAN' || tag === 'MARK') && element.hasAttribute('style')) {
     const style = safeColorStyle(element.getAttribute('style') || '')

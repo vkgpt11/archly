@@ -32,7 +32,7 @@ function UnselectedComponentHarness() {
 }
 
 function SelectedComponentHarness() {
-  const size = getComponentSize('API', 'service', true)
+  const size = getComponentSize('API', 'service')
   const [nodes, setNodes] = useState<Node[]>([
     { id: 'service', type: 'architecture', position: { x: 0, y: 0 }, selected: true,
       data: { label: 'API', kind: 'service' }, style: size },
@@ -63,7 +63,6 @@ describe('CanvasWorkspace', () => {
     expect(expanded.width).toBeGreaterThan(compact.width)
     expect(expanded.width).toBeLessThanOrEqual(132)
     expect(expanded.height).toBeGreaterThan(compact.height)
-    expect(getComponentSize('API', 'service', true).height).toBe(64)
     expect(getComponentSize('Boundary', 'container')).toEqual({ width: 360, height: 240 })
   })
 
@@ -96,8 +95,8 @@ describe('CanvasWorkspace', () => {
     expect(screen.getByLabelText('Component name')).toHaveValue('Orders Database')
     expect(screen.getByLabelText('Component name').closest('.architecture-node')).toHaveClass('icon-medium')
     expect(screen.queryByLabelText('Component subtitle')).not.toBeInTheDocument()
-    expect(screen.getByLabelText('Component name')).toHaveAttribute('rows', '2')
-    expect(screen.getByLabelText('Component name').closest('.react-flow__node')).toHaveStyle({ width: '122px', height: '64px' })
+    expect(screen.getByLabelText('Component name')).toHaveAttribute('rows', '1')
+    expect(screen.getByLabelText('Component name').closest('.react-flow__node')).toHaveStyle({ width: '122px', height: '52px' })
     fireEvent.change(screen.getByLabelText('Component name'), { target: { value: 'Orders\nDatabase' } })
     expect(screen.getByLabelText('Component name')).toHaveValue('Orders\nDatabase')
     expect(screen.getByLabelText('Component name').closest('.react-flow__node')).toHaveStyle({ height: '64px' })
@@ -134,32 +133,51 @@ describe('CanvasWorkspace', () => {
   it('groups the optimized catalog and finds high-value architecture aliases', () => {
     render(<Harness />)
     fireEvent.click(screen.getByRole('button', { name: 'Add component' }))
-    expect(screen.getByLabelText('Component categories')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Networking' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Containers' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Security' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Operations' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Data' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Messaging' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Documentation' })).not.toBeInTheDocument()
+    const categories = screen.getByLabelText('Component categories')
+    expect(categories).toHaveTextContent('AllGeneralAWSAzureGoogle CloudOperations - CD/CIAI / ML')
+    expect(categories).not.toHaveTextContent('Containers')
+    expect(categories).not.toHaveTextContent('Documentation')
     fireEvent.click(screen.getByRole('button', { name: 'General' }))
     expect(screen.getByText('Monolith', { selector: 'strong' })).toBeInTheDocument()
-    expect(screen.getByText('Kubernetes Cluster', { selector: 'strong' })).toBeInTheDocument()
-    expect(screen.getByText('API Gateway', { selector: 'strong' })).toBeInTheDocument()
-    expect(screen.getByText('Secrets Manager', { selector: 'strong' })).toBeInTheDocument()
-    expect(screen.getByText('Monitoring', { selector: 'strong' })).toBeInTheDocument()
-    expect(screen.getByText('PostgreSQL', { selector: 'strong' })).toBeInTheDocument()
-    expect(screen.getByText('Kafka', { selector: 'strong' })).toBeInTheDocument()
-    expect(screen.getByText('Boundary', { selector: 'strong' })).toBeInTheDocument()
     expect(screen.getByText('Serverless Function', { selector: 'strong' })).toBeInTheDocument()
     expect(screen.getByText('Background Worker', { selector: 'strong' })).toBeInTheDocument()
     expect(screen.getByText('Scheduled Job', { selector: 'strong' })).toBeInTheDocument()
-    expect(screen.getByText('Message Queue', { selector: 'strong' })).toBeInTheDocument()
+    expect(screen.queryByText('Kubernetes Cluster', { selector: 'strong' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /Platform/ }))
+    expect(screen.getByText('Kubernetes Cluster', { selector: 'strong' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Networking/ }))
+    expect(screen.getByText('API Gateway', { selector: 'strong' })).toBeInTheDocument()
+    expect(screen.getByText('Reverse Proxy', { selector: 'strong' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Security/ }))
+    expect(screen.getByText('Secrets Manager', { selector: 'strong' })).toBeInTheDocument()
+    expect(screen.getByText('Firewall / WAF', { selector: 'strong' })).toBeInTheDocument()
+    expect(screen.queryByText('CI/CD Pipeline', { selector: 'strong' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Operations - CD/CI' }))
+    expect(screen.getByText('Monitoring', { selector: 'strong' })).toBeInTheDocument()
+    expect(screen.getByText('CI/CD Pipeline', { selector: 'strong' })).toBeInTheDocument()
+    for (const label of [
+      'Jenkins', 'GitHub Actions', 'GitLab CI', 'Argo CD', 'Terraform', 'Ansible', 'Helm',
+      'Prometheus', 'Grafana', 'OpenTelemetry', 'PagerDuty',
+    ]) expect(screen.getByText(label, { selector: 'strong' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'General' }))
+    fireEvent.click(screen.getByRole('button', { name: /Data/ }))
+    expect(screen.getByText('PostgreSQL', { selector: 'strong' })).toBeInTheDocument()
     expect(screen.getByText('Search Engine', { selector: 'strong' })).toBeInTheDocument()
     expect(screen.getByText('Data Warehouse', { selector: 'strong' })).toBeInTheDocument()
-    expect(screen.getByText('Reverse Proxy', { selector: 'strong' })).toBeInTheDocument()
-    expect(screen.getByText('Firewall / WAF', { selector: 'strong' })).toBeInTheDocument()
-    expect(screen.getByText('CI/CD Pipeline', { selector: 'strong' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Messaging/ }))
+    expect(screen.getByText('Kafka', { selector: 'strong' })).toBeInTheDocument()
+    expect(screen.getByText('Message Queue', { selector: 'strong' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Communication/ }))
+    expect(screen.getByText('Email', { selector: 'strong' })).toBeInTheDocument()
+    expect(screen.getByText('Notification', { selector: 'strong' })).toBeInTheDocument()
+    expect(screen.getByText('Slack', { selector: 'strong' })).toBeInTheDocument()
+    expect(screen.getByText('Microsoft Teams', { selector: 'strong' })).toBeInTheDocument()
+    for (const label of ['SMS', 'Push Notification', 'Webhook', 'Microsoft Outlook', 'Gmail', 'Twilio', 'SendGrid', 'Discord']) {
+      expect(screen.getByText(label, { selector: 'strong' })).toBeInTheDocument()
+    }
+    fireEvent.click(screen.getByRole('button', { name: /Utilities/ }))
+    expect(screen.getByText('Boundary', { selector: 'strong' })).toBeInTheDocument()
     expect(screen.queryByText('Database', { selector: 'strong' })).not.toBeInTheDocument()
     expect(screen.queryByText('File storage', { selector: 'strong' })).not.toBeInTheDocument()
     expect(screen.queryByText('Queue / Event bus', { selector: 'strong' })).not.toBeInTheDocument()
@@ -177,6 +195,59 @@ describe('CanvasWorkspace', () => {
 
     expect(screen.getByLabelText('Component icon')).toHaveValue('monolith')
     expect(container.querySelector('.component-kind-icon .lucide-box')).toBeInTheDocument()
+  })
+
+  it('adds CI/CD and SRE tools with stable branded icon IDs', () => {
+    const { container } = render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Add component' }))
+    fireEvent.change(screen.getByPlaceholderText('Search components'), { target: { value: 'argocd' } })
+    fireEvent.click(screen.getByText('Argo CD', { selector: 'strong' }).closest('button')!)
+
+    expect(screen.getByLabelText('Component icon')).toHaveValue('argo-cd')
+    expect(container.querySelector('.component-kind-icon svg')).toBeInTheDocument()
+  })
+
+  it('adds communication tools with stable branded icon IDs', () => {
+    const { container } = render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Add component' }))
+    fireEvent.change(screen.getByPlaceholderText('Search components'), { target: { value: 'slack' } })
+    fireEvent.click(screen.getByText('Slack', { selector: 'strong' }).closest('button')!)
+
+    expect(screen.getByLabelText('Component icon')).toHaveValue('slack')
+    expect(container.querySelector('.component-kind-icon svg')).toBeInTheDocument()
+  })
+
+  it('organizes the complete AI stack into dedicated collapsible groups', () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Add component' }))
+    fireEvent.click(screen.getByRole('button', { name: 'AI / ML' }))
+
+    expect(screen.getByText('AI Agent', { selector: 'strong' })).toBeInTheDocument()
+    expect(screen.getByText('RAG Pipeline', { selector: 'strong' })).toBeInTheDocument()
+    for (const [group, labels] of [
+      ['Model Providers', ['OpenAI', 'Anthropic Claude', 'Google Gemini', 'Meta Llama', 'Mistral AI', 'Cohere', 'Hugging Face']],
+      ['Agent Frameworks', ['LangChain', 'LangGraph', 'LlamaIndex', 'Semantic Kernel', 'CrewAI']],
+      ['Vector Data', ['Pinecone', 'Weaviate', 'Milvus', 'Qdrant', 'Chroma', 'pgvector']],
+      ['Inference', ['vLLM', 'Ollama', 'Hugging Face Inference', 'NVIDIA NIM', 'NVIDIA Triton', 'Text Generation Inference', 'SGLang']],
+      ['Observability', ['LangSmith', 'MLflow', 'Weights & Biases', 'Arize Phoenix', 'Helicone', 'Promptfoo']],
+    ] as const) {
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${group} \\d+$`) }))
+      for (const label of labels) expect(screen.getByText(label, { selector: 'strong' })).toBeInTheDocument()
+    }
+  })
+
+  it('adds cloud-native AI services to their provider categories', () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Add component' }))
+    fireEvent.click(screen.getByRole('button', { name: 'AWS' }))
+    expect(screen.getByText('Amazon Bedrock', { selector: 'strong' })).toBeInTheDocument()
+    expect(screen.getByText('Amazon SageMaker AI', { selector: 'strong' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Azure' }))
+    expect(screen.getByText('Azure OpenAI', { selector: 'strong' })).toBeInTheDocument()
+    expect(screen.getByText('Azure AI Foundry', { selector: 'strong' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Google Cloud' }))
+    expect(screen.getByText('Google Vertex AI', { selector: 'strong' })).toBeInTheDocument()
+    expect(screen.getByText('Google Gemini API', { selector: 'strong' })).toBeInTheDocument()
   })
 
   it('keeps catalog labels and selectable icon IDs unique', () => {
@@ -280,7 +351,7 @@ describe('CanvasWorkspace', () => {
     render(<SelectedComponentHarness />)
     const title = screen.getByLabelText('Component name')
     const node = title.closest('.react-flow__node')
-    expect(node).toHaveStyle({ width: '44px', height: '64px' })
+    expect(node).toHaveStyle({ width: '44px', height: '52px' })
 
     fireEvent.focus(title)
     fireEvent.change(title, { target: { value: 'Customer identity and access service' } })
@@ -289,7 +360,7 @@ describe('CanvasWorkspace', () => {
 
     fireEvent.keyDown(document, { key: 'z', ctrlKey: true })
     expect(screen.getByLabelText('Component name')).toHaveValue('API')
-    expect(screen.getByLabelText('Component name').closest('.react-flow__node')).toHaveStyle({ width: '44px', height: '64px' })
+    expect(screen.getByLabelText('Component name').closest('.react-flow__node')).toHaveStyle({ width: '44px', height: '52px' })
 
     fireEvent.keyDown(document, { key: 'z', ctrlKey: true, shiftKey: true })
     expect(screen.getByLabelText('Component name')).toHaveValue('Customer identity and access service')

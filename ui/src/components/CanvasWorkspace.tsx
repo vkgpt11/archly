@@ -6,14 +6,33 @@ import {
 } from '@xyflow/react'
 import {
   AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, AppWindow, Box, Boxes,
-  Activity, ArrowLeft, ArrowRight, Braces, Cloud, Cog, Container, Database, Expand, ExternalLink,
-  FileText, Fingerprint, Focus, GitBranch, Globe2, Hand, Group, ListTree, LocateFixed, Lock, MessageSquareText,
-  Minus, MousePointer2, Network, Plus, Redo2, ScrollText, Search, Server, ShieldCheck, Shuffle,
-  Smartphone, Spline, Trash2, Undo2, Unlock, UserRound, Warehouse, Waves, Waypoints, Workflow,
-  X, Zap, ZoomIn, ZoomOut, Clock3,
+  Activity, ArrowLeft, ArrowRight, Bell, BellRing, Bot, BrainCircuit, Braces, ChevronDown, CircuitBoard,
+  Cloud, Cog, Container, Cpu, Database, DatabaseZap, Expand, ExternalLink, FileCode2, FileText, Fingerprint,
+  Focus, Gauge, GitBranch, Globe2, Hand, Group, Library, ListTree, LocateFixed, Lock, MessageSquareText,
+  Mail, Minus, MousePointer2, Network, Plus, Redo2, ScrollText, Search, Server, ShieldCheck, Shuffle,
+  ScanSearch, Smartphone, Sparkles, Spline, Trash2, Undo2, Unlock, UserCheck, UserRound, Warehouse,
+  Waves, Waypoints, Webhook, Workflow, X, Zap, ZoomIn, ZoomOut, Clock3,
   Ungroup,
 } from 'lucide-react'
-import { SiApachekafka, SiDocker, SiGit, SiKubernetes, SiPostgresql, SiRedis } from 'react-icons/si'
+import {
+  SiAnsible, SiApachekafka, SiArgo, SiCrewai, SiDiscord, SiDocker, SiGit, SiGithubactions, SiGitlab, SiGmail,
+  SiGooglegemini, SiGrafana, SiHelm, SiHuggingface, SiJenkins, SiKubernetes, SiLangchain, SiLanggraph,
+  SiMetaai, SiMilvus, SiMistralai, SiMlflow, SiNvidia, SiOllama, SiOpentelemetry, SiPagerduty,
+  SiPostgresql, SiPrometheus, SiQdrant, SiRedis, SiTerraform, SiWeightsandbiases,
+} from 'react-icons/si'
+import { BsMicrosoftTeams, BsSlack } from 'react-icons/bs'
+import { PiMicrosoftOutlookLogo } from 'react-icons/pi'
+import SendGridIcon from '@likec4/icons/tech/sendgrid-icon'
+import TwilioIcon from '@likec4/icons/tech/twilio-icon'
+import OpenAIIcon from '@likec4/icons/tech/openai-icon'
+import AnthropicIcon from '@likec4/icons/tech/anthropic-icon'
+import PineconeIcon from '@likec4/icons/tech/pinecone-icon'
+import ChromaIcon from '@likec4/icons/tech/chroma'
+import ArchitectureServiceAmazonBedrock from 'aws-react-icons/icons/ArchitectureServiceAmazonBedrock'
+import ArchitectureServiceAmazonSageMakerAI from 'aws-react-icons/icons/ArchitectureServiceAmazonSageMakerAI'
+import AzureCognitiveServices from '@likec4/icons/azure/cognitive-services'
+import AzureMachineLearning from '@likec4/icons/azure/machine-learning'
+import GcpVertexAi from '@likec4/icons/gcp/vertex-ai'
 import ArchitectureServiceAmazonDynamoDB from 'aws-react-icons/icons/ArchitectureServiceAmazonDynamoDB'
 import ArchitectureServiceAmazonElasticContainerService from 'aws-react-icons/icons/ArchitectureServiceAmazonElasticContainerService'
 import ArchitectureServiceAWSFargate from 'aws-react-icons/icons/ArchitectureServiceAWSFargate'
@@ -148,11 +167,88 @@ const componentDefinitions: Array<{ kind: ArchitectureKind; label: string; descr
   { kind: 'queue', label: 'Event Bus', description: 'Route domain events', iconId: 'event-bus', category: 'General', keywords: 'eventbridge topic pubsub events' },
   { kind: 'queue', label: 'Event Stream', description: 'Ordered stream of events', iconId: 'event-stream', category: 'General', keywords: 'streaming log partition topic events' },
   { kind: 'storage', label: 'Secrets Manager', description: 'Credentials and secret storage', iconId: 'secrets-manager', category: 'General', keywords: 'vault key credentials password' },
-  { kind: 'external', label: 'Monitoring', description: 'Metrics, logs, and alerts', iconId: 'monitoring', category: 'General', keywords: 'observability telemetry logs metrics alerts' },
-  { kind: 'external', label: 'Logging', description: 'Centralized application logs', iconId: 'logging', category: 'General', keywords: 'log aggregation observability audit events' },
-  { kind: 'service', label: 'CI/CD Pipeline', description: 'Automated build and deployment', iconId: 'ci-cd-pipeline', category: 'General', keywords: 'continuous integration delivery deployment build release' },
-  { kind: 'external', label: 'Git Repository', description: 'Source code repository', iconId: 'git-repository', category: 'General', keywords: 'git source control github gitlab bitbucket scm' },
+  { kind: 'external', label: 'Monitoring', description: 'Metrics, logs, and alerts', iconId: 'monitoring', category: 'Operations - CD/CI', keywords: 'observability telemetry logs metrics alerts' },
+  { kind: 'external', label: 'Logging', description: 'Centralized application logs', iconId: 'logging', category: 'Operations - CD/CI', keywords: 'log aggregation observability audit events' },
+  { kind: 'service', label: 'CI/CD Pipeline', description: 'Automated build and deployment', iconId: 'ci-cd-pipeline', category: 'Operations - CD/CI', keywords: 'continuous integration delivery deployment build release' },
+  { kind: 'external', label: 'Git Repository', description: 'Source code repository', iconId: 'git-repository', category: 'Operations - CD/CI', keywords: 'git source control github gitlab bitbucket scm' },
+  { kind: 'service', label: 'Jenkins', description: 'Build and delivery automation', iconId: 'jenkins', category: 'Operations - CD/CI', keywords: 'ci cd pipeline build automation devops' },
+  { kind: 'service', label: 'GitHub Actions', description: 'Repository-native workflow automation', iconId: 'github-actions', category: 'Operations - CD/CI', keywords: 'ci cd workflow github runner pipeline' },
+  { kind: 'service', label: 'GitLab CI', description: 'Integrated CI/CD pipelines', iconId: 'gitlab-ci', category: 'Operations - CD/CI', keywords: 'gitlab runner pipeline continuous integration delivery' },
+  { kind: 'service', label: 'Argo CD', description: 'GitOps continuous delivery', iconId: 'argo-cd', category: 'Operations - CD/CI', keywords: 'argocd gitops kubernetes deployment delivery' },
+  { kind: 'service', label: 'Terraform', description: 'Infrastructure as code', iconId: 'terraform', category: 'Operations - CD/CI', keywords: 'hashicorp iac provisioning cloud infrastructure' },
+  { kind: 'service', label: 'Ansible', description: 'Configuration and deployment automation', iconId: 'ansible', category: 'Operations - CD/CI', keywords: 'automation configuration management playbook devops' },
+  { kind: 'service', label: 'Helm', description: 'Kubernetes package management', iconId: 'helm', category: 'Operations - CD/CI', keywords: 'kubernetes chart release deployment package' },
+  { kind: 'external', label: 'Prometheus', description: 'Metrics collection and alerting', iconId: 'prometheus', category: 'Operations - CD/CI', keywords: 'sre monitoring metrics alert observability' },
+  { kind: 'external', label: 'Grafana', description: 'Operational dashboards and visualization', iconId: 'grafana', category: 'Operations - CD/CI', keywords: 'sre dashboard metrics logs observability' },
+  { kind: 'external', label: 'OpenTelemetry', description: 'Vendor-neutral telemetry collection', iconId: 'opentelemetry', category: 'Operations - CD/CI', keywords: 'otel traces metrics logs observability sre' },
+  { kind: 'external', label: 'PagerDuty', description: 'Incident response and on-call management', iconId: 'pagerduty', category: 'Operations - CD/CI', keywords: 'sre incident alert oncall operations' },
+  { kind: 'service', label: 'AI Agent', description: 'Autonomous tool-using AI workflow', iconId: 'ai-agent', category: 'AI / ML', keywords: 'agent assistant autonomous tool calling' },
+  { kind: 'service', label: 'Foundation Model / LLM', description: 'Large language or foundation model', iconId: 'foundation-model', category: 'AI / ML', keywords: 'llm generative model transformer' },
+  { kind: 'service', label: 'Embedding Model', description: 'Convert content into vectors', iconId: 'embedding-model', category: 'AI / ML', keywords: 'embedding vector representation semantic' },
+  { kind: 'service', label: 'Multimodal Model', description: 'Text, image, audio, or video model', iconId: 'multimodal-model', category: 'AI / ML', keywords: 'vision audio image video vlm' },
+  { kind: 'text', label: 'Prompt Template', description: 'Versioned model instructions', iconId: 'prompt-template', category: 'AI / ML', keywords: 'prompt system instruction template' },
+  { kind: 'service', label: 'RAG Pipeline', description: 'Retrieval-augmented generation flow', iconId: 'rag-pipeline', category: 'AI / ML', keywords: 'rag retrieve augment context generation' },
+  { kind: 'service', label: 'Retriever', description: 'Fetch relevant knowledge', iconId: 'retriever', category: 'AI / ML', keywords: 'search retrieval context semantic' },
+  { kind: 'database', label: 'Vector Database', description: 'Store and search embeddings', iconId: 'vector-database', category: 'AI / ML', keywords: 'vector store similarity semantic index' },
+  { kind: 'service', label: 'AI Tool / Function', description: 'Capability callable by an agent', iconId: 'ai-tool', category: 'AI / ML', keywords: 'function tool calling action plugin' },
+  { kind: 'service', label: 'MCP Server', description: 'Model Context Protocol tool server', iconId: 'mcp-server', category: 'AI / ML', keywords: 'mcp context protocol tools resources' },
+  { kind: 'service', label: 'Model Gateway', description: 'Route requests across models', iconId: 'model-gateway', category: 'AI / ML', keywords: 'proxy router fallback provider llm gateway' },
+  { kind: 'service', label: 'Inference Endpoint', description: 'Production model-serving endpoint', iconId: 'inference-endpoint', category: 'AI / ML', keywords: 'serve deploy prediction api model' },
+  { kind: 'storage', label: 'Model Registry', description: 'Version and govern model artifacts', iconId: 'model-registry', category: 'AI / ML', keywords: 'model artifact version registry mlops' },
+  { kind: 'service', label: 'AI Guardrail', description: 'Validate model input and output', iconId: 'ai-guardrail', category: 'AI / ML', keywords: 'safety moderation policy validation' },
+  { kind: 'external', label: 'Evaluation Service', description: 'Test model and agent quality', iconId: 'evaluation-service', category: 'AI / ML', keywords: 'eval benchmark quality test score' },
+  { kind: 'actor', label: 'Human Approval', description: 'Human-in-the-loop decision', iconId: 'human-approval', category: 'AI / ML', keywords: 'hitl review approve oversight' },
+  { kind: 'service', label: 'GPU Compute', description: 'Accelerated AI compute', iconId: 'gpu-compute', category: 'AI / ML', keywords: 'gpu cuda accelerator training inference' },
+  { kind: 'external', label: 'OpenAI', description: 'Foundation models and AI APIs', iconId: 'openai', category: 'AI / ML', keywords: 'gpt responses embeddings realtime' },
+  { kind: 'external', label: 'Anthropic Claude', description: 'Claude models and API', iconId: 'anthropic-claude', category: 'AI / ML', keywords: 'anthropic claude llm model api' },
+  { kind: 'external', label: 'Google Gemini', description: 'Google multimodal model platform', iconId: 'google-gemini', category: 'AI / ML', keywords: 'google gemini ai model api' },
+  { kind: 'external', label: 'Meta Llama', description: 'Open foundation model family', iconId: 'meta-llama', category: 'AI / ML', keywords: 'meta llama open model' },
+  { kind: 'external', label: 'Mistral AI', description: 'Mistral model platform', iconId: 'mistral-ai', category: 'AI / ML', keywords: 'mistral mixtral model api' },
+  { kind: 'external', label: 'Cohere', description: 'Enterprise language model platform', iconId: 'cohere', category: 'AI / ML', keywords: 'command rerank embed model api' },
+  { kind: 'external', label: 'Hugging Face', description: 'Model hub and inference platform', iconId: 'hugging-face', category: 'AI / ML', keywords: 'transformers hub models datasets inference' },
+  { kind: 'service', label: 'LangChain', description: 'LLM application framework', iconId: 'langchain', category: 'AI / ML', keywords: 'chain agent rag framework' },
+  { kind: 'service', label: 'LangGraph', description: 'Stateful agent orchestration', iconId: 'langgraph', category: 'AI / ML', keywords: 'agent graph workflow durable orchestration' },
+  { kind: 'service', label: 'LlamaIndex', description: 'Data framework for LLM applications', iconId: 'llamaindex', category: 'AI / ML', keywords: 'rag retrieval data framework index' },
+  { kind: 'service', label: 'Semantic Kernel', description: 'Microsoft agent and AI SDK', iconId: 'semantic-kernel', category: 'AI / ML', keywords: 'microsoft agent orchestration sdk plugins' },
+  { kind: 'service', label: 'CrewAI', description: 'Multi-agent orchestration framework', iconId: 'crewai', category: 'AI / ML', keywords: 'crew multi agent workflow framework' },
+  { kind: 'database', label: 'Pinecone', description: 'Managed vector database', iconId: 'pinecone', category: 'AI / ML', keywords: 'vector database similarity search' },
+  { kind: 'database', label: 'Weaviate', description: 'AI-native vector database', iconId: 'weaviate', category: 'AI / ML', keywords: 'vector database semantic search' },
+  { kind: 'database', label: 'Milvus', description: 'Open-source vector database', iconId: 'milvus', category: 'AI / ML', keywords: 'vector database similarity search' },
+  { kind: 'database', label: 'Qdrant', description: 'Vector search engine', iconId: 'qdrant', category: 'AI / ML', keywords: 'vector database similarity search' },
+  { kind: 'database', label: 'Chroma', description: 'Embedding database for AI', iconId: 'chroma', category: 'AI / ML', keywords: 'chromadb vector embeddings database' },
+  { kind: 'database', label: 'pgvector', description: 'PostgreSQL vector extension', iconId: 'pgvector', category: 'AI / ML', keywords: 'postgres vector similarity extension' },
+  { kind: 'service', label: 'vLLM', description: 'High-throughput model serving', iconId: 'vllm', category: 'AI / ML', keywords: 'inference serving engine llm' },
+  { kind: 'service', label: 'Ollama', description: 'Local model runtime', iconId: 'ollama', category: 'AI / ML', keywords: 'local model inference runtime' },
+  { kind: 'service', label: 'Hugging Face Inference', description: 'Managed model inference', iconId: 'hf-inference', category: 'AI / ML', keywords: 'hugging face endpoint serving model' },
+  { kind: 'service', label: 'NVIDIA NIM', description: 'Optimized inference microservice', iconId: 'nvidia-nim', category: 'AI / ML', keywords: 'nvidia inference microservice gpu' },
+  { kind: 'service', label: 'NVIDIA Triton', description: 'Production inference server', iconId: 'nvidia-triton', category: 'AI / ML', keywords: 'nvidia triton model serving inference' },
+  { kind: 'service', label: 'Text Generation Inference', description: 'Hugging Face LLM serving engine', iconId: 'tgi', category: 'AI / ML', keywords: 'hugging face tgi model server' },
+  { kind: 'service', label: 'SGLang', description: 'High-performance model runtime', iconId: 'sglang', category: 'AI / ML', keywords: 'inference serving structured generation' },
+  { kind: 'external', label: 'LangSmith', description: 'Agent tracing and evaluation', iconId: 'langsmith', category: 'AI / ML', keywords: 'langchain trace eval observability prompt' },
+  { kind: 'external', label: 'MLflow', description: 'ML lifecycle and model tracking', iconId: 'mlflow', category: 'AI / ML', keywords: 'mlops experiment registry tracking' },
+  { kind: 'external', label: 'Weights & Biases', description: 'ML experiments and observability', iconId: 'weights-biases', category: 'AI / ML', keywords: 'wandb experiment tracking evaluation' },
+  { kind: 'external', label: 'Arize Phoenix', description: 'Open-source AI observability', iconId: 'arize-phoenix', category: 'AI / ML', keywords: 'trace eval observability llm' },
+  { kind: 'external', label: 'Helicone', description: 'LLM observability gateway', iconId: 'helicone', category: 'AI / ML', keywords: 'llm logs proxy metrics observability' },
+  { kind: 'external', label: 'Promptfoo', description: 'Prompt testing and red teaming', iconId: 'promptfoo', category: 'AI / ML', keywords: 'eval test prompt security red team' },
+  { kind: 'service', label: 'Amazon Bedrock', description: 'AWS foundation model platform', iconId: 'aws-bedrock', category: 'AWS', keywords: 'aws generative ai agents foundation model' },
+  { kind: 'service', label: 'Amazon SageMaker AI', description: 'AWS machine learning platform', iconId: 'aws-sagemaker', category: 'AWS', keywords: 'aws ml training endpoint model' },
+  { kind: 'service', label: 'Azure OpenAI', description: 'OpenAI models hosted on Azure', iconId: 'azure-openai', category: 'Azure', keywords: 'microsoft ai gpt model endpoint' },
+  { kind: 'service', label: 'Azure AI Foundry', description: 'Azure AI application platform', iconId: 'azure-ai-foundry', category: 'Azure', keywords: 'microsoft ai studio model agent' },
+  { kind: 'service', label: 'Google Vertex AI', description: 'Google Cloud AI platform', iconId: 'gcp-vertex-ai', category: 'Google Cloud', keywords: 'gcp vertex machine learning model endpoint' },
+  { kind: 'service', label: 'Google Gemini API', description: 'Gemini models on Google Cloud', iconId: 'gcp-gemini-api', category: 'Google Cloud', keywords: 'gcp google gemini generative ai model api' },
   { kind: 'external', label: 'Identity Provider', description: 'Authentication and identity', iconId: 'identity-provider', category: 'General', keywords: 'idp auth oauth oidc sso' },
+  { kind: 'external', label: 'Email', description: 'Email delivery and communication', iconId: 'email', category: 'General', keywords: 'smtp mail message ses sendgrid' },
+  { kind: 'external', label: 'Notification', description: 'Application alerts and notifications', iconId: 'notification', category: 'General', keywords: 'alert push notify bell message' },
+  { kind: 'external', label: 'Slack', description: 'Team messaging and automation', iconId: 'slack', category: 'General', keywords: 'chat collaboration webhook notification workspace' },
+  { kind: 'external', label: 'Microsoft Teams', description: 'Team collaboration and communication', iconId: 'microsoft-teams', category: 'General', keywords: 'teams microsoft chat meeting webhook notification' },
+  { kind: 'external', label: 'SMS', description: 'Text message delivery', iconId: 'sms', category: 'General', keywords: 'mobile phone text message notification' },
+  { kind: 'external', label: 'Push Notification', description: 'Mobile and browser push delivery', iconId: 'push-notification', category: 'General', keywords: 'alert device browser mobile notification' },
+  { kind: 'external', label: 'Webhook', description: 'HTTP event callback', iconId: 'webhook', category: 'General', keywords: 'http callback integration event api' },
+  { kind: 'external', label: 'Microsoft Outlook', description: 'Microsoft email and calendar', iconId: 'microsoft-outlook', category: 'General', keywords: 'outlook office 365 email mail calendar' },
+  { kind: 'external', label: 'Gmail', description: 'Google email service', iconId: 'gmail', category: 'General', keywords: 'google workspace email mail' },
+  { kind: 'external', label: 'Twilio', description: 'Programmable communications platform', iconId: 'twilio', category: 'General', keywords: 'sms voice phone messaging api' },
+  { kind: 'external', label: 'SendGrid', description: 'Transactional email delivery', iconId: 'sendgrid', category: 'General', keywords: 'email smtp transactional delivery twilio' },
+  { kind: 'external', label: 'Discord', description: 'Community messaging platform', iconId: 'discord', category: 'General', keywords: 'chat community webhook notification bot' },
 ]
 
 const iconByKind = {
@@ -187,13 +283,87 @@ const iconById: Record<string, CanvasIcon> = {
   'sql-database': Database, 'nosql-database': Braces, 'search-engine': Search,
   'data-warehouse': Warehouse, 'event-bus': Workflow, 'event-stream': Waves,
   'secrets-manager': Lock, monitoring: Activity, logging: ScrollText, 'ci-cd-pipeline': GitBranch,
-  'git-repository': SiGit, 'identity-provider': Fingerprint,
+  'git-repository': SiGit, jenkins: SiJenkins, 'github-actions': SiGithubactions, 'gitlab-ci': SiGitlab,
+  'argo-cd': SiArgo, terraform: SiTerraform, ansible: SiAnsible, helm: SiHelm, prometheus: SiPrometheus,
+  grafana: SiGrafana, opentelemetry: SiOpentelemetry, pagerduty: SiPagerduty, 'identity-provider': Fingerprint,
+  email: Mail, notification: Bell, slack: BsSlack, 'microsoft-teams': BsMicrosoftTeams,
+  sms: MessageSquareText, 'push-notification': BellRing, webhook: Webhook,
+  'microsoft-outlook': PiMicrosoftOutlookLogo, gmail: SiGmail, twilio: TwilioIcon, sendgrid: SendGridIcon,
+  discord: SiDiscord,
+  'ai-agent': Bot, 'foundation-model': BrainCircuit, 'embedding-model': Sparkles,
+  'multimodal-model': CircuitBoard, 'prompt-template': FileCode2, 'rag-pipeline': Workflow,
+  retriever: ScanSearch, 'vector-database': DatabaseZap, 'ai-tool': Cog, 'mcp-server': Server,
+  'model-gateway': Waypoints, 'inference-endpoint': Gauge, 'model-registry': Library,
+  'ai-guardrail': ShieldCheck, 'evaluation-service': Activity, 'human-approval': UserCheck, 'gpu-compute': Cpu,
+  openai: OpenAIIcon, 'anthropic-claude': AnthropicIcon, 'google-gemini': SiGooglegemini,
+  'meta-llama': SiMetaai, 'mistral-ai': SiMistralai, cohere: BrainCircuit, 'hugging-face': SiHuggingface,
+  langchain: SiLangchain, langgraph: SiLanggraph, llamaindex: Library, 'semantic-kernel': CircuitBoard,
+  crewai: SiCrewai, pinecone: PineconeIcon, weaviate: DatabaseZap, milvus: SiMilvus, qdrant: SiQdrant,
+  chroma: ChromaIcon, pgvector: SiPostgresql, vllm: Gauge, ollama: SiOllama, 'hf-inference': SiHuggingface,
+  'nvidia-nim': SiNvidia, 'nvidia-triton': SiNvidia, tgi: SiHuggingface, sglang: Cpu,
+  langsmith: SiLangchain, mlflow: SiMlflow, 'weights-biases': SiWeightsandbiases,
+  'arize-phoenix': Activity, helicone: Gauge, promptfoo: ShieldCheck,
+  'aws-bedrock': ArchitectureServiceAmazonBedrock, 'aws-sagemaker': ArchitectureServiceAmazonSageMakerAI,
+  'azure-openai': AzureCognitiveServices, 'azure-ai-foundry': AzureMachineLearning,
+  'gcp-vertex-ai': GcpVertexAi, 'gcp-gemini-api': SiGooglegemini,
 }
 
 const iconColorById: Record<string, string> = {
   'aws-lambda': '#ff9900', 'azure-function': '#0089d6', 'gcp-pubsub': '#4285f4',
   kubernetes: '#326ce5', kafka: '#575c66', redis: '#dc382d', postgresql: '#336791', docker: '#2496ed',
   'sql-database': '#2563eb', 'nosql-database': '#16a34a',
+  jenkins: '#d24939', 'github-actions': '#2088ff', 'gitlab-ci': '#fc6d26', 'argo-cd': '#ef7b4d',
+  terraform: '#844fba', ansible: '#ee0000', helm: '#0f1689', prometheus: '#e6522c', grafana: '#f46800',
+  opentelemetry: '#f5a800', pagerduty: '#06ac38',
+  email: '#2563eb', notification: '#d97706', slack: '#4a154b', 'microsoft-teams': '#6264a7',
+  sms: '#16a34a', 'push-notification': '#d97706', webhook: '#7c3aed', 'microsoft-outlook': '#0078d4',
+  gmail: '#ea4335', twilio: '#f12e45', sendgrid: '#00a9d1', discord: '#5865f2',
+  openai: '#10a37f', 'anthropic-claude': '#d97757', 'google-gemini': '#4285f4',
+  'meta-llama': '#0668e1', 'mistral-ai': '#f7a000', 'hugging-face': '#ffbd16',
+  langchain: '#1c3c3c', langgraph: '#1c3c3c', crewai: '#ff5a50', pinecone: '#00a88f',
+  milvus: '#00a1ea', qdrant: '#dc244c', pgvector: '#336791', ollama: '#111827',
+  'nvidia-nim': '#76b900', 'nvidia-triton': '#76b900', mlflow: '#0194e2',
+  'weights-biases': '#ffbe00', 'gcp-gemini-api': '#4285f4',
+}
+
+const generalGroupOrder = ['Applications', 'Data', 'Messaging', 'Communication', 'Networking', 'Security', 'Platform', 'Utilities'] as const
+type GeneralComponentGroup = typeof generalGroupOrder[number]
+const generalGroupByLabel: Record<string, GeneralComponentGroup> = {
+  'Service / API': 'Applications', Monolith: 'Applications', 'Web application': 'Applications',
+  'Mobile application': 'Applications', 'Serverless Function': 'Applications', 'Background Worker': 'Applications',
+  'Scheduled Job': 'Applications', Cache: 'Data', Redis: 'Data', PostgreSQL: 'Data',
+  'Object Storage': 'Data', 'SQL Database': 'Data', 'NoSQL Database': 'Data', 'Search Engine': 'Data',
+  'Data Warehouse': 'Data', 'Message Queue': 'Messaging', Kafka: 'Messaging', 'Event Bus': 'Messaging',
+  'Event Stream': 'Messaging', 'API Gateway': 'Networking', 'Load Balancer': 'Networking',
+  Email: 'Communication', Notification: 'Communication', Slack: 'Communication', 'Microsoft Teams': 'Communication',
+  SMS: 'Communication', 'Push Notification': 'Communication', Webhook: 'Communication',
+  'Microsoft Outlook': 'Communication', Gmail: 'Communication', Twilio: 'Communication',
+  SendGrid: 'Communication', Discord: 'Communication',
+  'Reverse Proxy': 'Networking', DNS: 'Networking', 'Network / VPC': 'Networking', CDN: 'Networking',
+  'Firewall / WAF': 'Security', 'Secrets Manager': 'Security', 'Identity Provider': 'Security',
+  Container: 'Platform', 'Kubernetes Cluster': 'Platform', Docker: 'Platform',
+  'External system': 'Utilities', 'User / Actor': 'Utilities', Boundary: 'Utilities', Note: 'Utilities', Text: 'Utilities',
+}
+
+const aiGroupOrder = ['Architecture', 'Model Providers', 'Agent Frameworks', 'Vector Data', 'Inference', 'Observability'] as const
+type AiComponentGroup = typeof aiGroupOrder[number]
+const aiGroupByLabel: Record<string, AiComponentGroup> = {
+  'AI Agent': 'Architecture', 'Foundation Model / LLM': 'Architecture', 'Embedding Model': 'Architecture',
+  'Multimodal Model': 'Architecture', 'Prompt Template': 'Architecture', 'RAG Pipeline': 'Architecture',
+  Retriever: 'Architecture', 'Vector Database': 'Architecture', 'AI Tool / Function': 'Architecture',
+  'MCP Server': 'Architecture', 'Model Gateway': 'Architecture', 'Inference Endpoint': 'Architecture',
+  'Model Registry': 'Architecture', 'AI Guardrail': 'Architecture', 'Evaluation Service': 'Architecture',
+  'Human Approval': 'Architecture', 'GPU Compute': 'Architecture', OpenAI: 'Model Providers',
+  'Anthropic Claude': 'Model Providers', 'Google Gemini': 'Model Providers', 'Meta Llama': 'Model Providers',
+  'Mistral AI': 'Model Providers', Cohere: 'Model Providers', 'Hugging Face': 'Model Providers',
+  LangChain: 'Agent Frameworks', LangGraph: 'Agent Frameworks', LlamaIndex: 'Agent Frameworks',
+  'Semantic Kernel': 'Agent Frameworks', CrewAI: 'Agent Frameworks', Pinecone: 'Vector Data',
+  Weaviate: 'Vector Data', Milvus: 'Vector Data', Qdrant: 'Vector Data', Chroma: 'Vector Data',
+  pgvector: 'Vector Data', vLLM: 'Inference', Ollama: 'Inference', 'Hugging Face Inference': 'Inference',
+  'NVIDIA NIM': 'Inference', 'NVIDIA Triton': 'Inference', 'Text Generation Inference': 'Inference',
+  SGLang: 'Inference', LangSmith: 'Observability', MLflow: 'Observability',
+  'Weights & Biases': 'Observability', 'Arize Phoenix': 'Observability', Helicone: 'Observability',
+  Promptfoo: 'Observability',
 }
 
 function BidirectionalHandle({ position, id }: { position: Position; id: string }) {
@@ -216,14 +386,14 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
   useEffect(() => {
     if (kind === 'container') return
     const current = getNode(id)
-    const size = getComponentSize(label, kind, selected)
+    const size = getComponentSize(label, kind)
     if (current?.width === size.width && current?.height === size.height) return
     updateNode(id, { ...size, style: { ...current?.style, ...size } })
-  }, [getNode, id, kind, label, selected, updateNode])
+  }, [getNode, id, kind, label, updateNode])
 
   function updateContent(nextLabel: string) {
     const current = getNode(id)
-    const nextSize = kind === 'container' ? {} : getComponentSize(nextLabel, kind, selected)
+    const nextSize = kind === 'container' ? {} : getComponentSize(nextLabel, kind)
     const nextStyle = kind === 'container' ? current?.style : { ...current?.style, ...nextSize }
     updateNode(id, { ...nextSize, data: { ...data, label: nextLabel }, style: nextStyle })
   }
@@ -251,7 +421,8 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
         {selected ? <textarea className="nodrag nowheel" aria-label="Component name" value={label}
           onFocus={() => { if (!editing.current) history.remember(); editing.current = true }}
           onChange={(event) => updateContent(event.target.value)}
-          onBlur={() => { updateContent(label.trim() || 'Untitled component'); editing.current = false }} rows={2} /> : <strong title={data.label}>{truncateCanvasText(data.label || 'Untitled component', COMPONENT_TITLE_LIMIT)}</strong>}
+          onBlur={() => { updateContent(label.trim() || 'Untitled component'); editing.current = false }}
+          rows={getComponentSize(label, kind).height > 52 ? 2 : 1} /> : <strong title={data.label}>{truncateCanvasText(data.label || 'Untitled component', COMPONENT_TITLE_LIMIT)}</strong>}
       </div>
       {kind !== 'text' && kind !== 'note' && kind !== 'container' && (
         <>
@@ -407,6 +578,8 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
   const [minimapVisible, setMinimapVisible] = useState(true)
   const [search, setSearch] = useState('')
   const [componentCategory, setComponentCategory] = useState('All')
+  const [openGeneralGroups, setOpenGeneralGroups] = useState<Set<GeneralComponentGroup>>(() => new Set(['Applications']))
+  const [openAiGroups, setOpenAiGroups] = useState<Set<AiComponentGroup>>(() => new Set(['Architecture']))
   const [zoom, setZoom] = useState(100)
   const [historyVersion, setHistoryVersion] = useState(0)
   const undoStack = useRef<Snapshot[]>([])
@@ -645,6 +818,28 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
     groups.set(category, [...(groups.get(category) || []), item])
     return groups
   }, new Map<string, typeof componentDefinitions>())
+  const toggleGeneralGroup = (group: GeneralComponentGroup) => setOpenGeneralGroups((current) => {
+    const next = new Set(current)
+    if (next.has(group)) next.delete(group)
+    else next.add(group)
+    return next
+  })
+  const toggleAiGroup = (group: AiComponentGroup) => setOpenAiGroups((current) => {
+    const next = new Set(current)
+    if (next.has(group)) next.delete(group)
+    else next.add(group)
+    return next
+  })
+  const renderComponentGrid = (items: typeof componentDefinitions) => <div className="component-grid">{items.map((item) => {
+    const Icon = iconByKind[item.kind]
+    const DisplayIcon = (item.iconId && iconById[item.iconId]) || Icon
+    return <button
+      key={`${item.kind}-${item.iconId || item.label}`}
+      onClick={() => addComponent(item.kind, item.iconId)}
+      title={`${item.label} — ${item.description}`}
+      aria-label={`${item.label}: ${item.description}`}
+    ><DisplayIcon style={{ color: item.iconId ? iconColorById[item.iconId] : undefined }} /><strong>{item.label}</strong></button>
+  })}</div>
 
   return (
     <div className={`canvas-workspace${tool === 'connect' ? ' connect-mode' : ''}`}>
@@ -703,11 +898,37 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
           <label className="canvas-search"><Search /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search components" autoFocus /></label>
           <div className="component-categories" aria-label="Component categories">{componentCategories.map((category) => <button className={category === componentCategory ? 'active' : ''} key={category} onClick={() => setComponentCategory(category)}>{category}</button>)}</div>
           <div className="component-list">
-            {[...groupedComponents.entries()].map(([category, items]) => <section className="component-category" key={category}><h3>{category}</h3>{items.map((item) => {
-              const Icon = iconByKind[item.kind]
-              const DisplayIcon = (item.iconId && iconById[item.iconId]) || Icon
-              return <button key={`${item.kind}-${item.iconId || item.label}`} onClick={() => addComponent(item.kind, item.iconId)}><DisplayIcon style={{ color: item.iconId ? iconColorById[item.iconId] : undefined }} /><span><strong>{item.label}</strong><small>{item.category ? `${item.category} · ${item.description}` : item.description}</small></span><Plus /></button>
-            })}</section>)}
+            {[...groupedComponents.entries()].map(([category, items]) => category === 'General'
+              ? <section className="component-category general-component-category" key={category}>
+                  <h3>{category}</h3>
+                  {generalGroupOrder.map((group) => {
+                    const groupItems = items.filter((item) => generalGroupByLabel[item.label] === group)
+                    if (!groupItems.length) return null
+                    const expanded = Boolean(search.trim()) || openGeneralGroups.has(group)
+                    return <section className="general-component-group" key={group}>
+                      <button className="component-group-toggle" aria-expanded={expanded} onClick={() => toggleGeneralGroup(group)}>
+                        <span>{group}</span><small>{groupItems.length}</small><ChevronDown />
+                      </button>
+                      {expanded && renderComponentGrid(groupItems)}
+                    </section>
+                  })}
+                </section>
+              : category === 'AI / ML'
+              ? <section className="component-category general-component-category" key={category}>
+                  <h3>{category}</h3>
+                  {aiGroupOrder.map((group) => {
+                    const groupItems = items.filter((item) => aiGroupByLabel[item.label] === group)
+                    if (!groupItems.length) return null
+                    const expanded = Boolean(search.trim()) || openAiGroups.has(group)
+                    return <section className="general-component-group" key={group}>
+                      <button className="component-group-toggle" aria-expanded={expanded} onClick={() => toggleAiGroup(group)}>
+                        <span>{group}</span><small>{groupItems.length}</small><ChevronDown />
+                      </button>
+                      {expanded && renderComponentGrid(groupItems)}
+                    </section>
+                  })}
+                </section>
+              : <section className="component-category" key={category}><h3>{category}</h3>{renderComponentGrid(items)}</section>)}
             {!filteredComponents.length && <p className="muted">No matching components.</p>}
           </div>
         </aside>

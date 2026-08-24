@@ -28,4 +28,17 @@ class RichTextSanitizerTest {
                 + "<mark data-color=\"#fef3c7\" style=\"background-color: #fef3c7\">Marked</mark>"
                 + "<pre><code class=\"language-java\">record A() {}</code></pre>");
     }
+
+    @Test
+    void retainsSafeInlineScreenshotsAndRemovesUnsafeImages() {
+        String safe = "<img src=\"data:image/png;base64,aGVsbG8=\" alt=\"Screenshot\" width=\"640\" onerror=\"alert(1)\">";
+        assertThat(sanitizer.sanitize(safe))
+            .isEqualTo("<img src=\"data:image/png;base64,aGVsbG8=\" alt=\"Screenshot\" width=\"640\">");
+        assertThat(sanitizer.sanitize("<img src=\"data:image/png;base64,aGVsbG8=\" width=\"99999\">"))
+            .isEqualTo("<img src=\"data:image/png;base64,aGVsbG8=\">");
+        assertThat(sanitizer.sanitize("<img src=\"https://example.com/tracker.png\">"))
+            .isEmpty();
+        assertThat(sanitizer.sanitize("<img src=\"data:image/svg+xml;base64,PHN2Zz4=\">"))
+            .isEmpty();
+    }
 }

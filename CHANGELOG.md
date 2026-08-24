@@ -14,6 +14,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Rich architecture component catalog organized into General, AWS, Azure, and Google Cloud.
 - Official or recognizable service icons for common AWS, Azure, Google Cloud, Kubernetes, Docker, Kafka, Redis, PostgreSQL, and Git components.
 - General architecture components for monoliths, serverless functions, workers, scheduled jobs, data systems, messaging, networking, security, observability, and delivery pipelines.
+- Branded CI/CD, GitOps, infrastructure automation, observability, and incident-response components for DevOps and SRE workflows.
+- Communication components for email, SMS, push, webhooks, Slack, Teams, Outlook, Gmail, Twilio, SendGrid, and Discord with recognizable icons.
+- Dedicated AI / ML catalog covering architecture concepts, model providers, agent frameworks, vector data, inference runtimes, observability, and cloud-native AI services.
+- Screenshot paste, file-picker insertion, and direct image resizing in rich-text documentation with safe inline-image sanitization.
 - Gmail-only authentication validation and user-facing rejection responses.
 - Rich-text sanitization for documents and safe-link protocol enforcement.
 - V2 requirements document and updated V1 implementation statuses.
@@ -21,6 +25,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Changed
 
 - Consolidated generic components into one General catalog and removed redundant category tabs.
+- Organized General components into collapsible architecture groups with a compact icon-grid layout.
+- Moved DevOps and SRE tooling into a dedicated Operations - CD/CI catalog category.
 - Replaced ambiguous Database, File storage, and Queue / Event bus entries with explicit architecture concepts.
 - Renamed Kubernetes to Kubernetes Cluster and assigned unique, persistent icon identifiers throughout the catalog.
 - Prevented selection-only canvas changes from creating project revisions.

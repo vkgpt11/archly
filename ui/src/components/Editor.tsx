@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { useEdgesState, useNodesState } from '@xyflow/react'
-import { EditorContent, useEditor } from '@tiptap/react'
+import { EditorContent, NodeViewWrapper, ReactNodeViewRenderer, useEditor, type NodeViewProps } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import Color from '@tiptap/extension-color'
 import Highlight from '@tiptap/extension-highlight'
 import TextStyle from '@tiptap/extension-text-style'
+import Image from '@tiptap/extension-image'
 import { common, createLowlight } from 'lowlight'
 import {
   Bold, Code2, Heading1, Heading2, Italic, Link2, List, ListOrdered,
-  Highlighter, Palette, Quote, Redo2, RotateCcw, SquareCode, Strikethrough, Undo2,
+  Highlighter, ImagePlus, Palette, Quote, Redo2, RotateCcw, SquareCode, Strikethrough, Undo2,
 } from 'lucide-react'
 import { ApiError, api } from '../api'
 import type { CanvasData, Project } from '../types'
@@ -30,6 +31,79 @@ type SaveConflict = { local: ProjectDraft; server: Project }
 const lowlight = createLowlight(common)
 const textColors = ['#20222d', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#2563eb', '#7c3aed', '#db2777']
 const highlightColors = ['#fef3c7', '#fed7aa', '#fecaca', '#fbcfe8', '#ddd6fe', '#bfdbfe', '#bbf7d0', '#d1d5db']
+const MAX_SCREENSHOT_BYTES = 2 * 1024 * 1024
+const screenshotTypes = new Set(['image/png', 'image/jpeg', 'image/webp'])
+
+function ResizableImageNode({ node, selected, updateAttributes }: NodeViewProps) {
+  const imageRef = useRef<HTMLImageElement>(null)
+  const [width, setWidth] = useState<number | null>(() => Number(node.attrs.width) || null)
+  useEffect(() => setWidth(Number(node.attrs.width) || null), [node.attrs.width])
+
+  const beginResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    const image = imageRef.current
+    if (!image) return
+    const startX = event.clientX
+    const startWidth = image.getBoundingClientRect().width
+    const maxWidth = image.closest('.rich-text-content')?.clientWidth || 1600
+    let finalWidth = startWidth
+    const move = (moveEvent: PointerEvent) => {
+      finalWidth = Math.round(Math.min(maxWidth, Math.max(120, startWidth + moveEvent.clientX - startX)))
+      setWidth(finalWidth)
+    }
+    const finish = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', finish)
+      updateAttributes({ width: finalWidth })
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', finish, { once: true })
+  }
+
+  const setPreset = (nextWidth: number | null) => {
+    setWidth(nextWidth)
+    updateAttributes({ width: nextWidth })
+  }
+
+  return <NodeViewWrapper className={`resizable-image-node${selected ? ' selected' : ''}`}>
+    <img ref={imageRef} src={node.attrs.src} alt={node.attrs.alt || 'Screenshot'} title={node.attrs.title || undefined} style={width ? { width } : undefined} />
+    {selected && <div className="image-size-controls" contentEditable={false}>
+      <button onClick={() => setPreset(320)} aria-label="Small image">S</button>
+      <button onClick={() => setPreset(640)} aria-label="Medium image">M</button>
+      <button onClick={() => setPreset(2000)} aria-label="Full width image">Full</button>
+    </div>}
+    {selected && <button className="image-resize-handle" contentEditable={false} onPointerDown={beginResize} aria-label="Resize image" title="Drag to resize" />}
+  </NodeViewWrapper>
+}
+
+const ResizableImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      width: {
+        default: null,
+        parseHTML: (element) => {
+          const value = Number(element.getAttribute('width'))
+          return Number.isFinite(value) && value >= 120 && value <= 2000 ? value : null
+        },
+        renderHTML: (attributes) => attributes.width ? { width: attributes.width } : {},
+      },
+    }
+  },
+  addNodeView() { return ReactNodeViewRenderer(ResizableImageNode) },
+})
+
+function readScreenshot(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!screenshotTypes.has(file.type)) return reject(new Error('Use a PNG, JPEG, or WebP image.'))
+    if (file.size > MAX_SCREENSHOT_BYTES) return reject(new Error('Screenshot must be 2 MB or smaller.'))
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('Could not read this screenshot.'))
+    reader.onload = () => resolve(String(reader.result))
+    reader.readAsDataURL(file)
+  })
+}
 
 function parseCanvas(value: string): CanvasData {
   try { return JSON.parse(value) as CanvasData } catch { return { nodes: [], edges: [] } }
@@ -55,10 +129,12 @@ export default function Editor({ token, initialProject, onBack }: Props) {
   const [linkEditorOpen, setLinkEditorOpen] = useState(false)
   const [linkUrl, setLinkUrl] = useState('https://')
   const [linkError, setLinkError] = useState('')
+  const [imageError, setImageError] = useState('')
   const [saveState, setSaveState] = useState<SaveState>(recovery.mode === 'conflict' ? 'conflict' : recovery.mode === 'resume' ? 'saving' : 'saved')
   const [conflict, setConflict] = useState<SaveConflict | null>(() => recovery.mode === 'conflict' ? { local: recovery.draft!, server: initialProject } : null)
   const latestProject = useRef(project)
   const editorBody = useRef<HTMLDivElement>(null)
+  const imageInput = useRef<HTMLInputElement>(null)
   const saveInFlight = useRef(false)
   const saveQueued = useRef(false)
   const lastSavedSignature = useRef(contentSignature({ ...initialProject, canvasJson: canonicalCanvasJson(initialProject.canvasJson) }))
@@ -74,6 +150,7 @@ export default function Editor({ token, initialProject, onBack }: Props) {
       Color,
       Highlight.configure({ multicolor: true }),
       Link.configure({ openOnClick: false, autolink: true, linkOnPaste: true }),
+      ResizableImage.configure({ allowBase64: true }),
     ],
     content: sanitizeRichText(recovery.content.markdown),
     editorProps: {
@@ -81,11 +158,35 @@ export default function Editor({ token, initialProject, onBack }: Props) {
         class: 'rich-text-content',
         'aria-label': 'Design documentation',
       },
+      handlePaste: (view, event) => {
+        const file = Array.from(event.clipboardData?.files || []).find((item) => item.type.startsWith('image/'))
+        if (!file) return false
+        event.preventDefault()
+        setImageError('')
+        void readScreenshot(file).then((src) => {
+          const node = view.state.schema.nodes.image.create({ src, alt: 'Pasted screenshot' })
+          view.dispatch(view.state.tr.replaceSelectionWith(node).scrollIntoView())
+        }).catch((error: Error) => setImageError(error.message))
+        return true
+      },
     },
     onUpdate: ({ editor }) => {
       setProject((current) => ({ ...current, markdown: sanitizeRichText(editor.getHTML()) }))
     },
   })
+
+  const insertScreenshot = async (file?: File) => {
+    if (!file || !richTextEditor) return
+    setImageError('')
+    try {
+      const src = await readScreenshot(file)
+      richTextEditor.chain().focus().setImage({ src, alt: 'Screenshot' }).run()
+    } catch (error) {
+      setImageError((error as Error).message)
+    } finally {
+      if (imageInput.current) imageInput.current.value = ''
+    }
+  }
 
   const flushSave = useCallback(async () => {
     if (saveInFlight.current) { saveQueued.current = true; return }
@@ -341,6 +442,9 @@ export default function Editor({ token, initialProject, onBack }: Props) {
                   </div>
                 )}
               </div>
+              <button onClick={() => imageInput.current?.click()} title="Insert screenshot" aria-label="Insert screenshot"><ImagePlus /></button>
+              <input ref={imageInput} className="screenshot-input" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => void insertScreenshot(event.target.files?.[0])} />
+              {imageError && <span className="screenshot-error" role="alert">{imageError}</span>}
               <span className="toolbar-spacer" />
               <button onClick={() => richTextEditor?.chain().focus().undo().run()} disabled={!richTextEditor?.can().undo()} title="Undo" aria-label="Undo"><Undo2 /></button>
               <button onClick={() => richTextEditor?.chain().focus().redo().run()} disabled={!richTextEditor?.can().redo()} title="Redo" aria-label="Redo"><Redo2 /></button>
