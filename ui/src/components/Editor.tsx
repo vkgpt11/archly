@@ -14,11 +14,18 @@ import {
 } from 'lucide-react'
 import { ApiError, api } from '../api'
 import type { CanvasData, Project } from '../types'
+import { sanitizeRichText } from '../sanitizeRichText'
+import {
+  canonicalCanvasJson, clearDraft, contentSignature, createDraft, draftRecovery, loadDraft,
+  serializeCanvas, storeConflictBackup, storeDraft, type ProjectDraft,
+} from '../projectPersistence'
 import CanvasWorkspace from './CanvasWorkspace'
 import ThemeToggle from './ThemeToggle'
 
 type View = 'canvas' | 'document' | 'split'
 type Props = { token: string; initialProject: Project; onBack: (project: Project) => void }
+type SaveState = 'saved' | 'saving' | 'error' | 'offline' | 'conflict'
+type SaveConflict = { local: ProjectDraft; server: Project }
 
 const lowlight = createLowlight(common)
 const textColors = ['#20222d', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#2563eb', '#7c3aed', '#db2777']
@@ -29,8 +36,18 @@ function parseCanvas(value: string): CanvasData {
 }
 
 export default function Editor({ token, initialProject, onBack }: Props) {
-  const initialCanvas = parseCanvas(initialProject.canvasJson)
-  const [project, setProject] = useState(initialProject)
+  const [recovery] = useState(() => {
+    const draft = loadDraft(initialProject.id)
+    const mode = draftRecovery(draft, initialProject)
+    return { draft, mode, content: mode === 'none' ? initialProject : draft! }
+  })
+  const initialCanvas = parseCanvas(recovery.content.canvasJson)
+  const [project, setProject] = useState({
+    ...initialProject,
+    name: recovery.content.name,
+    markdown: sanitizeRichText(recovery.content.markdown),
+    canvasJson: canonicalCanvasJson(recovery.content.canvasJson),
+  })
   const [nodes, setNodes] = useNodesState(initialCanvas.nodes)
   const [edges, setEdges] = useEdgesState(initialCanvas.edges)
   const [view, setView] = useState<View>('split')
@@ -38,13 +55,14 @@ export default function Editor({ token, initialProject, onBack }: Props) {
   const [linkEditorOpen, setLinkEditorOpen] = useState(false)
   const [linkUrl, setLinkUrl] = useState('https://')
   const [linkError, setLinkError] = useState('')
-  const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error'>('saved')
+  const [saveState, setSaveState] = useState<SaveState>(recovery.mode === 'conflict' ? 'conflict' : recovery.mode === 'resume' ? 'saving' : 'saved')
+  const [conflict, setConflict] = useState<SaveConflict | null>(() => recovery.mode === 'conflict' ? { local: recovery.draft!, server: initialProject } : null)
   const latestProject = useRef(project)
   const editorBody = useRef<HTMLDivElement>(null)
   const saveInFlight = useRef(false)
-  const changeVersion = useRef(0)
-  const initialSaveSkipped = useRef(false)
-  const conflictRetryUsed = useRef(false)
+  const saveQueued = useRef(false)
+  const lastSavedSignature = useRef(contentSignature({ ...initialProject, canvasJson: canonicalCanvasJson(initialProject.canvasJson) }))
+  const conflictActive = conflict !== null
 
   useEffect(() => { latestProject.current = project }, [project])
 
@@ -57,7 +75,7 @@ export default function Editor({ token, initialProject, onBack }: Props) {
       Highlight.configure({ multicolor: true }),
       Link.configure({ openOnClick: false, autolink: true, linkOnPaste: true }),
     ],
-    content: initialProject.markdown,
+    content: sanitizeRichText(recovery.content.markdown),
     editorProps: {
       attributes: {
         class: 'rich-text-content',
@@ -65,18 +83,26 @@ export default function Editor({ token, initialProject, onBack }: Props) {
       },
     },
     onUpdate: ({ editor }) => {
-      setProject((current) => ({ ...current, markdown: editor.getHTML() }))
+      setProject((current) => ({ ...current, markdown: sanitizeRichText(editor.getHTML()) }))
     },
   })
 
   const flushSave = useCallback(async () => {
-    if (saveInFlight.current) return
+    if (saveInFlight.current) { saveQueued.current = true; return }
+    if (conflictActive) return
+    const candidate = latestProject.current
+    const candidateSignature = contentSignature(candidate)
+    if (candidateSignature === lastSavedSignature.current) {
+      clearDraft(candidate.id)
+      setSaveState('saved')
+      return
+    }
     saveInFlight.current = true
-    const savingVersion = changeVersion.current
-    let retryConflict = false
+    saveQueued.current = false
+    setSaveState('saving')
 
     try {
-      const saved = await api.saveProject(token, latestProject.current)
+      const saved = await api.saveProject(token, candidate)
       const merged = {
         ...latestProject.current,
         revision: saved.revision,
@@ -84,57 +110,70 @@ export default function Editor({ token, initialProject, onBack }: Props) {
         updatedAt: saved.updatedAt,
       }
       latestProject.current = merged
+      lastSavedSignature.current = candidateSignature
       setProject((current) => ({
         ...current,
         revision: saved.revision,
         createdAt: saved.createdAt,
         updatedAt: saved.updatedAt,
       }))
-      conflictRetryUsed.current = false
-      if (changeVersion.current === savingVersion) setSaveState('saved')
+      if (contentSignature(latestProject.current) === candidateSignature) {
+        clearDraft(saved.id)
+        setSaveState('saved')
+      } else {
+        saveQueued.current = true
+      }
     } catch (error) {
-      if (error instanceof ApiError && error.status === 409 && !conflictRetryUsed.current) {
-        conflictRetryUsed.current = true
+      if (error instanceof ApiError && error.status === 409) {
         try {
           const serverProject = await api.getProject(token, latestProject.current.id)
-          latestProject.current = {
-            ...latestProject.current,
-            revision: serverProject.revision,
-            createdAt: serverProject.createdAt,
-            updatedAt: serverProject.updatedAt,
-          }
-          retryConflict = true
-          setSaveState('saving')
+          const local = createDraft(candidate)
+          storeDraft(local)
+          storeConflictBackup(local, serverProject)
+          setConflict({ local, server: serverProject })
+          setSaveState('conflict')
         } catch {
           setSaveState('error')
         }
       } else {
-        setSaveState('error')
+        setSaveState(navigator.onLine ? 'error' : 'offline')
       }
     } finally {
       saveInFlight.current = false
-      if (retryConflict || changeVersion.current > savingVersion) {
-        queueMicrotask(() => void flushSave())
-      }
+      if (saveQueued.current) window.setTimeout(() => void flushSave(), 0)
     }
-  }, [token])
+  }, [conflictActive, token])
 
   useEffect(() => {
     latestProject.current = {
       ...latestProject.current,
       name: project.name,
       markdown: project.markdown,
-      canvasJson: JSON.stringify({ nodes, edges }),
+      canvasJson: serializeCanvas(nodes, edges),
     }
-    if (!initialSaveSkipped.current) {
-      initialSaveSkipped.current = true
+    const signature = contentSignature(latestProject.current)
+    if (signature === lastSavedSignature.current) {
+      clearDraft(project.id)
+      if (!conflictActive) setSaveState('saved')
       return
     }
-    changeVersion.current += 1
-    setSaveState('saving')
+    const draft = createDraft(latestProject.current)
+    storeDraft(draft)
+    if (conflictActive) {
+      setConflict((current) => current && contentSignature(current.local) !== signature ? { ...current, local: draft } : current)
+      setSaveState('conflict')
+      return
+    }
+    setSaveState(navigator.onLine ? 'saving' : 'offline')
     const timer = window.setTimeout(() => void flushSave(), 900)
     return () => window.clearTimeout(timer)
-  }, [nodes, edges, project.name, project.markdown, flushSave])
+  }, [nodes, edges, project.id, project.name, project.markdown, conflictActive, flushSave])
+
+  useEffect(() => {
+    const retryWhenOnline = () => { if (!conflictActive) void flushSave() }
+    window.addEventListener('online', retryWhenOnline)
+    return () => window.removeEventListener('online', retryWhenOnline)
+  }, [conflictActive, flushSave])
 
   const showCanvas = view !== 'document'
   const showDocument = view !== 'canvas'
@@ -186,6 +225,48 @@ export default function Editor({ token, initialProject, onBack }: Props) {
     setLinkEditorOpen(false)
   }
 
+  function useServerVersion() {
+    if (!conflict) return
+    const server = {
+      ...conflict.server,
+      canvasJson: canonicalCanvasJson(conflict.server.canvasJson),
+      markdown: sanitizeRichText(conflict.server.markdown),
+    }
+    const canvas = parseCanvas(server.canvasJson)
+    latestProject.current = server
+    lastSavedSignature.current = contentSignature(server)
+    richTextEditor?.commands.setContent(server.markdown, false)
+    setNodes(canvas.nodes)
+    setEdges(canvas.edges)
+    setProject(server)
+    clearDraft(server.id)
+    setConflict(null)
+    setSaveState('saved')
+  }
+
+  function keepLocalVersion() {
+    if (!conflict) return
+    latestProject.current = {
+      ...latestProject.current,
+      revision: conflict.server.revision,
+      createdAt: conflict.server.createdAt,
+      updatedAt: conflict.server.updatedAt,
+    }
+    setProject((current) => ({
+      ...current,
+      revision: conflict.server.revision,
+      createdAt: conflict.server.createdAt,
+      updatedAt: conflict.server.updatedAt,
+    }))
+    setConflict(null)
+    setSaveState('saving')
+  }
+
+  function retryStaleSave() {
+    setConflict(null)
+    setSaveState('saving')
+  }
+
   return (
     <main className="editor-shell">
       <header className="editor-header">
@@ -200,7 +281,8 @@ export default function Editor({ token, initialProject, onBack }: Props) {
         </div>
         <div className="editor-header-right">
           <ThemeToggle />
-          <span className={`save-state ${saveState}`}>{saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Save failed' : 'Saved'}</span>
+          <span className={`save-state ${saveState}`}>{saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Save failed' : saveState === 'offline' ? 'Offline' : saveState === 'conflict' ? 'Conflict' : 'Saved'}</span>
+          {(saveState === 'error' || saveState === 'offline') && <button className="save-retry" onClick={() => void flushSave()}>Retry</button>}
         </div>
       </header>
       <div className="editor-body" ref={editorBody}>
@@ -289,6 +371,25 @@ export default function Editor({ token, initialProject, onBack }: Props) {
           </section>
         )}
       </div>
+      {conflict && (
+        <div className="conflict-backdrop">
+          <section className="conflict-dialog" role="dialog" aria-modal="true" aria-labelledby="conflict-title">
+            <p className="eyebrow">Save conflict</p>
+            <h2 id="conflict-title">This project changed in another tab</h2>
+            <p>Your local draft and the latest server version are both preserved in this browser. Choose which version should become active.</p>
+            <div className="conflict-versions">
+              <article><strong>Your local draft</strong><span>Based on revision {conflict.local.baseRevision}</span><small>Stored {new Date(conflict.local.storedAt).toLocaleString()}</small></article>
+              <article><strong>Latest server version</strong><span>Revision {conflict.server.revision}</span><small>Saved {new Date(conflict.server.updatedAt).toLocaleString()}</small></article>
+            </div>
+            <div className="conflict-actions">
+              <button onClick={retryStaleSave}>Retry original save</button>
+              <button onClick={useServerVersion}>Use server version</button>
+              <button className="primary-button compact" onClick={keepLocalVersion}>Keep my version</button>
+            </div>
+            <small className="conflict-note">Keeping your version explicitly saves it over the current server version. A recovery copy of both versions remains in local browser storage.</small>
+          </section>
+        </div>
+      )}
     </main>
   )
 }

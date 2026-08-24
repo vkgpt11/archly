@@ -31,11 +31,16 @@ public class Project {
     protected Project() {}
 
     public Project(String ownerEmail, String name) {
+        this(ownerEmail, name, "{\"nodes\":[],\"edges\":[]}",
+            "<h1>" + escapeHtml(name) + "</h1><p>Describe your architecture here.</p>");
+    }
+
+    public Project(String ownerEmail, String name, String canvasJson, String markdown) {
         this.id = UUID.randomUUID();
         this.ownerEmail = ownerEmail;
         this.name = name;
-        this.canvasJson = "{\"nodes\":[],\"edges\":[]}";
-        this.markdown = "<h1>" + escapeHtml(name) + "</h1><p>Describe your architecture here.</p>";
+        this.canvasJson = canvasJson;
+        this.markdown = markdown;
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
     }

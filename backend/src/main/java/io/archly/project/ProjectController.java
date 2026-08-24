@@ -54,6 +54,13 @@ public class ProjectController {
         return service.update(jwt.getClaimAsString("email"), id, request);
     }
 
+    @PostMapping("/{id}/duplicate")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Duplicate a project", description = "Creates an independent copy with a new ID and revision.")
+    ProjectResponse duplicate(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+        return service.duplicate(jwt.getClaimAsString("email"), id);
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Delete a project")

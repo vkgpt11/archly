@@ -26,6 +26,7 @@ async function request<T>(token: string, path: string, init?: RequestInit): Prom
 }
 
 export const api = {
+  validateSession: (token: string) => request<{ email: string }>(token, '/auth/session'),
   listProjects: (token: string) => request<Project[]>(token, '/projects'),
   createProject: (token: string, name: string) =>
     request<Project>(token, '/projects', { method: 'POST', body: JSON.stringify({ name }) }),
@@ -42,4 +43,6 @@ export const api = {
     }),
   deleteProject: (token: string, id: string) =>
     request<void>(token, `/projects/${id}`, { method: 'DELETE' }),
+  duplicateProject: (token: string, id: string) =>
+    request<Project>(token, `/projects/${id}/duplicate`, { method: 'POST' }),
 }

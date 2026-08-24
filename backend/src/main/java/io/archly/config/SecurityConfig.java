@@ -1,7 +1,7 @@
 package io.archly.config;
 
-import java.util.List;
 import java.util.Arrays;
+import java.util.List;
 import java.time.Instant;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -11,8 +11,8 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2Error;
-import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoders;
 import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
@@ -37,7 +37,9 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health", "/error", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .anyRequest().authenticated())
-            .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()))
+            .oauth2ResourceServer(oauth -> oauth
+                .jwt(Customizer.withDefaults())
+                .authenticationEntryPoint(new GmailAuthenticationEntryPoint()))
             .build();
     }
 
@@ -66,14 +68,8 @@ public class SecurityConfig {
         OAuth2TokenValidator<Jwt> audience = jwt -> jwt.getAudience().contains(clientId)
             ? OAuth2TokenValidatorResult.success()
             : OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token", "Invalid Google audience", null));
-        OAuth2TokenValidator<Jwt> gmail = jwt -> {
-            String email = jwt.getClaimAsString("email");
-            Boolean verified = jwt.getClaim("email_verified");
-            return Boolean.TRUE.equals(verified) && email != null && email.toLowerCase().endsWith("@gmail.com")
-                ? OAuth2TokenValidatorResult.success()
-                : OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token", "A verified @gmail.com account is required", null));
-        };
-        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(new JwtIssuerValidator(GOOGLE_ISSUER), audience, gmail));
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
+            new JwtIssuerValidator(GOOGLE_ISSUER), audience, new GmailIdentityValidator()));
         return decoder;
     }
 

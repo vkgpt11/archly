@@ -15,23 +15,25 @@ import org.springframework.web.server.ResponseStatusException;
 @Transactional
 public class ProjectService {
     private final ProjectRepository repository;
+    private final RichTextSanitizer richTextSanitizer;
 
-    public ProjectService(ProjectRepository repository) {
+    public ProjectService(ProjectRepository repository, RichTextSanitizer richTextSanitizer) {
         this.repository = repository;
+        this.richTextSanitizer = richTextSanitizer;
     }
 
     @Transactional(readOnly = true)
     public List<ProjectResponse> list(String email) {
-        return repository.findAllByOwnerEmailOrderByUpdatedAtDesc(email).stream().map(ProjectResponse::from).toList();
+        return repository.findAllByOwnerEmailOrderByUpdatedAtDesc(email).stream().map(this::response).toList();
     }
 
     public ProjectResponse create(String email, CreateProjectRequest request) {
-        return ProjectResponse.from(repository.save(new Project(email, request.name().trim())));
+        return response(repository.save(new Project(email, request.name().trim())));
     }
 
     @Transactional(readOnly = true)
     public ProjectResponse get(String email, UUID id) {
-        return ProjectResponse.from(findOwned(email, id));
+        return response(findOwned(email, id));
     }
 
     public ProjectResponse update(String email, UUID id, UpdateProjectRequest request) {
@@ -39,12 +41,19 @@ public class ProjectService {
         if (project.getRevision() != request.revision()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Project was updated elsewhere. Reload before saving.");
         }
-        project.update(request.name().trim(), request.canvasJson(), request.markdown() == null ? "" : request.markdown());
+        project.update(request.name().trim(), request.canvasJson(), richTextSanitizer.sanitize(request.markdown()));
         try {
-            return ProjectResponse.from(repository.saveAndFlush(project));
+            return response(repository.saveAndFlush(project));
         } catch (OptimisticLockException exception) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Project was updated elsewhere. Reload before saving.");
         }
+    }
+
+    public ProjectResponse duplicate(String email, UUID id) {
+        Project source = findOwned(email, id);
+        Project copy = new Project(email, source.getName() + " — Copy", source.getCanvasJson(),
+            richTextSanitizer.sanitize(source.getMarkdown()));
+        return response(repository.save(copy));
     }
 
     public void delete(String email, UUID id) {
@@ -54,5 +63,10 @@ public class ProjectService {
     private Project findOwned(String email, UUID id) {
         return repository.findByIdAndOwnerEmail(id, email)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
+    }
+
+    private ProjectResponse response(Project project) {
+        return new ProjectResponse(project.getId(), project.getName(), project.getCanvasJson(),
+            richTextSanitizer.sanitize(project.getMarkdown()), project.getRevision(), project.getCreatedAt(), project.getUpdatedAt());
     }
 }

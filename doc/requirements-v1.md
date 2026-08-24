@@ -56,111 +56,119 @@ V1 must prove that users can move from an idea to a clean, editable, shareable t
 
 Priorities are Must, Should, and Could.
 
+Implementation status was audited against the repository on 2026-08-24:
+
+- **Done**: the requirement has an implemented user path and supporting code or tests.
+- **Partial**: part of the requirement exists, but behavior, coverage, or verification is incomplete.
+- **Not done**: no complete implementation was found.
+
+Functional requirement summary: **30 Done**, **0 Partial**, and **29 Not done**.
+
 ### 5.1 Authentication
 
-| ID | Priority | Requirement |
-| --- | --- | --- |
-| AUTH-001 | Must | Users access Archly only through Google sign-in using an `@gmail.com` account. |
-| AUTH-002 | Must | Archly accepts only an identity returned by Google whose verified email ends exactly with `@gmail.com`. |
-| AUTH-003 | Must | Google Workspace accounts and all other email domains are rejected with a clear message. |
-| AUTH-004 | Must | Archly does not implement registration, passwords, email verification, password reset, account recovery, or account-management features. |
-| AUTH-005 | Must | Server-side authorization protects every project operation after identity verification. |
+| ID | Priority | Requirement | Implementation status |
+| --- | --- | --- | --- |
+| AUTH-001 | Must | Users access Archly only through Google sign-in using an `@gmail.com` account. | Done |
+| AUTH-002 | Must | Archly accepts only an identity returned by Google whose verified email ends exactly with `@gmail.com`. | Done |
+| AUTH-003 | Must | Google Workspace accounts and all other email domains are rejected with a clear message. | Done |
+| AUTH-004 | Must | Archly does not implement registration, passwords, email verification, password reset, account recovery, or account-management features. | Done |
+| AUTH-005 | Must | Server-side authorization protects every project operation after identity verification. | Done |
 
 ### 5.2 Projects
 
-| ID | Priority | Requirement |
-| --- | --- | --- |
-| PROJ-001 | Must | Users can create projects. |
-| PROJ-002 | Must | The dashboard lists projects by most recent update. |
-| PROJ-003 | Must | Users can open, rename, duplicate, and delete projects. |
-| PROJ-004 | Must | Deletion requires confirmation. |
-| PROJ-005 | Should | Users can search projects by name. |
-| PROJ-006 | Could | Users can organize projects into folders. |
+| ID | Priority | Requirement | Implementation status |
+| --- | --- | --- | --- |
+| PROJ-001 | Must | Users can create projects. | Done |
+| PROJ-002 | Must | The dashboard lists projects by most recent update. | Done |
+| PROJ-003 | Must | Users can open, rename, duplicate, and delete projects. | Done |
+| PROJ-004 | Must | Deletion requires confirmation. | Done |
+| PROJ-005 | Should | Users can search projects by name. | Not done |
+| PROJ-006 | Could | Users can organize projects into folders. | Not done |
 
 ### 5.3 Canvas
 
 Detailed canvas behavior, visual layout, and acceptance criteria are defined in [V1 canvas requirements](canvas-requirements-v1.md).
 
-| ID | Priority | Requirement |
-| --- | --- | --- |
-| CAN-001 | Must | The canvas supports pan, zoom, fit-to-screen, and reset view. |
-| CAN-002 | Must | Users can add, select, move, duplicate, and delete nodes; node dimensions adjust automatically to visible content. |
-| CAN-003 | Must | Users can connect nodes with directional, labeled edges. |
-| CAN-004 | Must | Users can select and move multiple elements. |
-| CAN-005 | Must | The editor supports undo, redo, copy, and paste. |
-| CAN-006 | Must | The canvas provides a grid and snap-to-grid behavior. |
-| CAN-007 | Must | Users can change node color, border, icon, and text alignment. |
-| CAN-008 | Must | V1 includes service, database, queue, actor, container, note, text, and group elements. |
-| CAN-009 | Must | A searchable initial library contains common cloud and technology icons. |
-| CAN-010 | Should | Users can lock elements. |
-| CAN-011 | Should | Larger diagrams provide a minimap. |
-| CAN-012 | Should | Selected elements can be automatically arranged. |
+| ID | Priority | Requirement | Implementation status |
+| --- | --- | --- | --- |
+| CAN-001 | Must | The canvas supports pan, zoom, fit-to-screen, and reset view. | Done |
+| CAN-002 | Must | Users can add, select, move, duplicate, and delete nodes; node dimensions adjust automatically to visible content. | Done |
+| CAN-003 | Must | Users can connect nodes with directional, labeled edges. | Done |
+| CAN-004 | Must | Users can select and move multiple elements. | Done |
+| CAN-005 | Must | The editor supports undo, redo, copy, and paste. | Done |
+| CAN-006 | Must | The canvas provides a grid and snap-to-grid behavior. | Done |
+| CAN-007 | Must | Users can change node color, border, icon, and text alignment. | Not done |
+| CAN-008 | Must | V1 includes service, database, queue, actor, container, note, text, and group elements. | Done |
+| CAN-009 | Must | A searchable initial library contains common cloud and technology icons. | Done |
+| CAN-010 | Should | Users can lock elements. | Done |
+| CAN-011 | Should | Larger diagrams provide a minimap. | Done |
+| CAN-012 | Should | Selected elements can be automatically arranged. | Done |
 
 ### 5.4 Diagram types and source
 
-| ID | Priority | Requirement |
-| --- | --- | --- |
-| DIA-001 | Must | Archly supports flowcharts. |
-| DIA-002 | Must | Archly supports sequence diagrams. |
-| DIA-003 | Must | Archly supports entity-relationship diagrams. |
-| DIA-004 | Must | Archly supports system and cloud architecture diagrams. |
-| DIA-005 | Must | Users can edit supported source in a syntax-aware editor. |
-| DIA-006 | Must | The preview updates after source changes without a page reload. |
-| DIA-007 | Must | Invalid source shows an actionable error and preserves the last valid diagram. |
-| DIA-008 | Must | Editable source is retained as source of truth where applicable. |
-| DIA-009 | Should | The source editor provides formatting and examples. |
-| DIA-010 | Should | Supported visual and source edits remain synchronized. |
+| ID | Priority | Requirement | Implementation status |
+| --- | --- | --- | --- |
+| DIA-001 | Must | Archly supports flowcharts. | Not done |
+| DIA-002 | Must | Archly supports sequence diagrams. | Not done |
+| DIA-003 | Must | Archly supports entity-relationship diagrams. | Not done |
+| DIA-004 | Must | Archly supports system and cloud architecture diagrams. | Done |
+| DIA-005 | Must | Users can edit supported source in a syntax-aware editor. | Not done |
+| DIA-006 | Must | The preview updates after source changes without a page reload. | Not done |
+| DIA-007 | Must | Invalid source shows an actionable error and preserves the last valid diagram. | Not done |
+| DIA-008 | Must | Editable source is retained as source of truth where applicable. | Not done |
+| DIA-009 | Should | The source editor provides formatting and examples. | Not done |
+| DIA-010 | Should | Supported visual and source edits remain synchronized. | Not done |
 
 ### 5.5 Technical document
 
-| ID | Priority | Requirement |
-| --- | --- | --- |
-| DOC-001 | Must | Every project has one rich-text document. |
-| DOC-002 | Must | The rich-text editor supports headings, bold, italic, strikethrough, text colors, highlight colors, lists, links, blockquotes, highlighted inline code, syntax-highlighted multiline code snippets, undo, and redo. |
-| DOC-003 | Must | Users can choose document, canvas, or split view. |
-| DOC-004 | Must | Project diagrams can be embedded in the document. |
-| DOC-005 | Must | Rendered content is sanitized. |
-| DOC-006 | Should | Selecting an embed focuses its canvas location. |
+| ID | Priority | Requirement | Implementation status |
+| --- | --- | --- | --- |
+| DOC-001 | Must | Every project has one rich-text document. | Done |
+| DOC-002 | Must | The rich-text editor supports headings, bold, italic, strikethrough, text colors, highlight colors, lists, links, blockquotes, highlighted inline code, syntax-highlighted multiline code snippets, undo, and redo. | Done |
+| DOC-003 | Must | Users can choose document, canvas, or split view. | Done |
+| DOC-004 | Must | Project diagrams can be embedded in the document. | Not done |
+| DOC-005 | Must | Rendered content is sanitized. | Done |
+| DOC-006 | Should | Selecting an embed focuses its canvas location. | Not done |
 
 ### 5.6 Saving and history
 
-| ID | Priority | Requirement |
-| --- | --- | --- |
-| SAVE-001 | Must | Canvas and document changes save automatically. |
-| SAVE-002 | Must | The UI displays saving, saved, and failed states. |
-| SAVE-003 | Must | Stale updates cannot silently overwrite newer content. |
-| SAVE-004 | Must | Users can create named snapshots. |
-| SAVE-005 | Must | Users can view and restore recent snapshots. |
-| SAVE-006 | Should | At least the latest 20 snapshots are retained per project. |
+| ID | Priority | Requirement | Implementation status |
+| --- | --- | --- | --- |
+| SAVE-001 | Must | Canvas and document changes save automatically. | Done |
+| SAVE-002 | Must | The UI displays saving, saved, and failed states. | Done |
+| SAVE-003 | Must | Stale updates cannot silently overwrite newer content. | Done |
+| SAVE-004 | Must | Users can create named snapshots. | Not done |
+| SAVE-005 | Must | Users can view and restore recent snapshots. | Not done |
+| SAVE-006 | Should | At least the latest 20 snapshots are retained per project. | Not done |
 
 ### 5.7 Templates
 
-| ID | Priority | Requirement |
-| --- | --- | --- |
-| TPL-001 | Must | Users can begin from a template or blank canvas. |
-| TPL-002 | Must | V1 includes at least 10 templates across supported types. |
-| TPL-003 | Must | Template use creates independent project content. |
+| ID | Priority | Requirement | Implementation status |
+| --- | --- | --- | --- |
+| TPL-001 | Must | Users can begin from a template or blank canvas. | Done |
+| TPL-002 | Must | V1 includes at least 10 templates across supported types. | Not done |
+| TPL-003 | Must | Template use creates independent project content. | Not done |
 
 ### 5.8 Sharing
 
-| ID | Priority | Requirement |
-| --- | --- | --- |
-| SHR-001 | Must | Projects are private by default. |
-| SHR-002 | Must | Owners can create and revoke read-only links. |
-| SHR-003 | Must | Read-only visitors cannot call mutation APIs. |
-| SHR-004 | Should | Shared projects can be viewed without an account. |
-| SHR-005 | Could | Owners can create editable links. |
+| ID | Priority | Requirement | Implementation status |
+| --- | --- | --- | --- |
+| SHR-001 | Must | Projects are private by default. | Done |
+| SHR-002 | Must | Owners can create and revoke read-only links. | Not done |
+| SHR-003 | Must | Read-only visitors cannot call mutation APIs. | Not done |
+| SHR-004 | Should | Shared projects can be viewed without an account. | Not done |
+| SHR-005 | Could | Owners can create editable links. | Not done |
 
 ### 5.9 Export
 
-| ID | Priority | Requirement |
-| --- | --- | --- |
-| EXP-001 | Must | Users can export a canvas as PNG. |
-| EXP-002 | Must | Users can export a canvas as SVG. |
-| EXP-003 | Must | Users can export documents as Markdown. |
-| EXP-004 | Must | Users can download editable diagram source. |
-| EXP-005 | Should | The full canvas or selected elements can be exported. |
-| EXP-006 | Should | Rendered diagrams can be copied to the clipboard. |
+| ID | Priority | Requirement | Implementation status |
+| --- | --- | --- | --- |
+| EXP-001 | Must | Users can export a canvas as PNG. | Not done |
+| EXP-002 | Must | Users can export a canvas as SVG. | Not done |
+| EXP-003 | Must | Users can export documents as Markdown. | Not done |
+| EXP-004 | Must | Users can download editable diagram source. | Not done |
+| EXP-005 | Should | The full canvas or selected elements can be exported. | Not done |
+| EXP-006 | Should | Rendered diagrams can be copied to the clipboard. | Not done |
 
 ## 6. Data requirements
 
@@ -263,3 +271,40 @@ V1 is ready for prototype testing when:
 - Icon library and licensing.
 - Snapshot retention and storage limits.
 - Whether PDF export is needed before public beta.
+
+## 13. V1 implementation audit
+
+### 13.1 Data, non-functional, and technical coverage
+
+| Area | Status | Evidence or remaining gap |
+| --- | --- | --- |
+| Data requirements | Partial | Projects persist owner, document HTML, structured canvas JSON, revision, and timestamps. Separate User, Document, Diagram, DiagramSnapshot, ShareLink, and Template records are not implemented. |
+| Performance and reliability | Partial | Autosave, revision control, and responsive canvas interactions exist, but the documented load-time, frame-rate, and 300-node/500-edge targets have not been measured. |
+| Security and privacy | Partial | Google JWT validation and owner-scoped project access exist. Rate limiting, production HTTPS verification, security testing, and explicit content sanitization coverage are incomplete. |
+| Accessibility | Partial | Main controls have accessible names and keyboard support, but complete keyboard workflow and WCAG 2.1 AA audits have not been performed. |
+| Browser support | Not done | The latest two versions of Chrome, Edge, Firefox, and Safari have not been tested and recorded. |
+| Observability | Partial | Health endpoints and Spring operational logging exist. Correlation identifiers and the specified product metrics are not implemented. |
+| React and TypeScript UI | Done | The UI is implemented with React and TypeScript. |
+| Java and Spring Boot backend | Done | The API is implemented with Java and Spring Boot. |
+| PostgreSQL primary database | Partial | PostgreSQL deployment configuration exists, while local development defaults to file-backed H2 in PostgreSQL compatibility mode. |
+| Modular-monolith backend | Done | The current backend is a single Spring Boot application organized by project and configuration packages. |
+| Structured canvas persistence | Done | Nodes and edges are stored as structured JSON rather than only as an image. |
+| OpenAPI documentation | Done | Springdoc OpenAPI and Swagger UI are configured. |
+| Versioned database migrations | Done | Flyway manages the initial project schema migration. |
+
+### 13.2 V1 acceptance criteria status
+
+| Criterion | Status | Evidence or remaining gap |
+| --- | --- | --- |
+| 1. Verified personal Gmail authentication and rejection of other domains | Partial | Google JWT audience, verified-email, and `@gmail.com` validation exist, but the rejected-domain experience is not fully covered by an end-to-end test. |
+| 2. Canvas elements and edges survive reload | Done | Project canvas JSON is saved through the API and restored when the project opens. |
+| 3. All four diagram types have a working creation path | Not done | Only the manual architecture canvas is implemented. |
+| 4. Valid source updates preview and invalid source preserves the last valid render | Not done | No diagram source editor or renderer is implemented. |
+| 5. Document notes can embed a project diagram | Not done | Document and canvas views exist, but diagram embedding is not implemented. |
+| 6. Autosave communicates failures and prevents stale overwrites | Done | Saving, saved, offline, conflict, and failed states are visible; stale revisions are rejected, both versions are preserved locally, and users can retry or explicitly choose a version. |
+| 7. A named snapshot can be created and restored | Not done | Snapshot storage and UI are not implemented. |
+| 8. A revoked share link can no longer open the project | Not done | Share links are not implemented. |
+| 9. A read-only visitor cannot modify a project through the UI or API | Not done | Anonymous or link-based read-only access is not implemented. |
+| 10. PNG, SVG, source, and Markdown exports work | Not done | Export actions and endpoints are not implemented. |
+| 11. Automated tests cover authentication, authorization, persistence, concurrency, and sharing | Partial | UI and project API tests exist, but the complete authentication, cross-owner authorization, concurrency, and sharing matrix is not covered. |
+| 12. No release-blocking accessibility, security, or data-loss defect remains | Not done | Formal accessibility, security, supported-browser, and data-loss release audits have not been completed. |
