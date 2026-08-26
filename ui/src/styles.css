@@ -1,4 +1,4 @@
-:root { --page: #f7f7fb; --canvas-bg: #fafafe; --surface: #ffffff; --surface-soft: #fafafd; --surface-muted: #f0f0f5; --text: #151823; --text-soft: #626779; --muted: #85899a; --border: #e4e4eb; --accent: #6d4aff; --accent-soft: #e9e4ff; --danger: #b4233a; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--text); background: var(--page); font-synthesis: none; }
+:root { --page: #f7f7fb; --canvas-bg: #fafafe; --surface: #ffffff; --surface-soft: #fafafd; --surface-muted: #f0f0f5; --text: #151823; --text-soft: #626779; --muted: #6d7180; --border: #e4e4eb; --accent: #6d4aff; --accent-soft: #e9e4ff; --danger: #b4233a; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--text); background: var(--page); font-synthesis: none; }
 :root[data-theme="dark"] { --page: #111219; --canvas-bg: #151720; --surface: #1b1d27; --surface-soft: #20232e; --surface-muted: #292c38; --text: #f0f1f6; --text-soft: #b8bbca; --muted: #8f93a5; --border: #353846; --accent: #9a83ff; --accent-soft: #342d56; --danger: #ff8799; }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; min-height: 100vh; color: var(--text); background: var(--page); }
@@ -58,7 +58,7 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .preview-line { position: absolute; left: 108px; top: 83px; width: 75px; height: 2px; background: #8063ed; transform: rotate(23deg); }
 .project-meta { position: relative; padding: 18px; }
 .project-title { display: block; max-width: calc(100% - 45px); padding: 0; border: 0; color: #252734; background: transparent; font-weight: 750; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.project-meta p { margin: 7px 0 0; color: #898c9b; font-size: 12px; }
+.project-meta p { margin: 7px 0 0; color: var(--text-soft); font-size: 12px; }
 .danger-link { position: absolute; right: 16px; bottom: 16px; border: 0; color: #a64957; background: transparent; font-size: 12px; }
 .editor-shell { height: 100vh; display: flex; flex-direction: column; }
 .editor-header { flex: 0 0 auto; }
@@ -68,7 +68,7 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .header-action:hover { color: var(--text); background: var(--surface-soft); }
 .project-name { width: min(100%, 360px); min-width: 0; border: 0; outline: 0; color: #242632; background: transparent; font-weight: 750; }
 .view-switcher { display: flex; padding: 3px; border-radius: 10px; background: #f0f0f5; }
-.view-switcher button { padding: 7px 11px; border: 0; border-radius: 8px; color: #707485; background: transparent; font-size: 12px; text-transform: capitalize; }
+.view-switcher button { padding: 7px 11px; border: 0; border-radius: 8px; color: #626779; background: transparent; font-size: 12px; text-transform: capitalize; }
 .view-switcher .active { color: #292c38; background: white; box-shadow: 0 2px 7px rgba(0,0,0,.08); }
 .save-state { min-width: 54px; color: #6c7182; font-size: 12px; }.save-state.error, .save-state.offline, .save-state.conflict { color: var(--danger); }
 .save-retry { padding: 5px 8px; border: 1px solid var(--border); border-radius: 7px; color: var(--text); background: var(--surface); font-size: 11px; }

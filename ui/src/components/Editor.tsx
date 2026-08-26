@@ -180,7 +180,9 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
     editorProps: {
       attributes: {
         class: 'rich-text-content',
+        role: 'textbox',
         'aria-label': 'Design documentation',
+        'aria-multiline': 'true',
       },
       handlePaste: (view, event) => {
         const file = Array.from(event.clipboardData?.files || []).find((item) => item.type.startsWith('image/'))

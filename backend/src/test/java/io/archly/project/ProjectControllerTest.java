@@ -309,4 +309,46 @@ class ProjectControllerTest {
         mvc.perform(put("/api/shares/{token}", token).contentType(MediaType.APPLICATION_JSON).content(update))
             .andExpect(status().isConflict());
     }
+
+    @Test
+    void preventsCrossOwnerAccessAcrossEveryProjectAndShareOperation() throws Exception {
+        var owner = jwt().jwt(token -> token.claim("email", "alice@gmail.com"));
+        var intruder = jwt().jwt(token -> token.claim("email", "bob@gmail.com"));
+        String created = mvc.perform(post("/api/projects").with(owner)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Alice private design\"}"))
+            .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String projectId = objectMapper.readTree(created).get("id").asText();
+        String shareBody = mvc.perform(post("/api/projects/{id}/shares", projectId).with(owner)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"permission\":\"READ\"}"))
+            .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String shareId = objectMapper.readTree(shareBody).get("id").asText();
+
+        mvc.perform(get("/api/projects/{id}", projectId).with(intruder)).andExpect(status().isNotFound());
+        mvc.perform(put("/api/projects/{id}", projectId).with(intruder)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Stolen\",\"canvasJson\":\"{\\\"nodes\\\":[],\\\"edges\\\":[]}\",\"markdown\":\"<p>x</p>\",\"revision\":0}"))
+            .andExpect(status().isNotFound());
+        mvc.perform(put("/api/projects/{id}/organization", projectId).with(intruder)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"folder\":\"Stolen\",\"archived\":true,\"revision\":0}"))
+            .andExpect(status().isNotFound());
+        mvc.perform(post("/api/projects/{id}/duplicate", projectId).with(intruder))
+            .andExpect(status().isNotFound());
+        mvc.perform(delete("/api/projects/{id}", projectId).with(intruder))
+            .andExpect(status().isNotFound());
+        mvc.perform(get("/api/projects/{id}/shares", projectId).with(intruder))
+            .andExpect(status().isNotFound());
+        mvc.perform(post("/api/projects/{id}/shares", projectId).with(intruder)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"permission\":\"EDIT\"}"))
+            .andExpect(status().isNotFound());
+        mvc.perform(delete("/api/projects/{projectId}/shares/{shareId}", projectId, shareId).with(intruder))
+            .andExpect(status().isNotFound());
+
+        mvc.perform(get("/api/projects/{id}", projectId).with(owner))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.name").value("Alice private design"));
+        mvc.perform(get("/api/projects/{id}/shares", projectId).with(owner))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value(shareId));
+    }
 }

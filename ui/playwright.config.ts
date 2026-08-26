@@ -4,6 +4,7 @@ export default defineConfig({
   testDir: './e2e',
   timeout: 45_000,
   fullyParallel: true,
+  workers: 2,
   reporter: 'line',
   use: {
     baseURL: 'http://127.0.0.1:4173',

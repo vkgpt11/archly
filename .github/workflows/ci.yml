@@ -54,3 +54,14 @@ jobs:
           GOOGLE_CLIENT_ID: ci-client-id.apps.googleusercontent.com
       - run: docker build -t archly-backend backend
       - run: docker build --build-arg VITE_GOOGLE_CLIENT_ID=ci-client-id.apps.googleusercontent.com -t archly-ui ui
+
+  vulnerability-scan:
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.5.0
+    with:
+      scan-args: |-
+        --recursive
+        ./backend

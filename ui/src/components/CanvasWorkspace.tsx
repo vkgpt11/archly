@@ -1,5 +1,5 @@
 import {
-  Background, BackgroundVariant, BaseEdge, ConnectionMode, Controls, EdgeLabelRenderer, Handle, MarkerType,
+  Background, BackgroundVariant, BaseEdge, ConnectionMode, EdgeLabelRenderer, Handle, MarkerType,
   MiniMap, ReactFlow, ReactFlowProvider, Position, addEdge, applyEdgeChanges,
   getBezierPath, getSmoothStepPath, getStraightPath, reconnectEdge, useReactFlow,
   type Connection, type Edge, type EdgeChange, type EdgeProps, type Node, type NodeChange, type NodeProps, type Viewport,
@@ -716,7 +716,6 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
       >
         {gridVisible && <Background variant={BackgroundVariant.Dots} gap={20} size={1.2} />}
         {minimapVisible && <MiniMap pannable zoomable />}
-        <Controls showZoom={false} showFitView={false} showInteractive={false} />
       </ReactFlow>
       </CanvasHistoryContext.Provider>
 
