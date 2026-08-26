@@ -9,6 +9,7 @@ export type ProjectDraft = ProjectContent & {
   ownerId: string
   baseRevision: number
   storedAt: string
+  expiresAt?: string
 }
 
 export type ConflictBackup = {
@@ -21,6 +22,8 @@ export type ProjectSaveSignal = { projectId: string; ownerId: string; revision: 
 
 const legacyDraftKey = (projectId: string) => `archly-project-draft:${projectId}`
 const legacyConflictKey = (projectId: string) => `archly-project-conflict:${projectId}`
+const DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000
+const draftStore = () => sessionStorage
 export const draftStorageKey = (projectId: string, ownerId = currentTabId()) => `${legacyDraftKey(projectId)}:${ownerId}`
 export const conflictStorageKey = (projectId: string, ownerId = currentTabId()) => `${legacyConflictKey(projectId)}:${ownerId}`
 
@@ -71,11 +74,6 @@ function durableNode(node: Node): Node {
 function durableEdge(edge: Edge): Edge {
   const durable = { ...edge }
   delete durable.selected
-  if (durable.data && 'waypoints' in durable.data) {
-    const data = { ...durable.data }
-    delete data.waypoints
-    durable.data = data
-  }
   return durable
 }
 
@@ -98,6 +96,7 @@ export function contentSignature(content: ProjectContent): string {
 }
 
 export function createDraft(project: Project, ownerId = currentTabId()): ProjectDraft {
+  const now = Date.now()
   return {
     projectId: project.id,
     ownerId,
@@ -105,33 +104,64 @@ export function createDraft(project: Project, ownerId = currentTabId()): Project
     name: project.name,
     canvasJson: canonicalCanvasJson(project.canvasJson),
     markdown: project.markdown,
-    storedAt: new Date().toISOString(),
+    storedAt: new Date(now).toISOString(),
+    expiresAt: new Date(now + DRAFT_TTL_MS).toISOString(),
   }
 }
 
 export function loadDraft(projectId: string, ownerId = currentTabId()): ProjectDraft | null {
   try {
-    const value = localStorage.getItem(draftStorageKey(projectId, ownerId)) || localStorage.getItem(legacyDraftKey(projectId))
+    const key = draftStorageKey(projectId, ownerId)
+    const legacyValue = localStorage.getItem(legacyDraftKey(projectId))
+    const value = draftStore().getItem(key) || legacyValue
+    localStorage.removeItem(legacyDraftKey(projectId))
+    cleanupExpiredRecoveryData()
     if (!value) return null
     const draft = JSON.parse(value) as ProjectDraft
-    return draft.projectId === projectId && Number.isInteger(draft.baseRevision)
-      ? { ...draft, ownerId: draft.ownerId || ownerId }
-      : null
+    const expiresAt = draft.expiresAt ? Date.parse(draft.expiresAt) : Date.parse(draft.storedAt) + DRAFT_TTL_MS
+    if (draft.projectId !== projectId || !Number.isInteger(draft.baseRevision) || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+      draftStore().removeItem(key); localStorage.removeItem(legacyDraftKey(projectId)); return null
+    }
+    return { ...draft, ownerId: draft.ownerId || ownerId, expiresAt: new Date(expiresAt).toISOString() }
   } catch { return null }
 }
 
-export function storeDraft(draft: ProjectDraft): void {
-  localStorage.setItem(draftStorageKey(draft.projectId, draft.ownerId), JSON.stringify(draft))
+export function storeDraft(draft: ProjectDraft): boolean {
+  try { draftStore().setItem(draftStorageKey(draft.projectId, draft.ownerId), JSON.stringify(draft)); return true }
+  catch {
+    cleanupExpiredRecoveryData()
+    try { draftStore().setItem(draftStorageKey(draft.projectId, draft.ownerId), JSON.stringify(draft)); return true } catch { return false }
+  }
 }
 
 export function clearDraft(projectId: string, ownerId = currentTabId()): void {
-  localStorage.removeItem(draftStorageKey(projectId, ownerId))
+  draftStore().removeItem(draftStorageKey(projectId, ownerId))
+  draftStore().removeItem(conflictStorageKey(projectId, ownerId))
   localStorage.removeItem(legacyDraftKey(projectId))
 }
 
 export function storeConflictBackup(local: ProjectDraft, server: Project): void {
   const backup: ConflictBackup = { detectedAt: new Date().toISOString(), local, server }
-  localStorage.setItem(conflictStorageKey(local.projectId, local.ownerId), JSON.stringify(backup))
+  const key = conflictStorageKey(local.projectId, local.ownerId)
+  try { draftStore().setItem(key, JSON.stringify(backup)) }
+  catch { cleanupExpiredRecoveryData(); try { draftStore().setItem(key, JSON.stringify(backup)) } catch { /* Recovery remains in memory. */ } }
+}
+
+export function cleanupExpiredRecoveryData(now = Date.now()): void {
+  for (let index = localStorage.length - 1; index >= 0; index--) {
+    const key = localStorage.key(index)
+    if (key?.startsWith('archly-project-draft:') || key?.startsWith('archly-project-conflict:')) localStorage.removeItem(key)
+  }
+  for (let index = draftStore().length - 1; index >= 0; index--) {
+    const key = draftStore().key(index)
+    if (!key || (!key.startsWith('archly-project-draft:') && !key.startsWith('archly-project-conflict:'))) continue
+    try {
+      const value = JSON.parse(draftStore().getItem(key) || '{}') as ProjectDraft | ConflictBackup
+      const draft = 'local' in value ? value.local : value
+      const expiry = draft.expiresAt ? Date.parse(draft.expiresAt) : Date.parse(draft.storedAt) + DRAFT_TTL_MS
+      if (!Number.isFinite(expiry) || expiry <= now) draftStore().removeItem(key)
+    } catch { draftStore().removeItem(key) }
+  }
 }
 
 export function draftRecovery(draft: ProjectDraft | null, server: Project): 'none' | 'resume' | 'conflict' {

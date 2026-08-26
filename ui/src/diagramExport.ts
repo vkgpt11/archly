@@ -1,4 +1,3 @@
-import { toPng, toSvg } from 'html-to-image'
 import type { Project } from './types'
 
 export type ExportFormat = 'png' | 'svg' | 'markdown' | 'source'
@@ -17,10 +16,25 @@ function download(data: string | Blob, filename: string, type?: string) {
 
 export function markdownFromHtml(html: string): string {
   const documentNode = new DOMParser().parseFromString(html, 'text/html')
-  const render = (node: Node): string => {
-    if (node.nodeType === Node.TEXT_NODE) return node.textContent || ''
-    if (!(node instanceof HTMLElement)) return Array.from(node.childNodes).map(render).join('')
-    const body = Array.from(node.childNodes).map(render).join('')
+  const escapeText = (value: string) => value.replace(/([\\`*_[\]<>#+.!|~-])/g, '\\$1')
+  const longestTicks = (value: string) => Math.max(0, ...Array.from(value.matchAll(/`+/g), (match) => match[0].length))
+  const renderChildren = (node: Node, depth = 0) => Array.from(node.childNodes).map((child) => render(child, depth)).join('')
+  const renderList = (list: HTMLElement, depth: number): string => {
+    const ordered = list.tagName === 'OL'
+    let index = Number(list.getAttribute('start') || 1)
+    return Array.from(list.children).filter((child) => child.tagName === 'LI').map((child) => {
+      const nested = Array.from(child.children).filter((item) => item.matches('ul,ol')) as HTMLElement[]
+      const content = Array.from(child.childNodes).filter((item) => !(item instanceof HTMLElement && item.matches('ul,ol')))
+        .map((item) => render(item, depth + 1)).join('').trim()
+      const marker = ordered ? `${index++}.` : '-'
+      const continuation: string = nested.map((item) => renderList(item, depth + 1)).join('')
+      return `${'  '.repeat(depth)}${marker} ${content}\n${continuation}`
+    }).join('') + (depth === 0 ? '\n' : '')
+  }
+  const render = (node: Node, depth = 0): string => {
+    if (node.nodeType === Node.TEXT_NODE) return escapeText(node.textContent || '')
+    if (!(node instanceof HTMLElement)) return renderChildren(node, depth)
+    const body = renderChildren(node, depth)
     switch (node.tagName) {
       case 'H1': return `# ${body}\n\n`
       case 'H2': return `## ${body}\n\n`
@@ -28,13 +42,27 @@ export function markdownFromHtml(html: string): string {
       case 'P': return `${body}\n\n`
       case 'STRONG': case 'B': return `**${body}**`
       case 'EM': case 'I': return `*${body}*`
-      case 'CODE': return `\`${body}\``
-      case 'PRE': return `\`\`\`\n${node.textContent || ''}\n\`\`\`\n\n`
-      case 'A': return `[${body}](${node.getAttribute('href') || ''})`
-      case 'LI': return `- ${body}\n`
-      case 'UL': case 'OL': return `${body}\n`
+      case 'CODE': {
+        if (node.parentElement?.tagName === 'PRE') return node.textContent || ''
+        const value = node.textContent || ''
+        const delimiter = '`'.repeat(Math.max(1, longestTicks(value) + 1))
+        return `${delimiter}${value.startsWith('`') || value.endsWith('`') ? ` ${value} ` : value}${delimiter}`
+      }
+      case 'PRE': {
+        const value = node.textContent || ''
+        const language = `${node.className} ${node.querySelector('code')?.className || ''}`.match(/(?:^|\s)language-([\w-]+)/)?.[1] || ''
+        const fence = '`'.repeat(Math.max(3, longestTicks(value) + 1))
+        return `${fence}${language}\n${value}${value.endsWith('\n') ? '' : '\n'}${fence}\n\n`
+      }
+      case 'A': return `[${body}](<${(node.getAttribute('href') || '').replace(/>/g, '%3E')}>)`
+      case 'LI': return body
+      case 'UL': case 'OL': return renderList(node, depth)
       case 'BLOCKQUOTE': return body.split('\n').filter(Boolean).map((line) => `> ${line}`).join('\n') + '\n\n'
-      case 'IMG': return `![${node.getAttribute('alt') || 'image'}](${node.getAttribute('src') || ''})`
+      case 'IMG': {
+        const alt = escapeText(node.getAttribute('alt') || 'image')
+        const src = node.getAttribute('src') || ''
+        return src.startsWith('data:') ? `_[Embedded image omitted: ${alt}]_` : `![${alt}](<${src.replace(/>/g, '%3E')}>)`
+      }
       default: return body
     }
   }
@@ -69,6 +97,7 @@ export async function exportProject(project: Project, format: ExportFormat, sele
     const source = JSON.stringify({ format: 'archly-diagram', version: 1, project: { name: project.name, canvas: sourceCanvas, markdown: project.markdown } }, null, 2)
     return download(source, `${name}.archly.json`, 'application/json')
   }
+  const { toPng, toSvg } = await import('html-to-image')
   const element = canvasElement()
   const options = { cacheBust: true, backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--canvas-bg').trim() || '#ffffff', filter: selectionFilter(selectionOnly) }
   const dataUrl = format === 'png' ? await toPng(element, options) : await toSvg(element, options)
@@ -78,6 +107,7 @@ export async function exportProject(project: Project, format: ExportFormat, sele
 
 export async function copyDiagramToClipboard(selectionOnly = false): Promise<void> {
   if (!navigator.clipboard || typeof ClipboardItem === 'undefined') throw new Error('Image clipboard access is not supported by this browser.')
+  const { toPng } = await import('html-to-image')
   const dataUrl = await toPng(canvasElement(), { cacheBust: true, filter: selectionFilter(selectionOnly) })
   const blob = await fetch(dataUrl).then((response) => response.blob())
   await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])

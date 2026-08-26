@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { useEdgesState, useNodesState } from '@xyflow/react'
 import { EditorContent, NodeViewWrapper, ReactNodeViewRenderer, useEditor, type NodeViewProps } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -12,19 +12,22 @@ import { common, createLowlight } from 'lowlight'
 import {
   Bold, Code2, Heading1, Heading2, Italic, Link2, List, ListOrdered,
   Highlighter, ImagePlus, Palette, Quote, Redo2, RotateCcw, SquareCode, Strikethrough, Undo2,
-  Download, Share2, X,
+  Download, Share2,
 } from 'lucide-react'
 import { ApiError, api } from '../api'
 import type { CanvasData, Project } from '../types'
-import type { ShareLink, SharePermission } from '../types'
-import { copyDiagramToClipboard, exportProject, type ExportFormat } from '../diagramExport'
 import { sanitizeRichText } from '../sanitizeRichText'
 import {
   canonicalCanvasJson, clearDraft, contentSignature, createDraft, draftRecovery, loadDraft,
-  currentTabId, parseCanvasJson, publishProjectSaved, readProjectSaveSignal, serializeCanvas, storeConflictBackup, storeDraft, type ProjectDraft,
+  currentTabId, parseCanvasJson, publishProjectSaved, serializeCanvas, storeConflictBackup, storeDraft, type ProjectDraft,
 } from '../projectPersistence'
-import CanvasWorkspace from './CanvasWorkspace'
 import ThemeToggle from './ThemeToggle'
+import { useProjectCrossTabSync } from './useProjectCrossTabSync'
+
+const CanvasWorkspace = lazy(() => import('./CanvasWorkspace'))
+const ProjectSharingDialog = lazy(() => import('./ProjectSharingDialog'))
+const ProjectExportDialog = lazy(() => import('./ProjectExportDialog'))
+const SaveConflictDialog = lazy(() => import('./SaveConflictDialog'))
 
 type View = 'canvas' | 'document' | 'split'
 type Props = { token?: string; shareToken?: string; initialProject: Project; onBack?: (project: Project) => void }
@@ -33,6 +36,7 @@ type SaveConflict = { local: ProjectDraft; server: Project }
 
 const lowlight = createLowlight(common)
 const textColors = ['#20222d', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#2563eb', '#7c3aed', '#db2777']
+const MAX_DOCUMENT_CHARS = 6_000_000
 const highlightColors = ['#fef3c7', '#fed7aa', '#fecaca', '#fbcfe8', '#ddd6fe', '#bfdbfe', '#bbf7d0', '#d1d5db']
 const MAX_SCREENSHOT_BYTES = 2 * 1024 * 1024
 const screenshotTypes = new Set(['image/png', 'image/jpeg', 'image/webp'])
@@ -144,12 +148,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
   const [linkError, setLinkError] = useState('')
   const [imageError, setImageError] = useState('')
   const [shareOpen, setShareOpen] = useState(false)
-  const [shares, setShares] = useState<ShareLink[]>([])
-  const [sharePermission, setSharePermission] = useState<SharePermission>('READ')
-  const [newShareUrl, setNewShareUrl] = useState('')
   const [exportOpen, setExportOpen] = useState(false)
-  const [selectionExport, setSelectionExport] = useState(false)
-  const [actionMessage, setActionMessage] = useState('')
   const [canvasLoadError, setCanvasLoadError] = useState(canvasLoad.error)
   const [saveState, setSaveState] = useState<SaveState>(recovery.mode === 'conflict' ? 'conflict' : recovery.mode === 'resume' ? 'saving' : 'saved')
   const [conflict, setConflict] = useState<SaveConflict | null>(() => recovery.mode === 'conflict' ? { local: recovery.draft!, server: initialProject } : null)
@@ -196,7 +195,12 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
       },
     },
     onUpdate: ({ editor }) => {
-      setProject((current) => ({ ...current, markdown: sanitizeRichText(editor.getHTML()) }))
+      const html = editor.getHTML()
+      if (html.length > MAX_DOCUMENT_CHARS) {
+        setImageError('Document content must be 6 MB or smaller. Remove large embedded images before saving.')
+        return
+      }
+      setProject((current) => ({ ...current, markdown: sanitizeRichText(html) }))
     },
   })
 
@@ -337,56 +341,14 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
     return () => window.removeEventListener('online', retryWhenOnline)
   }, [conflictActive, flushSave])
 
-  useEffect(() => {
-    const receiveSaveFromAnotherTab = async (event: StorageEvent) => {
-      const signal = readProjectSaveSignal(event, initialProject.id, tabId)
-      if (!signal || signal.revision <= latestProject.current.revision || conflictRef.current) return
-      try {
-        const server = await getProject(initialProject.id)
-        if (contentSignature(latestProject.current) === lastSavedSignature.current) {
-          activateServerProject(server)
-          return
-        }
-        const local = createDraft(latestProject.current, tabId)
-        storeDraft(local)
-        storeConflictBackup(local, server)
-        setConflict({ local, server })
-        setSaveState('conflict')
-      } catch {
-        // The normal save path still detects the server revision conflict.
-      }
-    }
-    window.addEventListener('storage', receiveSaveFromAnotherTab)
-    return () => window.removeEventListener('storage', receiveSaveFromAnotherTab)
-  }, [activateServerProject, getProject, initialProject.id, tabId])
-
-  async function openSharing() {
-    if (!token || shareToken) return
-    setShareOpen(true); setNewShareUrl(''); setActionMessage('')
-    try { setShares(await api.listShares(token, project.id)) } catch (error) { setActionMessage((error as Error).message) }
-  }
-
-  async function createShare() {
-    try {
-      const created = await api.createShare(token, project.id, sharePermission)
-      setShares((current) => [created, ...current])
-      setNewShareUrl(`${window.location.origin}/share/${created.token}`)
-    } catch (error) { setActionMessage((error as Error).message) }
-  }
-
-  async function revokeShare(share: ShareLink) {
-    await api.revokeShare(token, project.id, share.id)
-    setShares((current) => current.map((item) => item.id === share.id ? { ...item, revoked: true } : item))
-  }
-
-  async function runExport(format: ExportFormat | 'clipboard') {
-    setActionMessage('')
-    try {
-      if (format === 'clipboard') await copyDiagramToClipboard(selectionExport)
-      else await exportProject({ ...latestProject.current, canvasJson: JSON.stringify({ nodes, edges, viewport }) }, format, selectionExport)
-      setActionMessage(format === 'clipboard' ? 'Diagram copied.' : 'Export created.')
-    } catch (error) { setActionMessage((error as Error).message) }
-  }
+  const handleCrossTabConflict = useCallback((local: ProjectDraft, server: Project) => {
+    setConflict({ local, server })
+    setSaveState('conflict')
+  }, [])
+  useProjectCrossTabSync({
+    projectId: initialProject.id, tabId, latestProject, lastSavedSignature, conflictRef, getProject,
+    activateServerProject, onConflict: handleCrossTabConflict,
+  })
 
   const showCanvas = view !== 'document'
   const showDocument = view !== 'canvas'
@@ -479,7 +441,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
           ))}
         </div>
         <div className="editor-header-right">
-          {!shareToken && <button className="header-action" onClick={() => void openSharing()} aria-label="Share project"><Share2 />Share</button>}
+          {!shareToken && <button className="header-action" onClick={() => setShareOpen(true)} aria-label="Share project"><Share2 />Share</button>}
           <button className="header-action" onClick={() => setExportOpen(true)} aria-label="Export project"><Download />Export</button>
           <ThemeToggle />
           <span className={`save-state ${saveState}`}>{saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Save failed' : saveState === 'offline' ? 'Offline' : saveState === 'conflict' ? 'Conflict' : 'Saved'}</span>
@@ -572,46 +534,13 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
         )}
         {showCanvas && (
           <section className="canvas-panel" style={view === 'split' ? { flexBasis: `${100 - documentWidth}%` } : undefined}>
-            <CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} viewport={viewport} onViewportChange={setViewport} />
+            <Suspense fallback={<p className="muted">Loading canvas…</p>}><CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} viewport={viewport} onViewportChange={setViewport} /></Suspense>
           </section>
         )}
       </div>
-      {shareOpen && <div className="modal-backdrop" onMouseDown={() => setShareOpen(false)}>
-        <section className="share-dialog" role="dialog" aria-modal="true" aria-labelledby="share-title" onMouseDown={(event) => event.stopPropagation()}>
-          <header><div><p className="eyebrow">Project access</p><h2 id="share-title">Share project</h2></div><button className="modal-close" onClick={() => setShareOpen(false)} aria-label="Close sharing"><X /></button></header>
-          <div className="share-create"><select aria-label="Share permission" value={sharePermission} onChange={(event) => setSharePermission(event.target.value as SharePermission)}><option value="READ">Anyone with link can view</option><option value="EDIT">Anyone with link can edit</option></select><button className="primary-button compact" onClick={() => void createShare()}>Create link</button></div>
-          {newShareUrl && <div className="created-share"><input aria-label="New share link" readOnly value={newShareUrl} /><button onClick={() => void navigator.clipboard.writeText(newShareUrl)}>Copy</button></div>}
-          <div className="share-list">{shares.map((share) => <article key={share.id}><div><strong>{share.permission === 'EDIT' ? 'Editable link' : 'Read-only link'}</strong><small>{share.revoked ? 'Revoked' : `Created ${new Date(share.createdAt).toLocaleDateString()}`}</small></div>{!share.revoked && <button className="danger-link" onClick={() => void revokeShare(share)}>Revoke</button>}</article>)}</div>
-          {actionMessage && <p className="fine-print" role="status">{actionMessage}</p>}
-        </section>
-      </div>}
-      {exportOpen && <div className="modal-backdrop" onMouseDown={() => setExportOpen(false)}>
-        <section className="export-dialog" role="dialog" aria-modal="true" aria-labelledby="export-title" onMouseDown={(event) => event.stopPropagation()}>
-          <header><div><p className="eyebrow">Download or copy</p><h2 id="export-title">Export project</h2></div><button className="modal-close" onClick={() => setExportOpen(false)} aria-label="Close export"><X /></button></header>
-          <label className="selection-export"><input type="checkbox" checked={selectionExport} onChange={(event) => setSelectionExport(event.target.checked)} /> Selection only</label>
-          <div className="export-grid"><button onClick={() => void runExport('png')}><strong>PNG</strong><span>Raster image</span></button><button onClick={() => void runExport('svg')}><strong>SVG</strong><span>Vector image</span></button><button onClick={() => void runExport('markdown')}><strong>Markdown</strong><span>Documentation source</span></button><button onClick={() => void runExport('source')}><strong>Archly source</strong><span>Editable JSON</span></button><button onClick={() => void runExport('clipboard')}><strong>Copy image</strong><span>PNG to clipboard</span></button></div>
-          {actionMessage && <p className="fine-print" role="status">{actionMessage}</p>}
-        </section>
-      </div>}
-      {conflict && (
-        <div className="conflict-backdrop">
-          <section className="conflict-dialog" role="dialog" aria-modal="true" aria-labelledby="conflict-title">
-            <p className="eyebrow">Save conflict</p>
-            <h2 id="conflict-title">This project changed in another tab</h2>
-            <p>Your local draft and the latest server version are both preserved in this browser. Choose which version should become active.</p>
-            <div className="conflict-versions">
-              <article><strong>Your local draft</strong><span>Based on revision {conflict.local.baseRevision}</span><small>Stored {new Date(conflict.local.storedAt).toLocaleString()}</small></article>
-              <article><strong>Latest server version</strong><span>Revision {conflict.server.revision}</span><small>Saved {new Date(conflict.server.updatedAt).toLocaleString()}</small></article>
-            </div>
-            <div className="conflict-actions">
-              <button onClick={retryStaleSave}>Retry original save</button>
-              <button onClick={useServerVersion}>Use server version</button>
-              <button className="primary-button compact" onClick={keepLocalVersion}>Keep my version</button>
-            </div>
-            <small className="conflict-note">Keeping your version explicitly saves it over the current server version. A recovery copy of both versions remains in local browser storage.</small>
-          </section>
-        </div>
-      )}
+      {shareOpen && <Suspense fallback={null}><ProjectSharingDialog token={token} projectId={project.id} onClose={() => setShareOpen(false)} /></Suspense>}
+      {exportOpen && <Suspense fallback={null}><ProjectExportDialog project={latestProject.current} nodes={nodes} edges={edges} viewport={viewport} onClose={() => setExportOpen(false)} /></Suspense>}
+      {conflict && <Suspense fallback={null}><SaveConflictDialog conflict={conflict} onRetry={retryStaleSave} onUseServer={useServerVersion} onKeepLocal={keepLocalVersion} /></Suspense>}
     </main>
   )
 }

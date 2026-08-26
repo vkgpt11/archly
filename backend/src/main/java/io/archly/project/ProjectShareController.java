@@ -13,11 +13,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
+import java.time.Duration;
 
 @RestController
 public class ProjectShareController {
     private final ProjectShareService service;
-    public ProjectShareController(ProjectShareService service) { this.service = service; }
+    private final RequestRateLimiter rateLimiter;
+    public ProjectShareController(ProjectShareService service, RequestRateLimiter rateLimiter) { this.service = service; this.rateLimiter = rateLimiter; }
 
     @PostMapping("/api/projects/{projectId}/shares")
     @ResponseStatus(HttpStatus.CREATED)
@@ -38,10 +41,14 @@ public class ProjectShareController {
     }
 
     @GetMapping("/api/shares/{token}")
-    SharedProjectResponse getShared(@PathVariable String token) { return service.getShared(token); }
+    SharedProjectResponse getShared(@PathVariable String token, HttpServletRequest request) {
+        rateLimiter.check("public-share:" + request.getRemoteAddr(), 120, Duration.ofMinutes(1));
+        return service.getShared(token);
+    }
 
     @PutMapping("/api/shares/{token}")
-    SharedProjectResponse updateShared(@PathVariable String token, @Valid @RequestBody UpdateProjectRequest request) {
+    SharedProjectResponse updateShared(@PathVariable String token, @Valid @RequestBody UpdateProjectRequest request, HttpServletRequest servletRequest) {
+        rateLimiter.check("public-share:" + servletRequest.getRemoteAddr(), 120, Duration.ofMinutes(1));
         return service.updateShared(token, request);
     }
 }

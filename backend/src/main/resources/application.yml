@@ -18,6 +18,9 @@ archly:
   ui-origins: ${UI_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
 
 server:
+  tomcat:
+    max-http-form-post-size: 8MB
+    max-swallow-size: 8MB
   error:
     include-message: always
 

@@ -39,6 +39,7 @@ const initialProject: Project = {
 describe('Editor conflict recovery', () => {
   beforeEach(() => {
     localStorage.clear()
+    sessionStorage.clear()
     window.name = 'archly:tab-b'
     apiMocks.saveProject.mockReset()
     apiMocks.getProject.mockReset()
@@ -68,8 +69,8 @@ describe('Editor conflict recovery', () => {
     expect(await screen.findByRole('dialog', { name: 'This project changed in another tab' }, { timeout: 3000 })).toBeInTheDocument()
     expect(screen.getByText('Based on revision 0')).toBeInTheDocument()
     expect(screen.getByText('Revision 1')).toBeInTheDocument()
-    expect(localStorage.getItem(draftStorageKey(initialProject.id, 'tab-b'))).toContain('Changed in Tab B')
-    expect(localStorage.getItem(conflictStorageKey(initialProject.id, 'tab-b'))).toContain('Changed in Tab A')
+    expect(sessionStorage.getItem(draftStorageKey(initialProject.id, 'tab-b'))).toContain('Changed in Tab B')
+    expect(sessionStorage.getItem(conflictStorageKey(initialProject.id, 'tab-b'))).toContain('Changed in Tab A')
 
     fireEvent.click(screen.getByRole('button', { name: 'Use server version' }))
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Project name' })).toHaveValue('Changed in Tab A'))
@@ -123,8 +124,8 @@ describe('Editor conflict recovery', () => {
     }))
 
     expect(await screen.findByRole('dialog', { name: 'This project changed in another tab' })).toBeInTheDocument()
-    expect(localStorage.getItem(draftStorageKey(initialProject.id, 'tab-a'))).toContain('Tab A draft')
-    expect(localStorage.getItem(draftStorageKey(initialProject.id, 'tab-b'))).toContain('Unsaved Tab B draft')
+    expect(sessionStorage.getItem(draftStorageKey(initialProject.id, 'tab-a'))).toContain('Tab A draft')
+    expect(sessionStorage.getItem(draftStorageKey(initialProject.id, 'tab-b'))).toContain('Unsaved Tab B draft')
     expect(apiMocks.saveProject).not.toHaveBeenCalled()
   })
 
@@ -152,7 +153,7 @@ describe('Editor conflict recovery', () => {
     expect(screen.getByRole('textbox', { name: 'Project name' })).toHaveValue('Recovered after refresh')
     await waitFor(() => expect(screen.getByText('Saved')).toBeInTheDocument(), { timeout: 3000 })
     expect(apiMocks.saveProject).toHaveBeenCalledWith('token', expect.objectContaining({ name: 'Recovered after refresh' }))
-    expect(localStorage.getItem(draftStorageKey(initialProject.id, 'tab-b'))).toBeNull()
+    expect(sessionStorage.getItem(draftStorageKey(initialProject.id, 'tab-b'))).toBeNull()
   })
 
   it('keeps the local draft after a network failure and retries explicitly', async () => {
@@ -164,7 +165,7 @@ describe('Editor conflict recovery', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Project name' }), { target: { value: 'Network-safe draft' } })
 
     expect(await screen.findByText('Save failed', {}, { timeout: 3000 })).toBeInTheDocument()
-    expect(localStorage.getItem(draftStorageKey(initialProject.id, 'tab-b'))).toContain('Network-safe draft')
+    expect(sessionStorage.getItem(draftStorageKey(initialProject.id, 'tab-b'))).toContain('Network-safe draft')
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     await waitFor(() => expect(screen.getByText('Saved')).toBeInTheDocument(), { timeout: 3000 })
     expect(apiMocks.saveProject).toHaveBeenCalledTimes(2)
@@ -185,10 +186,10 @@ describe('Editor conflict recovery', () => {
     expect(apiMocks.revokeShare).toHaveBeenCalledWith('token', initialProject.id, 'share-1')
   })
 
-  it('offers every required export target and selection-only mode', () => {
+  it('offers every required export target and selection-only mode', async () => {
     render(<Editor token="token" initialProject={initialProject} onBack={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Export project' }))
-    const dialog = screen.getByRole('dialog', { name: 'Export project' })
+    const dialog = await screen.findByRole('dialog', { name: 'Export project' })
     expect(within(dialog).getByText('PNG')).toBeInTheDocument()
     expect(within(dialog).getByText('SVG')).toBeInTheDocument()
     expect(within(dialog).getByText('Markdown')).toBeInTheDocument()

@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { GoogleLogin } from '@react-oauth/google'
-import Dashboard from './components/Dashboard'
 import ThemeToggle from './components/ThemeToggle'
 import { ApiError, api } from './api'
-import SharedProjectView from './components/SharedProjectView'
+
+const Dashboard = lazy(() => import('./components/Dashboard'))
+const SharedProjectView = lazy(() => import('./components/SharedProjectView'))
+const loading = <main className="shared-error"><p>Loading Archly…</p></main>
 
 type Props = { googleEnabled?: boolean }
 
@@ -30,10 +32,10 @@ export default function App({ googleEnabled = true }: Props) {
     }
   }
 
-  if (shareToken) return <SharedProjectView shareToken={decodeURIComponent(shareToken)} />
+  if (shareToken) return <Suspense fallback={loading}><SharedProjectView shareToken={decodeURIComponent(shareToken)} /></Suspense>
 
   if (credential) {
-    return <Dashboard token={credential} onSignOut={() => setCredential(null)} />
+    return <Suspense fallback={loading}><Dashboard token={credential} onSignOut={() => setCredential(null)} /></Suspense>
   }
 
   return (

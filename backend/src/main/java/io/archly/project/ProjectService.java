@@ -5,8 +5,10 @@ import io.archly.project.ProjectDtos.ProjectResponse;
 import io.archly.project.ProjectDtos.UpdateProjectRequest;
 import io.archly.project.ProjectDtos.OrganizeProjectRequest;
 import jakarta.persistence.OptimisticLockException;
-import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,17 +20,23 @@ public class ProjectService {
     private final ProjectRepository repository;
     private final RichTextSanitizer richTextSanitizer;
     private final CanvasJsonValidator canvasJsonValidator;
+    private final ProjectContentValidator projectContentValidator;
 
     public ProjectService(ProjectRepository repository, RichTextSanitizer richTextSanitizer,
-                          CanvasJsonValidator canvasJsonValidator) {
+                          CanvasJsonValidator canvasJsonValidator, ProjectContentValidator projectContentValidator) {
         this.repository = repository;
         this.richTextSanitizer = richTextSanitizer;
         this.canvasJsonValidator = canvasJsonValidator;
+        this.projectContentValidator = projectContentValidator;
     }
 
     @Transactional(readOnly = true)
-    public List<ProjectResponse> list(String email) {
-        return repository.findAllByOwnerEmailOrderByUpdatedAtDesc(email).stream().map(this::response).toList();
+    public ProjectDtos.ProjectPageResponse list(String email, int page, int size) {
+        var result = repository.findAllByOwnerEmail(email,
+            PageRequest.of(page, Math.min(size, 100), Sort.by(Sort.Direction.DESC, "updatedAt")));
+        return new ProjectDtos.ProjectPageResponse(result.getContent().stream()
+            .map(ProjectDtos.ProjectSummaryResponse::from).toList(), result.getNumber(), result.getSize(),
+            result.getTotalElements(), result.getTotalPages());
     }
 
     public ProjectResponse create(String email, CreateProjectRequest request) {
@@ -46,10 +54,11 @@ public class ProjectService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Project was updated elsewhere. Reload before saving.");
         }
         canvasJsonValidator.validate(request.canvasJson());
+        projectContentValidator.validateMarkdown(request.markdown());
         project.update(request.name().trim(), request.canvasJson(), richTextSanitizer.sanitize(request.markdown()));
         try {
             return response(repository.saveAndFlush(project));
-        } catch (OptimisticLockException exception) {
+        } catch (OptimisticLockException | OptimisticLockingFailureException exception) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Project was updated elsewhere. Reload before saving.");
         }
     }
@@ -64,8 +73,15 @@ public class ProjectService {
 
     public ProjectResponse organize(String email, UUID id, OrganizeProjectRequest request) {
         Project project = findOwned(email, id);
+        if (project.getRevision() != request.revision()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Project was updated elsewhere. Reload before organizing.");
+        }
         project.organize(request.folder(), request.archived());
-        return response(repository.save(project));
+        try {
+            return response(repository.saveAndFlush(project));
+        } catch (OptimisticLockException | OptimisticLockingFailureException exception) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Project was updated elsewhere. Reload before organizing.");
+        }
     }
 
     public void delete(String email, UUID id) {

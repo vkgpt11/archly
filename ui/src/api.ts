@@ -1,4 +1,4 @@
-import type { Project, ShareLink, SharePermission, SharedProject } from './types'
+import type { Project, ProjectPage, ShareLink, SharePermission, SharedProject } from './types'
 
 const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
 
@@ -36,7 +36,7 @@ async function publicRequest<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   validateSession: (token: string) => request<{ email: string }>(token, '/auth/session'),
-  listProjects: (token: string) => request<Project[]>(token, '/projects'),
+  listProjects: (token: string, page = 0, size = 24) => request<ProjectPage | Project[]>(token, `/projects?page=${page}&size=${size}`),
   createProject: (token: string, name: string) =>
     request<Project>(token, '/projects', { method: 'POST', body: JSON.stringify({ name }) }),
   getProject: (token: string, id: string) => request<Project>(token, `/projects/${id}`),
@@ -54,8 +54,8 @@ export const api = {
     request<void>(token, `/projects/${id}`, { method: 'DELETE' }),
   duplicateProject: (token: string, id: string) =>
     request<Project>(token, `/projects/${id}/duplicate`, { method: 'POST' }),
-  organizeProject: (token: string, id: string, folder: string | null, archived: boolean) =>
-    request<Project>(token, `/projects/${id}/organization`, { method: 'PUT', body: JSON.stringify({ folder, archived }) }),
+  organizeProject: (token: string, id: string, folder: string | null, archived: boolean, revision: number) =>
+    request<Project>(token, `/projects/${id}/organization`, { method: 'PUT', body: JSON.stringify({ folder, archived, revision }) }),
   listShares: (token: string, id: string) => request<ShareLink[]>(token, `/projects/${id}/shares`),
   createShare: (token: string, id: string, permission: SharePermission) =>
     request<ShareLink>(token, `/projects/${id}/shares`, { method: 'POST', body: JSON.stringify({ permission }) }),

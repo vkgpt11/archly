@@ -25,6 +25,8 @@ jobs:
       - run: npm run lint -- --max-warnings=0
       - run: npm test
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
       - run: npm audit --omit=dev --audit-level=high
 
   backend:

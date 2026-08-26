@@ -93,7 +93,10 @@ class ProjectControllerTest {
 
         mvc.perform(get("/api/projects").with(identity))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$[0].name").value("Payments architecture"));
+            .andExpect(jsonPath("$.items[0].name").value("Payments architecture"))
+            .andExpect(jsonPath("$.items[0].canvasJson").doesNotExist())
+            .andExpect(jsonPath("$.items[0].markdown").doesNotExist())
+            .andExpect(jsonPath("$.totalItems").value(1));
     }
 
     @Test
@@ -235,10 +238,18 @@ class ProjectControllerTest {
         String id = objectMapper.readTree(created).get("id").asText();
 
         mvc.perform(put("/api/projects/{id}/organization", id).with(identity).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"folder\":\"Production\",\"archived\":true}"))
+                .content("{\"folder\":\"Production\",\"archived\":true,\"revision\":0}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.folder").value("Production"))
             .andExpect(jsonPath("$.archived").value(true));
+
+        mvc.perform(put("/api/projects/{id}/organization", id).with(identity).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"folder\":\"Stale\",\"archived\":false,\"revision\":0}"))
+            .andExpect(status().isConflict());
+
+        mvc.perform(put("/api/projects/{id}/organization", id).with(identity).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"folder\":\"Missing revision\",\"archived\":false}"))
+            .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -265,6 +276,19 @@ class ProjectControllerTest {
         mvc.perform(delete("/api/projects/{projectId}/shares/{shareId}", projectId, shareId).with(identity))
             .andExpect(status().isNoContent());
         mvc.perform(get("/api/shares/{token}", token)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void rejectsMissingSharePermissionAsBadRequest() throws Exception {
+        var identity = jwt().jwt(token -> token.claim("email", "missing-permission@gmail.com"));
+        String created = mvc.perform(post("/api/projects").with(identity).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Permission validation\"}"))
+            .andReturn().getResponse().getContentAsString();
+        String projectId = objectMapper.readTree(created).get("id").asText();
+
+        mvc.perform(post("/api/projects/{id}/shares", projectId).with(identity)
+                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+            .andExpect(status().isBadRequest());
     }
 
     @Test

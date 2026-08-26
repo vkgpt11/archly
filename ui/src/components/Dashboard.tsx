@@ -1,14 +1,18 @@
-import { useEffect, useState } from 'react'
-import { api } from '../api'
-import type { Project } from '../types'
-import Editor from './Editor'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { ApiError, api } from '../api'
+import type { Project, ProjectPage, ProjectSummary } from '../types'
 import ThemeToggle from './ThemeToggle'
 import { architectureTemplates, templateCanvas, type ArchitectureTemplate } from '../architectureTemplates'
+
+const Editor = lazy(() => import('./Editor'))
+const normalizeProjectPage = (response: ProjectPage | ProjectSummary[]): ProjectPage => Array.isArray(response)
+  ? { items: response, page: 0, size: response.length, totalItems: response.length, totalPages: 1 }
+  : response
 
 type Props = { token: string; onSignOut: () => void }
 
 export default function Dashboard({ token, onSignOut }: Props) {
-  const [projects, setProjects] = useState<Project[]>([])
+  const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [selected, setSelected] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -16,13 +20,27 @@ export default function Dashboard({ token, onSignOut }: Props) {
   const [search, setSearch] = useState('')
   const [scope, setScope] = useState<'active' | 'archived'>('active')
   const [folder, setFolder] = useState('All')
+  const [nextPage, setNextPage] = useState<number | null>(null)
 
   useEffect(() => {
     api.listProjects(token)
-      .then(setProjects)
+      .then((rawResponse) => {
+        const response = normalizeProjectPage(rawResponse)
+        setProjects(response.items)
+        setNextPage(response.page + 1 < response.totalPages ? response.page + 1 : null)
+      })
       .catch((reason: Error) => setError(reason.message))
       .finally(() => setLoading(false))
   }, [token])
+
+  async function loadMoreProjects() {
+    if (nextPage === null) return
+    try {
+      const response = normalizeProjectPage(await api.listProjects(token, nextPage, 24))
+      setProjects((current) => [...current, ...response.items])
+      setNextPage(response.page + 1 < response.totalPages ? response.page + 1 : null)
+    } catch (reason) { setError((reason as Error).message) }
+  }
 
   async function createProject(template: ArchitectureTemplate) {
     setError('')
@@ -40,7 +58,13 @@ export default function Dashboard({ token, onSignOut }: Props) {
     }
   }
 
-  async function duplicateProject(project: Project) {
+  async function openProject(project: ProjectSummary) {
+    setError('')
+    try { setSelected(await api.getProject(token, project.id)) }
+    catch (reason) { setError((reason as Error).message) }
+  }
+
+  async function duplicateProject(project: ProjectSummary) {
     setError('')
     try {
       const copy = await api.duplicateProject(token, project.id)
@@ -48,17 +72,23 @@ export default function Dashboard({ token, onSignOut }: Props) {
     } catch (reason) { setError((reason as Error).message) }
   }
 
-  async function removeProject(project: Project) {
+  async function removeProject(project: ProjectSummary) {
     if (!window.confirm(`Delete “${project.name}”? This cannot be undone.`)) return
     await api.deleteProject(token, project.id)
     setProjects((current) => current.filter((item) => item.id !== project.id))
   }
 
-  async function organizeProject(project: Project, nextFolder: string | null, archived = Boolean(project.archived)) {
+  async function organizeProject(project: ProjectSummary, nextFolder: string | null, archived = Boolean(project.archived)) {
     try {
-      const updated = await api.organizeProject(token, project.id, nextFolder, archived)
+      const updated = await api.organizeProject(token, project.id, nextFolder, archived, project.revision)
       setProjects((current) => current.map((item) => item.id === updated.id ? updated : item))
-    } catch (reason) { setError((reason as Error).message) }
+    } catch (reason) {
+      if (reason instanceof ApiError && reason.status === 409) {
+        const latest = await api.getProject(token, project.id)
+        setProjects((current) => current.map((item) => item.id === latest.id ? latest : item))
+        setError('This project changed elsewhere. The latest folder and archive state has been loaded; review it and try again.')
+      } else setError((reason as Error).message)
+    }
   }
 
   const folders = ['All', ...Array.from(new Set(projects.map((project) => project.folder).filter((value): value is string => Boolean(value))))]
@@ -69,14 +99,14 @@ export default function Dashboard({ token, onSignOut }: Props) {
 
   if (selected) {
     return (
-      <Editor
+      <Suspense fallback={<main className="shared-error"><p>Loading editor…</p></main>}><Editor
         token={token}
         initialProject={selected}
         onBack={(updated) => {
           setProjects((current) => current.map((item) => item.id === updated.id ? updated : item))
           setSelected(null)
         }}
-      />
+      /></Suspense>
     )
   }
 
@@ -107,11 +137,11 @@ export default function Dashboard({ token, onSignOut }: Props) {
           <div className="project-grid">
             {visibleProjects.map((project) => (
               <article className="project-card" key={project.id}>
-                <button className="project-preview" onClick={() => setSelected(project)} aria-label={`Open ${project.name}`}>
+                <button className="project-preview" onClick={() => void openProject(project)} aria-label={`Open ${project.name}`}>
                   <span className="preview-node one" /><span className="preview-line" /><span className="preview-node two" />
                 </button>
                 <div className="project-meta">
-                  <button className="project-title" onClick={() => setSelected(project)}>{project.name}</button>
+                  <button className="project-title" onClick={() => void openProject(project)}>{project.name}</button>
                   <p>Updated {new Date(project.updatedAt).toLocaleDateString()}</p>
                   <button className="text-button project-copy" onClick={() => void duplicateProject(project)}>Duplicate</button>
                   <button className="text-button" onClick={() => {
@@ -126,6 +156,7 @@ export default function Dashboard({ token, onSignOut }: Props) {
             {!visibleProjects.length && <p className="muted project-empty-filter">No projects match these filters.</p>}
           </div>
         )}
+        {nextPage !== null && <button className="text-button" onClick={() => void loadMoreProjects()}>Load more projects</button>}
         {templatesOpen && <div className="template-backdrop" role="presentation" onMouseDown={() => setTemplatesOpen(false)}>
           <section className="template-dialog" role="dialog" aria-modal="true" aria-labelledby="template-title" onMouseDown={(event) => event.stopPropagation()}>
             <header><div><p className="eyebrow">New project</p><h2 id="template-title">Choose an architecture template</h2></div><button className="text-button" onClick={() => setTemplatesOpen(false)}>Close</button></header>

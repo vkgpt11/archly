@@ -26,15 +26,18 @@ public class ProjectShare {
     @Column(nullable = false)
     private Instant createdAt;
     private Instant revokedAt;
+    @Column(nullable = false)
+    private Instant expiresAt;
 
     protected ProjectShare() {}
 
-    public ProjectShare(Project project, String tokenHash, String permission) {
+    public ProjectShare(Project project, String tokenHash, String permission, Instant expiresAt) {
         this.id = UUID.randomUUID();
         this.project = project;
         this.tokenHash = tokenHash;
         this.permission = permission;
         this.createdAt = Instant.now();
+        this.expiresAt = expiresAt;
     }
 
     public void revoke() { this.revoked = true; this.revokedAt = Instant.now(); }
@@ -45,4 +48,6 @@ public class ProjectShare {
     public boolean isRevoked() { return revoked; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getRevokedAt() { return revokedAt; }
+    public Instant getExpiresAt() { return expiresAt; }
+    public boolean isExpired() { return !expiresAt.isAfter(Instant.now()); }
 }

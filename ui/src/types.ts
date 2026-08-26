@@ -14,6 +14,9 @@ export type Project = {
   updatedAt: string
 }
 
+export type ProjectSummary = Omit<Project, 'canvasJson' | 'markdown'>
+export type ProjectPage = { items: ProjectSummary[]; page: number; size: number; totalItems: number; totalPages: number }
+
 export type SharePermission = 'READ' | 'EDIT'
-export type ShareLink = { id: string; token?: string; permission: SharePermission; revoked: boolean; createdAt: string; revokedAt?: string | null }
+export type ShareLink = { id: string; token?: string; permission: SharePermission; revoked: boolean; createdAt: string; revokedAt?: string | null; expiresAt: string }
 export type SharedProject = { project: Project; permission: SharePermission }

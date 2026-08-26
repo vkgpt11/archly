@@ -16,7 +16,7 @@ const project: Project = {
 }
 
 describe('project persistence', () => {
-  beforeEach(() => { localStorage.clear(); window.name = '' })
+  beforeEach(() => { localStorage.clear(); sessionStorage.clear(); window.name = '' })
 
   it('does not change durable canvas content for selection or measured edit dimensions', () => {
     const baseNode = JSON.parse(project.canvasJson).nodes[0] as Node
@@ -36,6 +36,14 @@ describe('project persistence', () => {
     expect(loadDraft(project.id)).toEqual(draft)
     clearDraft(project.id)
     expect(loadDraft(project.id)).toBeNull()
+  })
+
+  it('expires recovery drafts and removes legacy persistent copies', () => {
+    const expired = { ...createDraft(project), expiresAt: '2020-01-01T00:00:00.000Z' }
+    sessionStorage.setItem(`archly-project-draft:${project.id}:${expired.ownerId}`, JSON.stringify(expired))
+    localStorage.setItem(`archly-project-conflict:old-project:old-tab`, '{"private":"content"}')
+    expect(loadDraft(project.id, expired.ownerId)).toBeNull()
+    expect(localStorage.getItem('archly-project-conflict:old-project:old-tab')).toBeNull()
   })
 
   it('resumes a current draft but identifies a stale draft as a conflict', () => {
@@ -61,10 +69,10 @@ describe('project persistence', () => {
     expect(JSON.parse(canonicalCanvasJson(JSON.stringify(canvas))).viewport).toEqual(canvas.viewport)
   })
 
-  it('removes legacy manual connection waypoints from saved canvas data', () => {
+  it('preserves connection waypoints across save and reload', () => {
     const edge: Edge = { id: 'a-a', source: 'a', target: 'a', data: { routing: 'smoothstep', waypoints: [{ x: 20, y: 30 }] } }
     const canvas = JSON.parse(serializeCanvas([], [edge]))
-    expect(canvas.edges[0].data).toEqual({ routing: 'smoothstep' })
+    expect(canvas.edges[0].data).toEqual({ routing: 'smoothstep', waypoints: [{ x: 20, y: 30 }] })
   })
 
   it('rejects malformed and unsupported canvas documents instead of converting them to empty diagrams', () => {

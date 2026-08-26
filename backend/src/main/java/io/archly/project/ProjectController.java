@@ -8,7 +8,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -22,11 +21,16 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import org.springframework.validation.annotation.Validated;
 
 @RestController
 @RequestMapping("/api/projects")
 @Tag(name = "Projects", description = "Create and maintain architecture projects")
 @SecurityRequirement(name = "bearerAuth")
+@Validated
 public class ProjectController {
     private final ProjectService service;
 
@@ -34,7 +38,11 @@ public class ProjectController {
 
     @GetMapping
     @Operation(summary = "List projects", description = "Returns projects owned by the authenticated Gmail account.")
-    List<ProjectResponse> list(@AuthenticationPrincipal Jwt jwt) { return service.list(jwt.getClaimAsString("email")); }
+    ProjectDtos.ProjectPageResponse list(@AuthenticationPrincipal Jwt jwt,
+        @RequestParam(defaultValue = "0") @Min(0) int page,
+        @RequestParam(defaultValue = "24") @Min(1) @Max(100) int size) {
+        return service.list(jwt.getClaimAsString("email"), page, size);
+    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
