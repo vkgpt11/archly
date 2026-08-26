@@ -1,6 +1,6 @@
-import type { Edge, Node } from '@xyflow/react'
+import type { Edge, Node, Viewport } from '@xyflow/react'
 
-export type CanvasData = { nodes: Node[]; edges: Edge[] }
+export type CanvasData = { nodes: Node[]; edges: Edge[]; viewport?: Viewport }
 
 export type Project = {
   id: string

@@ -2,16 +2,17 @@ import {
   Background, BackgroundVariant, BaseEdge, ConnectionMode, Controls, EdgeLabelRenderer, Handle, MarkerType,
   MiniMap, ReactFlow, ReactFlowProvider, Position, addEdge, applyEdgeChanges,
   applyNodeChanges, getBezierPath, getSmoothStepPath, getStraightPath, reconnectEdge, useReactFlow,
-  type Connection, type Edge, type EdgeChange, type EdgeProps, type Node, type NodeChange, type NodeProps,
+  type Connection, type Edge, type EdgeChange, type EdgeProps, type Node, type NodeChange, type NodeProps, type Viewport,
 } from '@xyflow/react'
 import {
-  AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, AppWindow, Box, Boxes,
+  AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical,
+  AlignHorizontalDistributeCenter, AlignStartHorizontal, AlignStartVertical, AlignVerticalDistributeCenter, AppWindow, Box, Boxes,
   Activity, ArrowLeft, ArrowRight, Bell, BellRing, Bot, BrainCircuit, Braces, ChevronDown, CircuitBoard,
-  Cloud, Cog, Container, Cpu, Database, DatabaseZap, Expand, ExternalLink, FileCode2, FileText, Fingerprint,
-  Focus, Gauge, GitBranch, Globe2, Hand, Group, Library, ListTree, LocateFixed, Lock, MessageSquareText,
+  Cloud, Cog, Container, Copy, Cpu, Database, DatabaseZap, Expand, ExternalLink, FileCode2, FileText, Fingerprint,
+  Focus, Gauge, GitBranch, Globe2, Grid3X3, Hand, Group, Library, ListTree, LocateFixed, Lock, Magnet, MessageSquareText,
   Mail, Minus, MousePointer2, Network, Plus, Redo2, ScrollText, Search, Server, ShieldCheck, Shuffle,
-  ScanSearch, Smartphone, Sparkles, Spline, Trash2, Undo2, Unlock, UserCheck, UserRound, Warehouse,
-  Waves, Waypoints, Webhook, Workflow, X, Zap, ZoomIn, ZoomOut, Clock3,
+  ScanSearch, Shapes, Smartphone, Sparkles, Spline, Trash2, Undo2, Unlock, UserCheck, UserRound, Warehouse,
+  Waves, Waypoints, Webhook, Workflow, X, Zap, ZoomIn, ZoomOut, Clock3, BringToFront, SendToBack,
   Ungroup,
 } from 'lucide-react'
 import {
@@ -75,17 +76,19 @@ type CanvasTool = 'select' | 'pan' | 'connect'
 
 type ArchitectureNodeData = {
   label?: string
+  description?: string
   kind?: ArchitectureKind
   fill?: string
   border?: string
   textColor?: string
   locked?: boolean
   groupId?: string
+  containerId?: string
   iconId?: string
 }
 
 type Snapshot = { nodes: Node[]; edges: Edge[] }
-type CanvasHistoryApi = { remember: () => void }
+type CanvasHistoryApi = { remember: () => void; openProperties: () => void }
 const CanvasHistoryContext = createContext<CanvasHistoryApi | null>(null)
 
 function useCanvasHistory() {
@@ -98,6 +101,8 @@ type Props = {
   edges: Edge[]
   setNodes: Dispatch<SetStateAction<Node[]>>
   setEdges: Dispatch<SetStateAction<Edge[]>>
+  viewport?: Viewport
+  onViewportChange?: (viewport: Viewport) => void
 }
 
 const componentDefinitions: Array<{ kind: ArchitectureKind; label: string; description: string; iconId?: string; category?: string; keywords?: string }> = [
@@ -115,6 +120,7 @@ const componentDefinitions: Array<{ kind: ArchitectureKind; label: string; descr
   { kind: 'container', label: 'Boundary', description: 'System, network, or provider boundary', category: 'General' },
   { kind: 'note', label: 'Note', description: 'Diagram annotation', category: 'General' },
   { kind: 'text', label: 'Text', description: 'Standalone label', category: 'General' },
+  { kind: 'custom', label: 'Custom Component', description: 'User-defined architecture element', category: 'General', keywords: 'custom generic user defined architecture block' },
   { kind: 'service', label: 'AWS Lambda', description: 'Serverless function', iconId: 'aws-lambda', category: 'AWS', keywords: 'amazon function faas' },
   { kind: 'database', label: 'Amazon DynamoDB', description: 'Managed NoSQL database', iconId: 'aws-dynamodb', category: 'AWS', keywords: 'aws dynamo nosql key value document table' },
   { kind: 'service', label: 'Amazon ECS', description: 'Elastic Container Service', iconId: 'aws-ecs', category: 'AWS', keywords: 'aws elastic container service cluster task' },
@@ -254,7 +260,7 @@ const componentDefinitions: Array<{ kind: ArchitectureKind; label: string; descr
 const iconByKind = {
   service: Server, web: AppWindow, mobile: Smartphone, database: Database, cache: Braces,
   queue: Workflow, storage: Cloud, external: ExternalLink, actor: UserRound, container: Boxes,
-  note: MessageSquareText, text: FileText,
+  note: MessageSquareText, text: FileText, custom: Shapes,
 }
 
 type CanvasIcon = ComponentType<{ className?: string; color?: string; size?: string | number; style?: CSSProperties }>
@@ -343,6 +349,7 @@ const generalGroupByLabel: Record<string, GeneralComponentGroup> = {
   'Firewall / WAF': 'Security', 'Secrets Manager': 'Security', 'Identity Provider': 'Security',
   Container: 'Platform', 'Kubernetes Cluster': 'Platform', Docker: 'Platform',
   'External system': 'Utilities', 'User / Actor': 'Utilities', Boundary: 'Utilities', Note: 'Utilities', Text: 'Utilities',
+  'Custom Component': 'Utilities',
 }
 
 const aiGroupOrder = ['Architecture', 'Model Providers', 'Agent Frameworks', 'Vector Data', 'Inference', 'Observability'] as const
@@ -374,14 +381,13 @@ function BidirectionalHandle({ position, id }: { position: Position; id: string 
 }
 
 function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNodeData>>) {
-  const { getNode, updateNode } = useReactFlow()
+  const { getNode, setNodes, updateNode } = useReactFlow()
   const history = useCanvasHistory()
   const editing = useRef(false)
   const kind = data.kind || 'service'
   const Icon = (data.iconId && iconById[data.iconId]) || iconByKind[kind]
   const label = data.label || ''
-  const labelLength = label.length
-  const iconDensity = labelLength > 24 ? 'icon-compact' : labelLength > 14 ? 'icon-medium' : 'icon-large'
+  const iconFirst = kind !== 'text' && kind !== 'note' && kind !== 'container'
 
   useEffect(() => {
     if (kind === 'container') return
@@ -406,8 +412,22 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
 
   return (
     <div
-      className={`architecture-node architecture-node-${kind} ${iconDensity}${selected ? ' selected' : ''}${data.locked ? ' locked' : ''}`}
+      className={`architecture-node architecture-node-${kind}${iconFirst ? ' icon-first' : ''}${selected ? ' selected' : ''}${data.locked ? ' locked' : ''}`}
       style={{ background: data.fill, borderColor: data.border, color: data.textColor }}
+      onPointerDown={(event) => {
+        if (!event.shiftKey) return
+        event.stopPropagation()
+        const groupId = data.groupId
+        window.setTimeout(() => setNodes((current) => current.map((node) => ({
+          ...node,
+          selected: Boolean(node.selected || node.id === id || groupId && node.data?.groupId === groupId),
+        }))), 0)
+      }}
+      onDoubleClick={(event) => {
+        event.stopPropagation()
+        setNodes((current) => current.map((node) => ({ ...node, selected: node.id === id })))
+        history.openProperties()
+      }}
     >
       {kind !== 'text' && <span className="component-kind-icon" aria-hidden="true" style={{ color: data.iconId ? iconColorById[data.iconId] : undefined }}><Icon /></span>}
       <button
@@ -420,9 +440,9 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
       <div className="architecture-node-copy">
         {selected ? <textarea className="nodrag nowheel" aria-label="Component name" value={label}
           onFocus={() => { if (!editing.current) history.remember(); editing.current = true }}
-          onChange={(event) => updateContent(event.target.value)}
+          onChange={(event) => updateContent(iconFirst ? event.target.value.replace(/\s*[\r\n]+\s*/g, ' ') : event.target.value)}
           onBlur={() => { updateContent(label.trim() || 'Untitled component'); editing.current = false }}
-          rows={getComponentSize(label, kind).height > 52 ? 2 : 1} /> : <strong title={data.label}>{truncateCanvasText(data.label || 'Untitled component', COMPONENT_TITLE_LIMIT)}</strong>}
+          rows={Math.min(2, Math.max(1, Math.round((getComponentSize(label, kind).height - 42) / 12) + 1))} /> : <strong>{truncateCanvasText(data.label || 'Untitled component', COMPONENT_TITLE_LIMIT)}</strong>}
       </div>
       {kind !== 'text' && kind !== 'note' && kind !== 'container' && (
         <>
@@ -528,7 +548,82 @@ export function applyGroupAwareNodeChanges(changes: NodeChange[], nodes: Node[])
       changedIds.add(member.id)
     }
   }
+  for (const change of changes) {
+    if (change.type !== 'position' || !change.position) continue
+    const moved = nodes.find((node) => node.id === change.id)
+    if (moved?.data?.kind !== 'container') continue
+    const delta = { x: change.position.x - moved.position.x, y: change.position.y - moved.position.y }
+    for (const child of nodes.filter((node) => node.data?.containerId === moved.id && !changedIds.has(node.id))) {
+      expanded.push({
+        type: 'position', id: child.id, dragging: change.dragging,
+        position: { x: child.position.x + delta.x, y: child.position.y + delta.y },
+      })
+      changedIds.add(child.id)
+    }
+  }
   return applyNodeChanges(expanded, nodes)
+}
+
+function nodeSize(node: Node) {
+  return {
+    width: Number(node.measured?.width || node.width || node.style?.width || 0),
+    height: Number(node.measured?.height || node.height || node.style?.height || 0),
+  }
+}
+
+export function assignNodeToContainingContainer(nodes: Node[], nodeId: string): Node[] {
+  const moved = nodes.find((node) => node.id === nodeId)
+  if (!moved || moved.data?.kind === 'container') return nodes
+  const size = nodeSize(moved)
+  const center = { x: moved.position.x + size.width / 2, y: moved.position.y + size.height / 2 }
+  const containers = nodes.filter((node) => node.id !== nodeId && node.data?.kind === 'container').filter((node) => {
+    const bounds = nodeSize(node)
+    return center.x >= node.position.x && center.x <= node.position.x + bounds.width
+      && center.y >= node.position.y && center.y <= node.position.y + bounds.height
+  }).sort((a, b) => {
+    const aSize = nodeSize(a); const bSize = nodeSize(b)
+    return aSize.width * aSize.height - bSize.width * bSize.height
+  })
+  const containerId = containers[0]?.id
+  return nodes.map((node) => node.id === nodeId ? { ...node, data: { ...node.data, containerId } } : node)
+}
+
+export function moveSelectedCanvasNodes(nodes: Node[], dx: number, dy: number): Node[] {
+  const changes: NodeChange[] = nodes.filter((node) => node.selected && !node.data?.locked).map((node) => ({
+    type: 'position', id: node.id, position: { x: node.position.x + dx, y: node.position.y + dy },
+  }))
+  return changes.length ? applyGroupAwareNodeChanges(changes, nodes) : nodes
+}
+
+export function reorderSelectedCanvasNodes(nodes: Node[], direction: 'front' | 'back'): Node[] {
+  const selected = nodes.filter((node) => node.selected)
+  if (!selected.length) return nodes
+  const zValues = nodes.map((node) => Number(node.zIndex || 0))
+  const zIndex = direction === 'front' ? Math.max(...zValues) + 1 : Math.min(...zValues) - 1
+  return nodes.map((node) => node.selected ? { ...node, zIndex } : node)
+}
+
+type Alignment = 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom'
+export function alignCanvasNodes(nodes: Node[], alignment: Alignment): Node[] {
+  const selected = nodes.filter((node) => node.selected)
+  if (selected.length < 2) return nodes
+  const width = (node: Node) => Number(node.measured?.width || node.width || node.style?.width || 0)
+  const height = (node: Node) => Number(node.measured?.height || node.height || node.style?.height || 0)
+  const value = alignment === 'left' ? Math.min(...selected.map((node) => node.position.x))
+    : alignment === 'right' ? Math.max(...selected.map((node) => node.position.x + width(node)))
+    : alignment === 'center' ? selected.reduce((sum, node) => sum + node.position.x + width(node) / 2, 0) / selected.length
+    : alignment === 'top' ? Math.min(...selected.map((node) => node.position.y))
+    : alignment === 'bottom' ? Math.max(...selected.map((node) => node.position.y + height(node)))
+    : selected.reduce((sum, node) => sum + node.position.y + height(node) / 2, 0) / selected.length
+  return nodes.map((node) => !node.selected ? node : {
+    ...node,
+    position: alignment === 'left' ? { ...node.position, x: value }
+      : alignment === 'right' ? { ...node.position, x: value - width(node) }
+      : alignment === 'center' ? { ...node.position, x: value - width(node) / 2 }
+      : alignment === 'top' ? { ...node.position, y: value }
+      : alignment === 'bottom' ? { ...node.position, y: value - height(node) }
+      : { ...node.position, y: value - height(node) / 2 },
+  })
 }
 
 export function arrangeCanvasNodes(nodes: Node[], edges: Edge[], direction: 'horizontal' | 'vertical'): Node[] {
@@ -571,16 +666,19 @@ export function distributeCanvasNodes(nodes: Node[], direction: 'horizontal' | '
     : { ...node.position, y: positions.get(node.id)! } }))
 }
 
-function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
+function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onViewportChange }: Props) {
   const flow = useReactFlow()
   const [tool, setTool] = useState<CanvasTool>('select')
   const [libraryOpen, setLibraryOpen] = useState(false)
+  const [propertiesOpen, setPropertiesOpen] = useState(false)
   const [minimapVisible, setMinimapVisible] = useState(true)
   const [search, setSearch] = useState('')
   const [componentCategory, setComponentCategory] = useState('All')
   const [openGeneralGroups, setOpenGeneralGroups] = useState<Set<GeneralComponentGroup>>(() => new Set(['Applications']))
   const [openAiGroups, setOpenAiGroups] = useState<Set<AiComponentGroup>>(() => new Set(['Architecture']))
   const [zoom, setZoom] = useState(100)
+  const [gridVisible, setGridVisible] = useState(true)
+  const [snapEnabled, setSnapEnabled] = useState(true)
   const [historyVersion, setHistoryVersion] = useState(0)
   const undoStack = useRef<Snapshot[]>([])
   const redoStack = useRef<Snapshot[]>([])
@@ -609,6 +707,10 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
   const selectedEdge = selectedEdges.length === 1 ? selectedEdges[0] : undefined
   const selectedGroups = useMemo(() => new Set(selectedNodes.map((node) => node.data?.groupId).filter(Boolean)), [selectedNodes])
 
+  useEffect(() => {
+    if (selectedNodes.length + selectedEdges.length !== 1) setPropertiesOpen(false)
+  }, [selectedEdges.length, selectedNodes.length])
+
   function remember(snapshot: Snapshot = { nodes: nodesRef.current, edges: edgesRef.current }) {
     undoStack.current.push(structuredClone(snapshot))
     if (undoStack.current.length > 50) undoStack.current.shift()
@@ -616,7 +718,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
     setHistoryVersion((value) => value + 1)
   }
 
-  const historyApi = useMemo<CanvasHistoryApi>(() => ({ remember: () => remember() }), [])
+  const historyApi = useMemo<CanvasHistoryApi>(() => ({ remember: () => remember(), openProperties: () => setPropertiesOpen(true) }), [])
 
   const restore = useCallback((snapshot: Snapshot) => {
     setNodes(structuredClone(snapshot.nodes))
@@ -639,14 +741,14 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
     setHistoryVersion((value) => value + 1)
   }, [restore])
 
-  function addComponent(kind: ArchitectureKind, iconId?: string) {
+  function addComponent(kind: ArchitectureKind, iconId?: string, dropPosition?: { x: number; y: number }) {
     const definition = componentDefinitions.find((item) => item.kind === kind && item.iconId === iconId)!
     const size = getComponentSize(definition.label, kind)
-    const viewportCenter = flow.screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
+    const viewportCenter = dropPosition || flow.screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
     const node: Node<ArchitectureNodeData> = {
       id: crypto.randomUUID(),
       type: 'architecture',
-      position: { x: viewportCenter.x - 80, y: viewportCenter.y - 40 },
+      position: { x: viewportCenter.x - size.width / 2, y: viewportCenter.y - size.height / 2 },
       data: {
         kind,
         label: definition.label,
@@ -674,6 +776,22 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
     setEdges((current) => current.filter((edge) => !edge.selected && !ids.has(edge.source) && !ids.has(edge.target)))
   }
 
+  function duplicateSelectedEdge() {
+    if (!selectedEdge) return
+    remember()
+    const duplicate = { ...structuredClone(selectedEdge), id: crypto.randomUUID(), selected: true, label: selectedEdge.label ? `${selectedEdge.label} copy` : '' }
+    setEdges((current) => [...current.map((edge) => ({ ...edge, selected: false })), duplicate])
+  }
+
+  function setSelectedLock(locked: boolean) {
+    if (!selectedNodes.length) return
+    remember()
+    const ids = new Set(selectedNodes.map((node) => node.id))
+    setNodes((current) => current.map((node) => ids.has(node.id)
+      ? { ...node, draggable: !locked, data: { ...node.data, locked } }
+      : node))
+  }
+
   const groupSelection = useCallback(() => {
     if (nodesRef.current.filter((node) => node.selected).length < 2) return
     remember()
@@ -686,8 +804,14 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
     setNodes(ungroupSelectedNodes)
   }, [setNodes])
 
-  const selectGroup = useCallback((node: Node) => {
-    if (node.data?.groupId) setNodes((current) => selectPersistentGroup(current, node))
+  const selectGroup = useCallback((node: Node, additive = false) => {
+    if (additive) {
+      const groupId = node.data?.groupId
+      setNodes((current) => current.map((item) => ({
+        ...item,
+        selected: Boolean(item.selected || item.id === node.id || groupId && item.data?.groupId === groupId),
+      })))
+    } else if (node.data?.groupId) setNodes((current) => selectPersistentGroup(current, node))
   }, [setNodes])
 
   const copySelection = useCallback(() => {
@@ -724,6 +848,8 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
     clipboard.current = { nodes: pastedNodes, edges: pastedEdges }
   }, [setEdges, setNodes])
 
+  const duplicateSelection = useCallback(() => { copySelection(); pasteSelection() }, [copySelection, pasteSelection])
+
   const onConnect = useCallback((connection: Connection) => {
     remember()
     setEdges((current) => addEdge({
@@ -748,16 +874,10 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
     setEdges((current) => applyEdgeChanges(changes, current))
   }, [setEdges])
 
-  const align = (direction: 'horizontal' | 'vertical') => {
+  const align = (alignment: Alignment) => {
     if (selectedNodes.length < 2) return
     remember()
-    if (direction === 'horizontal') {
-      const y = selectedNodes.reduce((total, node) => total + node.position.y, 0) / selectedNodes.length
-      setNodes((current) => current.map((node) => node.selected ? { ...node, position: { ...node.position, y } } : node))
-    } else {
-      const x = selectedNodes.reduce((total, node) => total + node.position.x, 0) / selectedNodes.length
-      setNodes((current) => current.map((node) => node.selected ? { ...node, position: { ...node.position, x } } : node))
-    }
+    setNodes((current) => alignCanvasNodes(current, alignment))
   }
 
   const arrange = (direction: 'horizontal' | 'vertical') => {
@@ -772,12 +892,32 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
     setNodes((current) => distributeCanvasNodes(current, direction))
   }
 
+  const reorderSelection = (direction: 'front' | 'back') => {
+    if (!selectedNodes.length) return
+    remember()
+    setNodes((current) => reorderSelectedCanvasNodes(current, direction))
+  }
+
   const changeSelectedIcon = (iconId: string) => {
     if (selectedNodes.length !== 1) return
     remember()
     setNodes((current) => current.map((node) => node.id === selectedNodes[0].id
       ? { ...node, data: { ...node.data, iconId: iconId || undefined } }
       : node))
+  }
+
+  const updateSelectedNode = (patch: Partial<ArchitectureNodeData>, record = true) => {
+    if (selectedNodes.length !== 1) return
+    if (record) remember()
+    const selected = selectedNodes[0]
+    setNodes((current) => current.map((node) => {
+      if (node.id !== selected.id) return node
+      const data = { ...node.data, ...patch } as ArchitectureNodeData
+      const kind = data.kind || 'service'
+      const size = kind === 'container' ? node.style : getComponentSize(data.label || 'Untitled component', kind)
+      const wasContainer = node.data?.kind === 'container'
+      return { ...node, data, style: { ...node.style, ...size }, zIndex: kind === 'container' ? -1 : wasContainer ? 0 : node.zIndex }
+    }))
   }
 
   useEffect(() => {
@@ -803,6 +943,15 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
       if (command && event.key.toLowerCase() === 'x') { event.preventDefault(); copySelection(); deleteSelection(); return }
       if (command && event.key.toLowerCase() === 'v') { event.preventDefault(); pasteSelection(); return }
       if (command && event.key.toLowerCase() === 'd') { event.preventDefault(); copySelection(); pasteSelection(); return }
+      if (event.key.startsWith('Arrow') && nodesRef.current.some((node) => node.selected && !node.data?.locked)) {
+        event.preventDefault()
+        const distance = event.shiftKey ? 10 : 1
+        const dx = event.key === 'ArrowLeft' ? -distance : event.key === 'ArrowRight' ? distance : 0
+        const dy = event.key === 'ArrowUp' ? -distance : event.key === 'ArrowDown' ? distance : 0
+        remember()
+        setNodes((current) => moveSelectedCanvasNodes(current, dx, dy))
+        return
+      }
       if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); deleteSelection() }
     }
     document.addEventListener('keydown', handleKeyDown)
@@ -835,6 +984,11 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
     const DisplayIcon = (item.iconId && iconById[item.iconId]) || Icon
     return <button
       key={`${item.kind}-${item.iconId || item.label}`}
+      draggable
+      onDragStart={(event) => {
+        event.dataTransfer.effectAllowed = 'copy'
+        event.dataTransfer.setData('application/x-archly-component', JSON.stringify({ kind: item.kind, iconId: item.iconId }))
+      }}
       onClick={() => addComponent(item.kind, item.iconId)}
       title={`${item.label} — ${item.description}`}
       aria-label={`${item.label}: ${item.description}`}
@@ -853,13 +1007,26 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onReconnect={onReconnect}
-        onNodeClick={(_, node) => selectGroup(node)}
+        onNodeClick={(event, node) => selectGroup(node, event.shiftKey)}
         onNodeDragStart={(_, node) => {
           selectGroup(node)
           dragSnapshot.current = structuredClone({ nodes: nodesRef.current, edges: edgesRef.current })
         }}
-        onNodeDragStop={() => { if (dragSnapshot.current) remember(dragSnapshot.current); dragSnapshot.current = null }}
-        onMove={(_, viewport) => setZoom(Math.round(viewport.zoom * 100))}
+        onNodeDragStop={(_, node) => {
+          if (dragSnapshot.current) remember(dragSnapshot.current)
+          dragSnapshot.current = null
+          setNodes((current) => assignNodeToContainingContainer(current, node.id))
+        }}
+        onDragOver={(event) => { if (event.dataTransfer.types.includes('application/x-archly-component')) event.preventDefault() }}
+        onDrop={(event) => {
+          const payload = event.dataTransfer.getData('application/x-archly-component')
+          if (!payload) return
+          event.preventDefault()
+          const item = JSON.parse(payload) as { kind: ArchitectureKind; iconId?: string }
+          const position = flow.screenToFlowPosition({ x: event.clientX, y: event.clientY })
+          addComponent(item.kind, item.iconId, Number.isFinite(position.x) && Number.isFinite(position.y) ? position : { x: 0, y: 0 })
+        }}
+        onViewportChange={(nextViewport) => { setZoom(Math.round(nextViewport.zoom * 100)); onViewportChange?.(nextViewport) }}
         panOnDrag={tool === 'pan' ? true : [1]}
         nodesDraggable={tool !== 'pan'}
         nodesConnectable={tool === 'connect' || tool === 'select'}
@@ -868,27 +1035,29 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
         elevateEdgesOnSelect
         connectionMode={ConnectionMode.Loose}
         selectionOnDrag={tool === 'select'}
-        snapToGrid
+        multiSelectionKeyCode="Shift"
+        snapToGrid={snapEnabled}
         snapGrid={[16, 16]}
         deleteKeyCode={null}
-        fitView
+        viewport={viewport}
       >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1.2} />
+        {gridVisible && <Background variant={BackgroundVariant.Dots} gap={20} size={1.2} />}
         {minimapVisible && <MiniMap pannable zoomable />}
         <Controls showZoom={false} showFitView={false} showInteractive={false} />
       </ReactFlow>
       </CanvasHistoryContext.Provider>
 
       <div className="canvas-toolbox" role="toolbar" aria-label="Canvas tools">
-        <button className={tool === 'select' ? 'active' : ''} onClick={() => setTool('select')} title="Select (Esc)" aria-label="Select"><MousePointer2 /></button>
-        <button className={tool === 'pan' ? 'active' : ''} onClick={() => setTool('pan')} title="Pan" aria-label="Pan"><Hand /></button>
+        <button className={tool === 'select' ? 'active' : ''} aria-pressed={tool === 'select'} onClick={() => setTool('select')} title="Select (Esc)" aria-label="Select"><MousePointer2 /></button>
+        <button className={tool === 'pan' ? 'active' : ''} aria-pressed={tool === 'pan'} onClick={() => setTool('pan')} title="Pan" aria-label="Pan"><Hand /></button>
         <span />
-        <button className={libraryOpen ? 'active' : ''} onClick={() => setLibraryOpen((open) => !open)} title="Add component" aria-label="Add component"><Plus /></button>
+        <button className={libraryOpen ? 'active' : ''} aria-pressed={libraryOpen} onClick={() => setLibraryOpen((open) => !open)} title="Add component" aria-label="Add component"><Plus /></button>
         <button onClick={() => addComponent('text')} title="Add text" aria-label="Add text"><FileText /></button>
         <button onClick={() => addComponent('note')} title="Add note" aria-label="Add note"><MessageSquareText /></button>
-        <button className={tool === 'connect' ? 'active' : ''} onClick={() => setTool('connect')} title="Connect components" aria-label="Connect components"><Network /></button>
+        <button className={tool === 'connect' ? 'active' : ''} aria-pressed={tool === 'connect'} onClick={() => setTool('connect')} title="Connect components" aria-label="Connect components"><Network /></button>
         <button onClick={() => addComponent('container')} title="Add container" aria-label="Add container"><Box /></button>
         <span />
+        <button className={propertiesOpen ? 'active' : ''} aria-pressed={propertiesOpen} disabled={selectedNodes.length + selectedEdges.length !== 1} onClick={() => setPropertiesOpen((open) => !open)} title="Properties" aria-label="Properties"><Cog /></button>
         <button onClick={deleteSelection} disabled={!selectedNodes.length && !selectedEdges.length} title="Delete selected" aria-label="Delete selected"><Trash2 /></button>
       </div>
 
@@ -934,21 +1103,72 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges }: Props) {
         </aside>
       )}
 
+      {propertiesOpen && selectedNodes.length === 1 && <aside className="canvas-properties" aria-label="Properties inspector">
+        <header><div className="property-heading"><strong>Component</strong><small>{String(selectedNodes[0].data.kind || 'service')}</small></div><button className="property-close" onClick={() => setPropertiesOpen(false)} aria-label="Close properties"><X /></button></header>
+        <label>Title<input aria-label="Component property title" value={String(selectedNodes[0].data.label || '')} onFocus={() => remember()} onChange={(event) => updateSelectedNode({ label: event.target.value }, false)} /></label>
+        <label>Description<textarea aria-label="Component description" value={String(selectedNodes[0].data.description || '')} onFocus={() => remember()} onChange={(event) => updateSelectedNode({ description: event.target.value }, false)} rows={2} /></label>
+        <label>Type<select aria-label="Component type" value={String(selectedNodes[0].data.kind || 'service')} onChange={(event) => updateSelectedNode({ kind: event.target.value as ArchitectureKind })}>
+          {(['service','web','mobile','database','cache','queue','storage','external','actor','container','note','text','custom'] as ArchitectureKind[]).map((kind) => <option key={kind} value={kind}>{kind}</option>)}
+        </select></label>
+        <label>Icon<select aria-label="Component icon" value={String(selectedNodes[0].data.iconId || '')} onChange={(event) => changeSelectedIcon(event.target.value)}>
+          <option value="">Default icon</option>{componentDefinitions.filter((item) => item.iconId).map((item) => <option key={item.iconId} value={item.iconId}>{item.label}</option>)}
+        </select></label>
+        <div className="component-color-fields">
+          <label>Fill<input type="color" aria-label="Component fill color" value={String(selectedNodes[0].data.fill || '#ffffff')} onFocus={() => remember()} onChange={(event) => updateSelectedNode({ fill: event.target.value }, false)} /></label>
+          <label>Border<input type="color" aria-label="Component border color" value={String(selectedNodes[0].data.border || '#e4e4eb')} onFocus={() => remember()} onChange={(event) => updateSelectedNode({ border: event.target.value }, false)} /></label>
+          <label>Text<input type="color" aria-label="Component text color" value={String(selectedNodes[0].data.textColor || '#151823')} onFocus={() => remember()} onChange={(event) => updateSelectedNode({ textColor: event.target.value }, false)} /></label>
+        </div>
+        <div className="property-actions">
+          <button onClick={duplicateSelection}><Copy />Duplicate</button>
+          <button onClick={() => setSelectedLock(!selectedNodes[0].data?.locked)}>{selectedNodes[0].data?.locked ? <Unlock /> : <Lock />}{selectedNodes[0].data?.locked ? 'Unlock' : 'Lock'}</button>
+          <button className="danger" onClick={deleteSelection}><Trash2 />Delete</button>
+        </div>
+      </aside>}
+      {propertiesOpen && selectedEdge && <aside className="canvas-properties" aria-label="Properties inspector">
+        <header><div className="property-heading"><strong>Connection</strong><small>Edge</small></div><button className="property-close" onClick={() => setPropertiesOpen(false)} aria-label="Close properties"><X /></button></header>
+        <label>Label<input aria-label="Connection property label" value={String(selectedEdge.label || '')} onFocus={() => remember()} onChange={(event) => updateSelectedEdge({ label: event.target.value }, false)} /></label>
+        <label>Routing<select aria-label="Connection property routing" value={String(selectedEdge.data?.routing || 'smoothstep')} onChange={(event) => updateSelectedEdge({ data: { ...selectedEdge.data, routing: event.target.value } })}><option value="straight">Straight</option><option value="default">Curved</option><option value="smoothstep">Stepped</option></select></label>
+        <label>Direction<select aria-label="Connection direction" value={selectedEdge.markerStart && selectedEdge.markerEnd ? 'both' : selectedEdge.markerStart ? 'start' : selectedEdge.markerEnd ? 'end' : 'none'} onChange={(event) => {
+          const direction = event.target.value
+          updateSelectedEdge({ markerStart: direction === 'start' || direction === 'both' ? { type: MarkerType.ArrowClosed } : undefined, markerEnd: direction === 'end' || direction === 'both' ? { type: MarkerType.ArrowClosed } : undefined })
+        }}><option value="none">No arrows</option><option value="end">End</option><option value="start">Start</option><option value="both">Both</option></select></label>
+        <label>Line style<select aria-label="Connection line style" value={selectedEdge.style?.strokeDasharray ? 'dashed' : 'solid'} onChange={(event) => updateSelectedEdge({ style: { ...selectedEdge.style, strokeDasharray: event.target.value === 'dashed' ? '7 5' : undefined } })}><option value="solid">Solid</option><option value="dashed">Dashed</option></select></label>
+        <label>Color<input type="color" aria-label="Connection property color" value={String(selectedEdge.style?.stroke || '#68708a')} onFocus={() => remember()} onChange={(event) => updateSelectedEdge({ style: { ...selectedEdge.style, stroke: event.target.value } }, false)} /></label>
+        <div className="property-actions"><button onClick={duplicateSelectedEdge}><Copy />Duplicate</button><button className="danger" onClick={deleteSelection}><Trash2 />Delete</button></div>
+      </aside>}
+
       <div className="canvas-history" role="toolbar" aria-label="Canvas history and layout">
         <button onClick={undo} disabled={!undoStack.current.length} title="Undo" aria-label="Undo canvas change"><Undo2 /></button>
         <button onClick={redo} disabled={!redoStack.current.length} title="Redo" aria-label="Redo canvas change"><Redo2 /></button>
-        {selectedNodes.length > 1 && <><span /><button onClick={() => align('horizontal')} title="Align horizontally" aria-label="Align horizontally"><AlignHorizontalDistributeCenter /></button><button onClick={() => align('vertical')} title="Align vertically" aria-label="Align vertically"><AlignVerticalDistributeCenter /></button></>}
+        {selectedNodes.length > 1 && <><span />
+          <button onClick={() => align('left')} title="Align left" aria-label="Align left"><AlignStartVertical /></button>
+          <button onClick={() => align('center')} title="Align centers" aria-label="Align centers"><AlignCenterVertical /></button>
+          <button onClick={() => align('right')} title="Align right" aria-label="Align right"><AlignEndVertical /></button>
+          <button onClick={() => align('top')} title="Align top" aria-label="Align top"><AlignStartHorizontal /></button>
+          <button onClick={() => align('middle')} title="Align middles" aria-label="Align middles"><AlignCenterHorizontal /></button>
+          <button onClick={() => align('bottom')} title="Align bottom" aria-label="Align bottom"><AlignEndHorizontal /></button>
+        </>}
         {selectedNodes.length > 1 && <><button onClick={() => arrange('horizontal')} title="Horizontal connection-aware layout" aria-label="Horizontal layout"><ArrowRight /></button><button onClick={() => arrange('vertical')} title="Vertical connection-aware layout" aria-label="Vertical layout"><Workflow /></button></>}
         {selectedNodes.length > 2 && <><button onClick={() => distribute('horizontal')} title="Distribute horizontally" aria-label="Distribute horizontally"><AlignHorizontalDistributeCenter /></button><button onClick={() => distribute('vertical')} title="Distribute vertically" aria-label="Distribute vertically"><AlignVerticalDistributeCenter /></button></>}
-        {selectedNodes.length > 1 && <button onClick={groupSelection} title="Group selected components (Ctrl+G)" aria-label="Group selected components"><Group /></button>}
-        {selectedGroups.size > 0 && <button onClick={ungroupSelection} title="Ungroup selected components (Ctrl+Shift+G)" aria-label="Ungroup selected components"><Ungroup /></button>}
-        {selectedNodes.length === 1 && <select className="canvas-icon-picker" aria-label="Component icon" value={String(selectedNodes[0].data?.iconId || '')} onChange={(event) => changeSelectedIcon(event.target.value)}>
-          <option value="">Default icon</option>{componentDefinitions.filter((item) => item.iconId).map((item) => <option key={item.iconId} value={item.iconId}>{item.label}</option>)}
-        </select>}
         <i aria-hidden="true">{historyVersion}</i>
       </div>
 
+      {selectedNodes.length > 0 && <div className="selection-toolbar" role="toolbar" aria-label="Selection actions">
+        <button onClick={duplicateSelection} title="Duplicate selected" aria-label="Duplicate selected"><Copy /></button>
+        {selectedNodes.every((node) => node.data?.locked)
+          ? <button onClick={() => setSelectedLock(false)} title="Unlock selected components" aria-label="Unlock selected components"><Unlock /></button>
+          : <button onClick={() => setSelectedLock(true)} title="Lock selected components" aria-label="Lock selected components"><Lock /></button>}
+        {selectedNodes.length > 1 && <button onClick={groupSelection} title="Group selected components" aria-label="Group selected components"><Group /></button>}
+        {selectedGroups.size > 0 && <button onClick={ungroupSelection} title="Ungroup selected components" aria-label="Ungroup selected components"><Ungroup /></button>}
+        <button onClick={() => reorderSelection('front')} title="Bring selected forward" aria-label="Bring selected forward"><BringToFront /></button>
+        <button onClick={() => reorderSelection('back')} title="Send selected backward" aria-label="Send selected backward"><SendToBack /></button>
+        <button onClick={deleteSelection} title="Delete selected" aria-label="Delete selection"><Trash2 /></button>
+      </div>}
+
       <div className="canvas-navigation" role="toolbar" aria-label="Canvas navigation">
+        <button className={gridVisible ? 'active' : ''} aria-pressed={gridVisible} onClick={() => setGridVisible((value) => !value)} title="Toggle grid" aria-label="Toggle grid"><Grid3X3 /></button>
+        <button className={snapEnabled ? 'active' : ''} aria-pressed={snapEnabled} onClick={() => setSnapEnabled((value) => !value)} title="Toggle snap to grid" aria-label="Toggle snap to grid"><Magnet /></button>
+        <span />
         <button onClick={() => flow.zoomOut()} title="Zoom out" aria-label="Zoom out"><ZoomOut /></button>
         <button className="zoom-value" onClick={() => flow.zoomTo(1)} title="Reset zoom">{zoom}%</button>
         <button onClick={() => flow.zoomIn()} title="Zoom in" aria-label="Zoom in"><ZoomIn /></button>

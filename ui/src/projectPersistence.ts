@@ -1,4 +1,4 @@
-import type { Edge, Node } from '@xyflow/react'
+import type { Edge, Node, Viewport } from '@xyflow/react'
 import type { CanvasData, Project } from './types'
 import { getComponentSize, type ArchitectureKind } from './components/canvasSizing'
 
@@ -39,16 +39,21 @@ function durableNode(node: Node): Node {
 function durableEdge(edge: Edge): Edge {
   const durable = { ...edge }
   delete durable.selected
+  if (durable.data && 'waypoints' in durable.data) {
+    const data = { ...durable.data }
+    delete data.waypoints
+    durable.data = data
+  }
   return durable
 }
 
-export function serializeCanvas(nodes: Node[], edges: Edge[]): string {
-  return JSON.stringify({ nodes: nodes.map(durableNode), edges: edges.map(durableEdge) })
+export function serializeCanvas(nodes: Node[], edges: Edge[], viewport?: Viewport): string {
+  return JSON.stringify({ nodes: nodes.map(durableNode), edges: edges.map(durableEdge), ...(viewport ? { viewport } : {}) })
 }
 
 export function canonicalCanvasJson(value: string): string {
   const canvas = parseCanvas(value)
-  return serializeCanvas(canvas.nodes, canvas.edges)
+  return serializeCanvas(canvas.nodes, canvas.edges, canvas.viewport)
 }
 
 export function contentSignature(content: ProjectContent): string {

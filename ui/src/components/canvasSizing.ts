@@ -1,6 +1,6 @@
-export type ArchitectureKind = 'service' | 'web' | 'mobile' | 'database' | 'cache' | 'queue' | 'storage' | 'external' | 'actor' | 'container' | 'note' | 'text'
+export type ArchitectureKind = 'service' | 'web' | 'mobile' | 'database' | 'cache' | 'queue' | 'storage' | 'external' | 'actor' | 'container' | 'note' | 'text' | 'custom'
 
-export const COMPONENT_TITLE_LIMIT = 28
+export const COMPONENT_TITLE_LIMIT = 50
 
 export function truncateCanvasText(value: string, limit: number) {
   if (value.length <= limit) return value
@@ -8,13 +8,14 @@ export function truncateCanvasText(value: string, limit: number) {
 }
 
 export function getEdgeLabelWidth(label: string) {
-  return label ? Math.min(144, Math.max(18, Math.ceil(label.length * 5.25 + 6))) : 46
+  return label ? Math.min(132, Math.max(18, Math.ceil(label.length * 4.8 + 4))) : 42
 }
 
 export function getComponentSize(label: string, kind: ArchitectureKind) {
   if (kind === 'container') return { width: 360, height: 240 }
   const visibleLabel = truncateCanvasText(label.trim(), COMPONENT_TITLE_LIMIT)
-  const labelLines = visibleLabel.split(/\r?\n/)
+  const sizedLabel = kind !== 'text' && kind !== 'note' ? visibleLabel.replace(/\s*[\r\n]+\s*/g, ' ') : visibleLabel
+  const labelLines = sizedLabel.split(/\r?\n/)
   const longestLineLength = Math.max(0, ...labelLines.map((line) => line.length))
   const characterWidth = kind === 'text' ? 7 : 6.5
   const reservedSpace = kind === 'text' ? 18 : 24
@@ -24,6 +25,11 @@ export function getComponentSize(label: string, kind: ArchitectureKind) {
   const titleLines = Math.min(2, Math.max(1, labelLines.reduce(
     (total, line) => total + Math.max(1, Math.ceil((line.length * characterWidth) / availableTextWidth)), 0,
   )))
+  if (kind !== 'text' && kind !== 'note') {
+    const compactWidth = Math.round(longestLineLength * 4.7 + 14)
+    const wrappedLines = Math.min(2, Math.max(1, Math.ceil((longestLineLength * 4.7) / 74)))
+    return { width: Math.min(82, Math.max(52, compactWidth)), height: 42 + (wrappedLines - 1) * 12 }
+  }
   return {
     width,
     height: kind === 'text' ? 30 : titleLines > 1 ? 64 : 52,

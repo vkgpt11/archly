@@ -28,8 +28,8 @@ Priorities remain Must, Should, and Could.
 | ID | Priority | Requirement |
 | --- | --- | --- |
 | V2-CON-001 | Must | Users can reconnect either endpoint of the selected connection to any compatible component handle. |
-| V2-CON-002 | Must | Users can add, move, and remove connection waypoints without disconnecting the connection from its components. |
-| V2-CON-003 | Must | Only the selected connection responds to waypoint, endpoint, label, and formatting changes when connections overlap. |
+| V2-CON-002 | Must | Users can switch the selected connection between straight, curved, and stepped automatic routing. |
+| V2-CON-003 | Must | Only the selected connection responds to endpoint, label, routing, and formatting changes when connections overlap. |
 | V2-CON-004 | Must | Users can move a connection label along its path. |
 | V2-CON-005 | Must | The line is visually interrupted behind its label so that line and text do not overlap. |
 | V2-CON-006 | Must | Connection labels use compact spacing and remain readable in light and dark themes. |
@@ -42,7 +42,7 @@ Priorities remain Must, Should, and Could.
 | ID | Priority | Requirement |
 | --- | --- | --- |
 | V2-EDT-001 | Must | Undo and redo cover component creation, deletion, movement, title editing, locking, and styling. |
-| V2-EDT-002 | Must | Undo and redo cover connection creation, deletion, reconnection, routing, labels, waypoints, and formatting. |
+| V2-EDT-002 | Must | Undo and redo cover connection creation, deletion, reconnection, routing, labels, and formatting. |
 | V2-EDT-003 | Must | Copy, cut, paste, and duplicate preserve connections whose two endpoints are included in the copied selection. |
 | V2-EDT-004 | Should | Diagram content can be copied between Archly projects. |
 | V2-EDT-005 | Must | Containers can own components, and moving a container moves its contained components. |
@@ -131,7 +131,7 @@ The prototype stores PNG, JPEG, and WebP screenshots as Base64 data URLs inside 
 V2 is ready for release testing when:
 
 1. Selection and edit mode behave independently for components and connections.
-2. A user can reconnect endpoints, edit waypoints, reposition labels, and reset routing on the selected connection.
+2. A user can reconnect endpoints, switch automatic routing, reposition labels, and reset routing on the selected connection.
 3. Multi-selection, alignment, duplication, grouping, and container movement preserve diagram integrity.
 4. Undo and redo restore every supported canvas mutation without corrupting later history.
 5. Selection-only interactions do not cause network saves or revision changes.

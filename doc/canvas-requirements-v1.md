@@ -47,7 +47,7 @@ Implementation status was audited against the repository on 2026-08-24:
 - **Partial**: part of the requirement exists, but behavior, coverage, or verification is incomplete.
 - **Not done**: no complete implementation was found.
 
-Canvas requirement summary: **36 Done**, **12 Partial**, and **25 Not done**.
+Canvas requirement summary: **41 Done**, **12 Partial**, and **20 Not done**.
 
 ### 4.1 Main toolbar
 
@@ -55,7 +55,7 @@ Canvas requirement summary: **36 Done**, **12 Partial**, and **25 Not done**.
 | --- | --- | --- | --- |
 | CTB-001 | Must | The floating toolbar provides Select, Pan, Add component, Add text, Add note, Connect, Add container, and Delete actions. | Done |
 | CTB-002 | Must | Each toolbar action uses an icon, accessible name, and tooltip. | Done |
-| CTB-003 | Must | The active tool has a visible selected state that does not rely on color alone. | Partial |
+| CTB-003 | Must | The active tool has a visible selected state that does not rely on color alone. | Done |
 | CTB-004 | Must | Users can return to the Select tool by pressing Escape. | Done |
 | CTB-005 | Should | Less frequently used creation actions are available from a More menu. | Not done |
 | CTB-006 | Could | Users can add an image to the canvas. | Not done |
@@ -65,10 +65,10 @@ Canvas requirement summary: **36 Done**, **12 Partial**, and **25 Not done**.
 | ID | Priority | Requirement | Implementation status |
 | --- | --- | --- | --- |
 | LIB-001 | Must | A searchable component library opens from the Add component action. | Done |
-| LIB-002 | Must | The library includes user/actor, web application, mobile application, service/API, database, cache, queue/event bus, file storage, external system, container, and custom component types. | Partial |
-| LIB-003 | Must | Users can add a component by clicking it or dragging it onto the canvas. | Partial |
+| LIB-002 | Must | The library includes user/actor, web application, mobile application, service/API, database, cache, queue/event bus, file storage, external system, container, and custom component types. | Done |
+| LIB-003 | Must | Users can add a component by clicking it or dragging it onto the canvas. | Done |
 | LIB-004 | Must | Components use a consistent card design containing an icon, title, and optional subtitle. | Done |
-| LIB-005 | Must | Users can edit a component's icon, title, description, type, and colors. | Partial |
+| LIB-005 | Must | Users can edit a component's icon, title, description, type, and colors. | Done |
 | LIB-006 | Should | The library remembers the user's recently used components. | Not done |
 | LIB-007 | Could | Provider-specific AWS, Azure, GCP, and Kubernetes libraries can be added after the generic V1 library. | Not done |
 
@@ -78,12 +78,12 @@ Canvas requirement summary: **36 Done**, **12 Partial**, and **25 Not done**.
 | --- | --- | --- | --- |
 | NOD-001 | Must | Users can add, select, move, duplicate, and delete nodes. | Done |
 | NOD-001A | Must | Node dimensions adjust automatically to visible title and subtitle content; manual resizing is not provided. |
-| NOD-002 | Must | Users can edit node text directly and through the properties inspector. | Partial |
+| NOD-002 | Must | Users can edit node text directly and through the properties inspector. | Done |
 | NOD-003 | Must | Text and note elements support multiline content. | Done |
 | NOD-004 | Must | Nodes expose connection handles when selected or when the Connect tool is active. | Done |
 | NOD-005 | Must | Selection outlines remain clearly visible in both themes. | Done |
 | NOD-006 | Should | Users can lock a node to prevent accidental movement. | Done |
-| NOD-007 | Should | Users can bring a node forward or send it backward. | Not done |
+| NOD-007 | Should | Users can bring a node forward or send it backward. | Done |
 
 ### 4.4 Connections
 
@@ -95,7 +95,6 @@ Canvas requirement summary: **36 Done**, **12 Partial**, and **25 Not done**.
 | CON-004 | Must | Connections support straight, curved, and stepped routing. | Done |
 | CON-005 | Must | Connections support solid and dashed line styles and selectable colors. | Done |
 | CON-006 | Must | Connection labels can describe protocols or relationships such as REST, Kafka, or SQL. | Done |
-| CON-007 | Should | Users can add and move intermediate bend points. | Not done |
 | CON-008 | Should | Selecting a connection opens a compact contextual toolbar. | Done |
 
 ### 4.5 Selection and editing
@@ -105,20 +104,20 @@ Canvas requirement summary: **36 Done**, **12 Partial**, and **25 Not done**.
 | SEL-001 | Must | Users can select multiple elements with Shift or a selection rectangle. | Done |
 | SEL-002 | Must | Users can copy, cut, paste, duplicate, and delete selected elements. | Done |
 | SEL-003 | Must | Users can undo and redo canvas changes. | Done |
-| SEL-004 | Must | Arrow keys move selected elements, with a modifier for larger increments. | Not done |
+| SEL-004 | Must | Arrow keys move selected elements, with a modifier for larger increments. | Done |
 | SEL-005 | Must | Users can group and ungroup selected elements. | Done |
 | SEL-006 | Must | Keyboard shortcuts do not activate while the user is editing text. | Done |
-| SEL-007 | Should | Users can lock selected elements. | Partial |
-| SEL-008 | Should | Common selection actions appear in a nearby contextual toolbar. | Partial |
+| SEL-007 | Should | Users can lock selected elements. | Done |
+| SEL-008 | Should | Common selection actions appear in a nearby contextual toolbar. | Done |
 
 ### 4.6 Containers and boundaries
 
 | ID | Priority | Requirement | Implementation status |
 | --- | --- | --- | --- |
 | BND-001 | Must | Users can create labeled containers for systems, service groups, networks, clusters, availability zones, team ownership, or custom boundaries. | Done |
-| BND-002 | Must | A container supports editable title, background, border, and text colors. | Partial |
-| BND-003 | Must | Moving a container moves its contained elements while preserving their relative positions. | Not done |
-| BND-004 | Must | Users can move elements into and out of a container. | Not done |
+| BND-002 | Must | A container supports editable title, background, border, and text colors. | Done |
+| BND-003 | Must | Moving a container moves its contained elements while preserving their relative positions. | Done |
+| BND-004 | Must | Users can move elements into and out of a container. | Done |
 | BND-005 | Should | Containers can be collapsed and expanded. | Not done |
 | BND-006 | Should | A collapsed container shows a summary of its hidden contents. | Not done |
 
@@ -126,9 +125,9 @@ Canvas requirement summary: **36 Done**, **12 Partial**, and **25 Not done**.
 
 | ID | Priority | Requirement | Implementation status |
 | --- | --- | --- | --- |
-| LAY-001 | Must | The canvas provides a visible grid and optional snap-to-grid behavior. | Partial |
+| LAY-001 | Must | The canvas provides a visible grid and optional snap-to-grid behavior. | Done |
 | LAY-002 | Must | Alignment guides appear while elements are moved. | Not done |
-| LAY-003 | Must | Multiple selected elements can be aligned left, center, right, top, middle, or bottom. | Partial |
+| LAY-003 | Must | Multiple selected elements can be aligned left, center, right, top, middle, or bottom. | Done |
 | LAY-004 | Must | Multiple selected elements can be distributed horizontally or vertically. | Done |
 | LAY-005 | Should | Selected elements can be made equal width or equal height. | Not done |
 | LAY-006 | Should | Users can apply automatic horizontal and vertical layouts. | Done |
@@ -138,13 +137,13 @@ Canvas requirement summary: **36 Done**, **12 Partial**, and **25 Not done**.
 
 | ID | Priority | Requirement | Implementation status |
 | --- | --- | --- | --- |
-| PRO-001 | Must | Selecting an element opens a right-side properties inspector. | Not done |
+| PRO-001 | Must | Users can open a compact right-side properties inspector from the Properties action or by double-clicking a component or its icon; selection alone does not open it. | Done |
 | PRO-002 | Must | The inspector changes its controls for nodes, connections, text, notes, containers, and multi-selection. | Not done |
-| PRO-003 | Must | Node properties include name, type, description, icon, fill, border, and text colors. | Not done |
-| PRO-004 | Must | Connection properties include label, direction, routing, line style, and color. | Partial |
+| PRO-003 | Must | Node properties include name, type, description, icon, fill, border, and text colors. | Done |
+| PRO-004 | Must | Connection properties include label, direction, routing, line style, and color. | Done |
 | PRO-005 | Must | Position and size values can be viewed and edited for supported elements. | Not done |
-| PRO-006 | Must | Duplicate, lock, and delete actions are available where applicable. | Partial |
-| PRO-007 | Must | Closing the inspector returns its space to the canvas. | Not done |
+| PRO-006 | Must | Duplicate, lock, and delete actions are available where applicable. | Done |
+| PRO-007 | Must | Closing the compact overlay inspector leaves the full canvas available. | Done |
 
 ### 4.9 Navigation
 
@@ -172,7 +171,7 @@ Canvas requirement summary: **36 Done**, **12 Partial**, and **25 Not done**.
 
 | ID | Priority | Requirement | Implementation status |
 | --- | --- | --- | --- |
-| PER-001 | Must | All canvas elements, positions, styles, connections, grouping, and viewport settings survive a reload. | Partial |
+| PER-001 | Must | All canvas elements, positions, styles, connections, grouping, and viewport settings survive a reload. | Done |
 | PER-002 | Must | Canvas changes use the project autosave flow and expose saving, saved, and failed states. | Done |
 | PER-003 | Must | Concurrent saves cannot silently overwrite newer local or server content. | Done |
 | PER-004 | Must | A failed save retains local canvas changes and offers a retry path. | Done |

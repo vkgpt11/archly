@@ -124,8 +124,9 @@ export default function Editor({ token, initialProject, onBack }: Props) {
   })
   const [nodes, setNodes] = useNodesState(initialCanvas.nodes)
   const [edges, setEdges] = useEdgesState(initialCanvas.edges)
+  const [viewport, setViewport] = useState(initialCanvas.viewport || { x: 0, y: 0, zoom: 1 })
   const [view, setView] = useState<View>('split')
-  const [documentWidth, setDocumentWidth] = useState(45)
+  const [documentWidth, setDocumentWidth] = useState(25)
   const [linkEditorOpen, setLinkEditorOpen] = useState(false)
   const [linkUrl, setLinkUrl] = useState('https://')
   const [linkError, setLinkError] = useState('')
@@ -250,7 +251,7 @@ export default function Editor({ token, initialProject, onBack }: Props) {
       ...latestProject.current,
       name: project.name,
       markdown: project.markdown,
-      canvasJson: serializeCanvas(nodes, edges),
+      canvasJson: serializeCanvas(nodes, edges, viewport),
     }
     const signature = contentSignature(latestProject.current)
     if (signature === lastSavedSignature.current) {
@@ -268,7 +269,7 @@ export default function Editor({ token, initialProject, onBack }: Props) {
     setSaveState(navigator.onLine ? 'saving' : 'offline')
     const timer = window.setTimeout(() => void flushSave(), 900)
     return () => window.clearTimeout(timer)
-  }, [nodes, edges, project.id, project.name, project.markdown, conflictActive, flushSave])
+  }, [nodes, edges, viewport, project.id, project.name, project.markdown, conflictActive, flushSave])
 
   useEffect(() => {
     const retryWhenOnline = () => { if (!conflictActive) void flushSave() }
@@ -339,6 +340,7 @@ export default function Editor({ token, initialProject, onBack }: Props) {
     richTextEditor?.commands.setContent(server.markdown, false)
     setNodes(canvas.nodes)
     setEdges(canvas.edges)
+    setViewport(canvas.viewport || { x: 0, y: 0, zoom: 1 })
     setProject(server)
     clearDraft(server.id)
     setConflict(null)
@@ -471,7 +473,7 @@ export default function Editor({ token, initialProject, onBack }: Props) {
         )}
         {showCanvas && (
           <section className="canvas-panel" style={view === 'split' ? { flexBasis: `${100 - documentWidth}%` } : undefined}>
-            <CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} />
+            <CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} viewport={viewport} onViewportChange={setViewport} />
           </section>
         )}
       </div>

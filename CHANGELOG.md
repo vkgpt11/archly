@@ -8,6 +8,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Completed core canvas interactions: keyboard nudging, persistent container ownership and child movement, and front/back ordering.
+- Added undo/redo coverage for the new interactions and expanded canvas interaction tests.
+- Completed the remaining V1 canvas requirements with custom components, library drag-and-drop, full component and connection inspectors, contextual selection actions, bulk locking, configurable grid and snapping, six-mode alignment, and persisted viewport state.
 - Conflict-aware project saving with local-draft recovery and explicit resolution actions.
 - Persistent canvas groups, group duplication, and undo/redo coverage for canvas mutations.
 - Architecture templates and project duplication.

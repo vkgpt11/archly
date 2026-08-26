@@ -1,6 +1,6 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import CanvasWorkspace, { applyGroupAwareNodeChanges, arrangeCanvasNodes, distributeCanvasNodes, selectPersistentGroup } from './CanvasWorkspace'
+import CanvasWorkspace, { alignCanvasNodes, applyGroupAwareNodeChanges, arrangeCanvasNodes, assignNodeToContainingContainer, distributeCanvasNodes, moveSelectedCanvasNodes, reorderSelectedCanvasNodes, selectPersistentGroup } from './CanvasWorkspace'
 import { clearNodeSelection, selectOnlyEdge } from './canvasSelection'
 import { getComponentSize, getEdgeLabelWidth, truncateCanvasText } from './canvasSizing'
 import { useState } from 'react'
@@ -20,7 +20,10 @@ function ConnectionHarness() {
     { id: 'b', type: 'architecture', position: { x: 300, y: 0 }, data: { label: 'API', kind: 'service' } },
   ])
   const [edges, setEdges] = useState<Edge[]>([{ id: 'a-b', source: 'a', target: 'b', selected: true, label: 'depends on' }])
-  return <div style={{ width: 1000, height: 700 }}><CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} /></div>
+  return <div style={{ width: 1000, height: 700 }}>
+    <CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} />
+    <output data-testid="edge-state">{JSON.stringify(edges)}</output>
+  </div>
 }
 
 function UnselectedComponentHarness() {
@@ -56,12 +59,40 @@ function GroupHarness() {
 }
 
 describe('CanvasWorkspace', () => {
+  it('exposes active canvas tools without relying on color alone', () => {
+    render(<Harness />)
+    const select = screen.getByRole('button', { name: 'Select' })
+    const pan = screen.getByRole('button', { name: 'Pan' })
+    expect(select).toHaveAttribute('aria-pressed', 'true')
+    expect(select).toHaveClass('active')
+    expect(pan).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(pan)
+    expect(pan).toHaveAttribute('aria-pressed', 'true')
+    expect(pan).toHaveClass('active')
+    expect(select).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('configures grid visibility and snapping independently', () => {
+    const { container } = render(<Harness />)
+    const grid = screen.getByRole('button', { name: 'Toggle grid' })
+    const snap = screen.getByRole('button', { name: 'Toggle snap to grid' })
+    expect(grid).toHaveAttribute('aria-pressed', 'true')
+    expect(snap).toHaveAttribute('aria-pressed', 'true')
+    expect(container.querySelector('.react-flow__background')).toBeInTheDocument()
+    fireEvent.click(grid)
+    expect(grid).toHaveAttribute('aria-pressed', 'false')
+    expect(snap).toHaveAttribute('aria-pressed', 'true')
+    expect(container.querySelector('.react-flow__background')).not.toBeInTheDocument()
+    fireEvent.click(snap)
+    expect(snap).toHaveAttribute('aria-pressed', 'false')
+  })
+
   it('sizes components according to their visible content', () => {
     const compact = getComponentSize('API', 'service')
     const expanded = getComponentSize('Customer identity and access service', 'service')
-    expect(compact).toEqual({ width: 44, height: 52 })
+    expect(compact).toEqual({ width: 52, height: 42 })
     expect(expanded.width).toBeGreaterThan(compact.width)
-    expect(expanded.width).toBeLessThanOrEqual(132)
+    expect(expanded.width).toBeLessThanOrEqual(82)
     expect(expanded.height).toBeGreaterThan(compact.height)
     expect(getComponentSize('Boundary', 'container')).toEqual({ width: 360, height: 240 })
   })
@@ -73,9 +104,9 @@ describe('CanvasWorkspace', () => {
   })
 
   it('keeps arrow labels compact around their text', () => {
-    expect(getEdgeLabelWidth('')).toBe(46)
-    expect(getEdgeLabelWidth('HTTPS')).toBe(33)
-    expect(getEdgeLabelWidth('A very long connection label that should be capped')).toBeLessThanOrEqual(144)
+    expect(getEdgeLabelWidth('')).toBe(42)
+    expect(getEdgeLabelWidth('HTTPS')).toBe(28)
+    expect(getEdgeLabelWidth('A very long connection label that should be capped')).toBeLessThanOrEqual(132)
   })
 
   it('adds a searchable component and edits it inline', () => {
@@ -88,18 +119,20 @@ describe('CanvasWorkspace', () => {
 
     fireEvent.click(databaseCard)
     expect(screen.queryByRole('complementary', { name: 'Properties inspector' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Properties' }))
+    expect(screen.getByRole('complementary', { name: 'Properties inspector' })).toBeInTheDocument()
     expect(screen.getByLabelText('Component name').closest('.architecture-node')).toHaveClass('architecture-node-database')
 
     fireEvent.change(screen.getByLabelText('Component name'), { target: { value: 'Orders Database' } })
     fireEvent.blur(screen.getByLabelText('Component name'))
     expect(screen.getByLabelText('Component name')).toHaveValue('Orders Database')
-    expect(screen.getByLabelText('Component name').closest('.architecture-node')).toHaveClass('icon-medium')
+    expect(screen.getByLabelText('Component name').closest('.architecture-node')).toHaveClass('icon-first')
     expect(screen.queryByLabelText('Component subtitle')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Component name')).toHaveAttribute('rows', '1')
-    expect(screen.getByLabelText('Component name').closest('.react-flow__node')).toHaveStyle({ width: '122px', height: '52px' })
+    expect(screen.getByLabelText('Component name').closest('.react-flow__node')).toHaveStyle({ width: '82px', height: '42px' })
     fireEvent.change(screen.getByLabelText('Component name'), { target: { value: 'Orders\nDatabase' } })
-    expect(screen.getByLabelText('Component name')).toHaveValue('Orders\nDatabase')
-    expect(screen.getByLabelText('Component name').closest('.react-flow__node')).toHaveStyle({ height: '64px' })
+    expect(screen.getByLabelText('Component name')).toHaveValue('Orders Database')
+    expect(screen.getByLabelText('Component name').closest('.react-flow__node')).toHaveStyle({ height: '42px' })
     expect(screen.getByLabelText('Lock component')).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Lock component'))
     expect(screen.getByLabelText('Unlock component')).toBeInTheDocument()
@@ -113,10 +146,91 @@ describe('CanvasWorkspace', () => {
     expect(screen.getByLabelText('Line weight')).toBeInTheDocument()
     expect(screen.getByLabelText('Toggle start arrow')).toBeInTheDocument()
     expect(screen.getByLabelText('Toggle end arrow')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Add bend point')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Connection label')).toBeInTheDocument()
     expect(screen.queryByRole('complementary', { name: 'Properties inspector' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Properties' }))
+    const inspector = screen.getByRole('complementary', { name: 'Properties inspector' })
+    expect(within(inspector).getByLabelText('Connection property label')).toHaveValue('depends on')
+    expect(within(inspector).getByLabelText('Connection property routing')).toHaveValue('smoothstep')
+    expect(within(inspector).getByLabelText('Connection direction')).toHaveValue('none')
+    expect(within(inspector).getByLabelText('Connection line style')).toHaveValue('solid')
+    expect(within(inspector).getByLabelText('Connection property color')).toHaveValue('#68708a')
     fireEvent.change(screen.getByLabelText('Connection label'), { target: { value: 'HTTPS' } })
     expect(screen.getByLabelText('Connection label')).toHaveValue('HTTPS')
+  })
+
+  it('opens component properties by double-clicking its icon or body', () => {
+    const { container } = render(<SelectedComponentHarness />)
+    expect(screen.queryByRole('complementary', { name: 'Properties inspector' })).not.toBeInTheDocument()
+    fireEvent.doubleClick(container.querySelector('.component-kind-icon')!)
+    const inspector = screen.getByRole('complementary', { name: 'Properties inspector' })
+    expect(inspector).toBeInTheDocument()
+    expect(within(inspector).getByText('Component').closest('.property-heading')).not.toBeNull()
+    expect(within(inspector).getByRole('button', { name: 'Close properties' })).toHaveClass('property-close')
+    fireEvent.click(screen.getByRole('button', { name: 'Close properties' }))
+    fireEvent.doubleClick(container.querySelector('.architecture-node')!)
+    expect(screen.getByRole('complementary', { name: 'Properties inspector' })).toBeInTheDocument()
+  })
+
+  it('adds a dedicated user-defined custom component type', () => {
+    const { container } = render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Add component' }))
+    fireEvent.change(screen.getByPlaceholderText('Search components'), { target: { value: 'user defined' } })
+    fireEvent.click(screen.getByRole('button', { name: /Custom Component/ }))
+    expect(screen.getByLabelText('Component name')).toHaveValue('Custom Component')
+    expect(screen.getByLabelText('Component name').closest('.architecture-node')).toHaveClass('architecture-node-custom')
+    expect(container.querySelector('.architecture-node-custom .component-kind-icon .lucide-shapes')).toBeInTheDocument()
+  })
+
+  it('edits all required component properties', () => {
+    render(<SelectedComponentHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Properties' }))
+    const inspector = screen.getByRole('complementary', { name: 'Properties inspector' })
+    fireEvent.change(within(inspector).getByLabelText('Component property title'), { target: { value: 'Orders' } })
+    fireEvent.change(within(inspector).getByLabelText('Component description'), { target: { value: 'Stores customer orders' } })
+    fireEvent.change(within(inspector).getByLabelText('Component type'), { target: { value: 'database' } })
+    fireEvent.change(within(inspector).getByLabelText('Component icon'), { target: { value: 'postgresql' } })
+    fireEvent.change(within(inspector).getByLabelText('Component fill color'), { target: { value: '#112233' } })
+    fireEvent.change(within(inspector).getByLabelText('Component border color'), { target: { value: '#445566' } })
+    fireEvent.change(within(inspector).getByLabelText('Component text color'), { target: { value: '#ddeeff' } })
+    expect(screen.getByLabelText('Component name')).toHaveValue('Orders')
+    expect(screen.getByLabelText('Component name').closest('.architecture-node')).toHaveClass('architecture-node-database')
+    expect(screen.getByLabelText('Component name').closest('.architecture-node')).toHaveStyle({ background: '#112233', borderColor: '#445566', color: '#ddeeff' })
+    expect(within(inspector).getByLabelText('Component description')).toHaveValue('Stores customer orders')
+  })
+
+  it('edits a boundary title and appearance', () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Add container' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Properties' }))
+    const inspector = screen.getByRole('complementary', { name: 'Properties inspector' })
+    fireEvent.change(within(inspector).getByLabelText('Component property title'), { target: { value: 'Production VPC' } })
+    fireEvent.change(within(inspector).getByLabelText('Component fill color'), { target: { value: '#102030' } })
+    fireEvent.change(within(inspector).getByLabelText('Component border color'), { target: { value: '#405060' } })
+    fireEvent.change(within(inspector).getByLabelText('Component text color'), { target: { value: '#f0f1f2' } })
+    const boundary = screen.getByLabelText('Component name').closest('.architecture-node')
+    expect(screen.getByLabelText('Component name')).toHaveValue('Production VPC')
+    expect(boundary).toHaveClass('architecture-node-container')
+    expect(boundary).toHaveStyle({ background: '#102030', borderColor: '#405060', color: '#f0f1f2' })
+  })
+
+  it('adds a library component by dragging it onto the canvas', () => {
+    const { container } = render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Add component' }))
+    const transfer = {
+      effectAllowed: '',
+      types: ['application/x-archly-component'],
+      values: new Map<string, string>(),
+      setData(type: string, value: string) { this.values.set(type, value) },
+      getData(type: string) { return this.values.get(type) || '' },
+    }
+    const service = screen.getByRole('button', { name: /Service \/ API:/ })
+    fireEvent.dragStart(service, { dataTransfer: transfer })
+    expect(transfer.effectAllowed).toBe('copy')
+    fireEvent.dragOver(container.querySelector('.react-flow')!, { dataTransfer: transfer })
+    fireEvent.drop(container.querySelector('.react-flow')!, { dataTransfer: transfer, clientX: 500, clientY: 350 })
+    expect(screen.getByLabelText('Component name')).toHaveValue('Service / API')
   })
 
   it('searches technology aliases and persists a selectable icon', () => {
@@ -125,6 +239,7 @@ describe('CanvasWorkspace', () => {
     fireEvent.change(screen.getByPlaceholderText('Search components'), { target: { value: 'apache event stream' } })
     fireEvent.click(screen.getByRole('button', { name: /Kafka/ }))
     expect(screen.getByLabelText('Component name')).toHaveValue('Kafka')
+    fireEvent.click(screen.getByRole('button', { name: 'Properties' }))
     expect(screen.getByLabelText('Component icon')).toHaveValue('kafka')
     fireEvent.change(screen.getByLabelText('Component icon'), { target: { value: 'kubernetes' } })
     expect(screen.getByLabelText('Component icon')).toHaveValue('kubernetes')
@@ -193,6 +308,7 @@ describe('CanvasWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'General' }))
     fireEvent.click(screen.getByText('Monolith', { selector: 'strong' }).closest('button')!)
 
+    fireEvent.click(screen.getByRole('button', { name: 'Properties' }))
     expect(screen.getByLabelText('Component icon')).toHaveValue('monolith')
     expect(container.querySelector('.component-kind-icon .lucide-box')).toBeInTheDocument()
   })
@@ -203,6 +319,7 @@ describe('CanvasWorkspace', () => {
     fireEvent.change(screen.getByPlaceholderText('Search components'), { target: { value: 'argocd' } })
     fireEvent.click(screen.getByText('Argo CD', { selector: 'strong' }).closest('button')!)
 
+    fireEvent.click(screen.getByRole('button', { name: 'Properties' }))
     expect(screen.getByLabelText('Component icon')).toHaveValue('argo-cd')
     expect(container.querySelector('.component-kind-icon svg')).toBeInTheDocument()
   })
@@ -213,6 +330,7 @@ describe('CanvasWorkspace', () => {
     fireEvent.change(screen.getByPlaceholderText('Search components'), { target: { value: 'slack' } })
     fireEvent.click(screen.getByText('Slack', { selector: 'strong' }).closest('button')!)
 
+    fireEvent.click(screen.getByRole('button', { name: 'Properties' }))
     expect(screen.getByLabelText('Component icon')).toHaveValue('slack')
     expect(container.querySelector('.component-kind-icon svg')).toBeInTheDocument()
   })
@@ -259,6 +377,7 @@ describe('CanvasWorkspace', () => {
     expect(new Set(labels).size).toBe(labels.length)
 
     fireEvent.click(screen.getByText('Monolith', { selector: 'strong' }).closest('button')!)
+    fireEvent.click(screen.getByRole('button', { name: 'Properties' }))
     const iconValues = Array.from((screen.getByLabelText('Component icon') as HTMLSelectElement).options)
       .map((option) => option.value)
       .filter(Boolean)
@@ -298,6 +417,7 @@ describe('CanvasWorkspace', () => {
     expect(screen.getByText('Amazon EKS', { selector: 'strong' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('Amazon DynamoDB', { selector: 'strong' }).closest('button')!)
+    fireEvent.click(screen.getByRole('button', { name: 'Properties' }))
     expect(screen.getByLabelText('Component icon')).toHaveValue('aws-dynamodb')
     expect(container.querySelector('.component-kind-icon title')?.textContent).toContain('Amazon-DynamoDB')
   })
@@ -314,6 +434,7 @@ describe('CanvasWorkspace', () => {
     ]) expect(screen.getByText(label, { selector: 'strong' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('Azure Cosmos DB', { selector: 'strong' }).closest('button')!)
+    fireEvent.click(screen.getByRole('button', { name: 'Properties' }))
     expect(screen.getByLabelText('Component icon')).toHaveValue('azure-cosmos-db')
     expect(container.querySelector('.component-kind-icon svg')).toBeInTheDocument()
   })
@@ -329,6 +450,7 @@ describe('CanvasWorkspace', () => {
     ]) expect(screen.getByText(label, { selector: 'strong' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('Google Kubernetes Engine', { selector: 'strong' }).closest('button')!)
+    fireEvent.click(screen.getByRole('button', { name: 'Properties' }))
     expect(screen.getByLabelText('Component icon')).toHaveValue('gcp-gke')
     expect(container.querySelector('.component-kind-icon svg')).toBeInTheDocument()
   })
@@ -351,16 +473,16 @@ describe('CanvasWorkspace', () => {
     render(<SelectedComponentHarness />)
     const title = screen.getByLabelText('Component name')
     const node = title.closest('.react-flow__node')
-    expect(node).toHaveStyle({ width: '44px', height: '52px' })
+    expect(node).toHaveStyle({ width: '52px', height: '42px' })
 
     fireEvent.focus(title)
     fireEvent.change(title, { target: { value: 'Customer identity and access service' } })
     fireEvent.blur(title)
-    expect(node).not.toHaveStyle({ width: '44px' })
+    expect(node).not.toHaveStyle({ width: '52px' })
 
     fireEvent.keyDown(document, { key: 'z', ctrlKey: true })
     expect(screen.getByLabelText('Component name')).toHaveValue('API')
-    expect(screen.getByLabelText('Component name').closest('.react-flow__node')).toHaveStyle({ width: '44px', height: '52px' })
+    expect(screen.getByLabelText('Component name').closest('.react-flow__node')).toHaveStyle({ width: '52px', height: '42px' })
 
     fireEvent.keyDown(document, { key: 'z', ctrlKey: true, shiftKey: true })
     expect(screen.getByLabelText('Component name')).toHaveValue('Customer identity and access service')
@@ -413,6 +535,17 @@ describe('CanvasWorkspace', () => {
     expect(state.nodes.every((node: Node) => !node.data.groupId)).toBe(true)
   })
 
+  it('locks and unlocks a multi-selection as one action', () => {
+    render(<GroupHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Lock selected components' }))
+    let state = JSON.parse(screen.getByTestId('group-state').textContent!)
+    expect(state.nodes.every((node: Node) => node.data.locked && node.draggable === false)).toBe(true)
+    expect(screen.getByRole('button', { name: 'Unlock selected components' })).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'z', ctrlKey: true })
+    state = JSON.parse(screen.getByTestId('group-state').textContent!)
+    expect(state.nodes.every((node: Node) => !node.data.locked)).toBe(true)
+  })
+
   it('selects every member when one persistent group member is selected', () => {
     const nodes: Node[] = [
       { id: 'a', position: { x: 0, y: 0 }, data: { groupId: 'group-1' } },
@@ -437,6 +570,38 @@ describe('CanvasWorkspace', () => {
     ])
   })
 
+  it('moves selected unlocked nodes with arrow-key increments', () => {
+    const nodes: Node[] = [
+      { id: 'a', position: { x: 10, y: 20 }, selected: true, data: {} },
+      { id: 'b', position: { x: 30, y: 40 }, selected: true, data: { locked: true } },
+    ]
+    expect(moveSelectedCanvasNodes(nodes, 1, -10).map((node) => node.position)).toEqual([
+      { x: 11, y: 10 }, { x: 30, y: 40 },
+    ])
+  })
+
+  it('assigns container ownership and moves owned children with their container', () => {
+    const nodes: Node[] = [
+      { id: 'container', position: { x: 0, y: 0 }, data: { kind: 'container' }, style: { width: 300, height: 200 } },
+      { id: 'child', position: { x: 50, y: 60 }, data: {}, style: { width: 80, height: 40 } },
+    ]
+    const assigned = assignNodeToContainingContainer(nodes, 'child')
+    expect(assigned[1].data.containerId).toBe('container')
+    const moved = applyGroupAwareNodeChanges([{ type: 'position', id: 'container', position: { x: 20, y: 30 } }], assigned)
+    expect(moved[1].position).toEqual({ x: 70, y: 90 })
+    const outside = assignNodeToContainingContainer(moved.map((node) => node.id === 'child' ? { ...node, position: { x: 400, y: 400 } } : node), 'child')
+    expect(outside[1].data.containerId).toBeUndefined()
+  })
+
+  it('brings selected nodes forward and sends them backward', () => {
+    const nodes: Node[] = [
+      { id: 'a', position: { x: 0, y: 0 }, selected: true, zIndex: 1, data: {} },
+      { id: 'b', position: { x: 0, y: 0 }, zIndex: 4, data: {} },
+    ]
+    expect(reorderSelectedCanvasNodes(nodes, 'front')[0].zIndex).toBe(5)
+    expect(reorderSelectedCanvasNodes(nodes, 'back')[0].zIndex).toBe(0)
+  })
+
   it('arranges by connection direction, preserves locks, and distributes evenly', () => {
     const nodes: Node[] = [
       { id: 'a', position: { x: 300, y: 200 }, selected: true, data: {} },
@@ -455,10 +620,24 @@ describe('CanvasWorkspace', () => {
     expect(distributed.map((node) => node.position.x)).toEqual([0, 150, 300])
   })
 
+  it('aligns left, center, right, top, middle, and bottom using node bounds', () => {
+    const nodes: Node[] = [
+      { id: 'a', position: { x: 10, y: 20 }, selected: true, data: {}, style: { width: 40, height: 30 } },
+      { id: 'b', position: { x: 100, y: 90 }, selected: true, data: {}, style: { width: 80, height: 50 } },
+    ]
+    expect(alignCanvasNodes(nodes, 'left').map((node) => node.position.x)).toEqual([10, 10])
+    expect(alignCanvasNodes(nodes, 'right').map((node) => node.position.x)).toEqual([140, 100])
+    expect(alignCanvasNodes(nodes, 'center').map((node) => node.position.x)).toEqual([65, 45])
+    expect(alignCanvasNodes(nodes, 'top').map((node) => node.position.y)).toEqual([20, 20])
+    expect(alignCanvasNodes(nodes, 'bottom').map((node) => node.position.y)).toEqual([110, 90])
+    expect(alignCanvasNodes(nodes, 'middle').map((node) => node.position.y)).toEqual([60, 50])
+  })
+
   it('duplicates a group with remapped membership and internal connection', () => {
     render(<GroupHarness />)
+    expect(screen.getByRole('toolbar', { name: 'Selection actions' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Group selected components' }))
-    fireEvent.keyDown(document, { key: 'd', ctrlKey: true })
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate selected' }))
 
     const state = JSON.parse(screen.getByTestId('group-state').textContent!)
     expect(state.nodes).toHaveLength(4)

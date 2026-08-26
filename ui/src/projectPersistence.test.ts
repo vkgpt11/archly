@@ -49,4 +49,16 @@ describe('project persistence', () => {
     const signature = JSON.parse(contentSignature(project)) as { canvasJson: string }
     expect(signature.canvasJson).toBe(canonicalCanvasJson(project.canvasJson))
   })
+
+  it('preserves the viewport while removing transient selection state', () => {
+    const canvas = JSON.parse(serializeCanvas(JSON.parse(project.canvasJson).nodes, [], { x: 120, y: -45, zoom: 1.35 }))
+    expect(canvas.viewport).toEqual({ x: 120, y: -45, zoom: 1.35 })
+    expect(JSON.parse(canonicalCanvasJson(JSON.stringify(canvas))).viewport).toEqual(canvas.viewport)
+  })
+
+  it('removes legacy manual connection waypoints from saved canvas data', () => {
+    const edge: Edge = { id: 'a-a', source: 'a', target: 'a', data: { routing: 'smoothstep', waypoints: [{ x: 20, y: 30 }] } }
+    const canvas = JSON.parse(serializeCanvas([], [edge]))
+    expect(canvas.edges[0].data).toEqual({ routing: 'smoothstep' })
+  })
 })
