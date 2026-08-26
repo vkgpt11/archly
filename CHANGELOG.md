@@ -8,10 +8,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Added dashboard search, folder filtering, archive/restore, and recently used canvas components.
+- Added token-hashed read-only and editable share links with anonymous viewing, server-side permission enforcement, listing, and revocation.
+- Added PNG, SVG, Markdown, editable Archly JSON, selection-only, and clipboard diagram exports.
 - Completed core canvas interactions: keyboard nudging, persistent container ownership and child movement, and front/back ordering.
 - Added undo/redo coverage for the new interactions and expanded canvas interaction tests.
 - Completed the remaining V1 canvas requirements with custom components, library drag-and-drop, full component and connection inspectors, contextual selection actions, bulk locking, configurable grid and snapping, six-mode alignment, and persisted viewport state.
 - Conflict-aware project saving with local-draft recovery and explicit resolution actions.
+- Isolated recovery drafts per browser tab, cross-tab save notifications, clean-tab refresh, and proactive conflict detection that preserves both local and server versions.
+- Suppressed autosave for selection-only and viewport-only changes while retaining the latest viewport whenever real content is saved.
 - Persistent canvas groups, group duplication, and undo/redo coverage for canvas mutations.
 - Architecture templates and project duplication.
 - Rich architecture component catalog organized into General, AWS, Azure, and Google Cloud.

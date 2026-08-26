@@ -6,6 +6,7 @@ export type ProjectContent = Pick<Project, 'name' | 'canvasJson' | 'markdown'>
 
 export type ProjectDraft = ProjectContent & {
   projectId: string
+  ownerId: string
   baseRevision: number
   storedAt: string
 }
@@ -16,8 +17,35 @@ export type ConflictBackup = {
   server: Project
 }
 
-const draftKey = (projectId: string) => `archly-project-draft:${projectId}`
-const conflictKey = (projectId: string) => `archly-project-conflict:${projectId}`
+export type ProjectSaveSignal = { projectId: string; ownerId: string; revision: number; savedAt: string }
+
+const legacyDraftKey = (projectId: string) => `archly-project-draft:${projectId}`
+const legacyConflictKey = (projectId: string) => `archly-project-conflict:${projectId}`
+export const draftStorageKey = (projectId: string, ownerId = currentTabId()) => `${legacyDraftKey(projectId)}:${ownerId}`
+export const conflictStorageKey = (projectId: string, ownerId = currentTabId()) => `${legacyConflictKey(projectId)}:${ownerId}`
+
+export function currentTabId(): string {
+  const prefix = 'archly:'
+  if (window.name.startsWith(prefix) && window.name.length > prefix.length) return window.name.slice(prefix.length)
+  const created = crypto.randomUUID()
+  window.name = `${prefix}${created}`
+  return created
+}
+
+export const projectSyncStorageKey = (projectId: string) => `archly-project-sync:${projectId}`
+
+export function publishProjectSaved(projectId: string, ownerId: string, revision: number): void {
+  const signal: ProjectSaveSignal = { projectId, ownerId, revision, savedAt: new Date().toISOString() }
+  localStorage.setItem(projectSyncStorageKey(projectId), JSON.stringify(signal))
+}
+
+export function readProjectSaveSignal(event: StorageEvent, projectId: string, ownerId: string): ProjectSaveSignal | null {
+  if (event.key !== projectSyncStorageKey(projectId) || !event.newValue) return null
+  try {
+    const signal = JSON.parse(event.newValue) as ProjectSaveSignal
+    return signal.projectId === projectId && signal.ownerId !== ownerId && Number.isInteger(signal.revision) ? signal : null
+  } catch { return null }
+}
 
 function parseCanvas(value: string): CanvasData {
   try { return JSON.parse(value) as CanvasData } catch { return { nodes: [], edges: [] } }
@@ -57,16 +85,18 @@ export function canonicalCanvasJson(value: string): string {
 }
 
 export function contentSignature(content: ProjectContent): string {
+  const canvas = parseCanvas(content.canvasJson)
   return JSON.stringify({
     name: content.name,
-    canvasJson: canonicalCanvasJson(content.canvasJson),
+    canvasJson: serializeCanvas(canvas.nodes, canvas.edges),
     markdown: content.markdown,
   })
 }
 
-export function createDraft(project: Project): ProjectDraft {
+export function createDraft(project: Project, ownerId = currentTabId()): ProjectDraft {
   return {
     projectId: project.id,
+    ownerId,
     baseRevision: project.revision,
     name: project.name,
     canvasJson: canonicalCanvasJson(project.canvasJson),
@@ -75,26 +105,29 @@ export function createDraft(project: Project): ProjectDraft {
   }
 }
 
-export function loadDraft(projectId: string): ProjectDraft | null {
+export function loadDraft(projectId: string, ownerId = currentTabId()): ProjectDraft | null {
   try {
-    const value = localStorage.getItem(draftKey(projectId))
+    const value = localStorage.getItem(draftStorageKey(projectId, ownerId)) || localStorage.getItem(legacyDraftKey(projectId))
     if (!value) return null
     const draft = JSON.parse(value) as ProjectDraft
-    return draft.projectId === projectId && Number.isInteger(draft.baseRevision) ? draft : null
+    return draft.projectId === projectId && Number.isInteger(draft.baseRevision)
+      ? { ...draft, ownerId: draft.ownerId || ownerId }
+      : null
   } catch { return null }
 }
 
 export function storeDraft(draft: ProjectDraft): void {
-  localStorage.setItem(draftKey(draft.projectId), JSON.stringify(draft))
+  localStorage.setItem(draftStorageKey(draft.projectId, draft.ownerId), JSON.stringify(draft))
 }
 
-export function clearDraft(projectId: string): void {
-  localStorage.removeItem(draftKey(projectId))
+export function clearDraft(projectId: string, ownerId = currentTabId()): void {
+  localStorage.removeItem(draftStorageKey(projectId, ownerId))
+  localStorage.removeItem(legacyDraftKey(projectId))
 }
 
 export function storeConflictBackup(local: ProjectDraft, server: Project): void {
   const backup: ConflictBackup = { detectedAt: new Date().toISOString(), local, server }
-  localStorage.setItem(conflictKey(local.projectId), JSON.stringify(backup))
+  localStorage.setItem(conflictStorageKey(local.projectId, local.ownerId), JSON.stringify(backup))
 }
 
 export function draftRecovery(draft: ProjectDraft | null, server: Project): 'none' | 'resume' | 'conflict' {

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Project } from '../types'
 import Dashboard from './Dashboard'
 
-const mocks = vi.hoisted(() => ({ listProjects: vi.fn(), createProject: vi.fn(), saveProject: vi.fn(), duplicateProject: vi.fn(), deleteProject: vi.fn() }))
+const mocks = vi.hoisted(() => ({ listProjects: vi.fn(), createProject: vi.fn(), saveProject: vi.fn(), duplicateProject: vi.fn(), deleteProject: vi.fn(), organizeProject: vi.fn() }))
 vi.mock('../api', () => ({ api: mocks }))
 vi.mock('./Editor', () => ({ default: () => <div>Project editor</div> }))
 
@@ -34,5 +34,22 @@ describe('Dashboard project actions', () => {
     const saved = mocks.saveProject.mock.calls[0][1] as Project
     expect(JSON.parse(saved.canvasJson).nodes).toHaveLength(4)
     expect(saved.markdown).toContain('Kubernetes deployment')
+  })
+
+  it('searches, filters, folders, and archives projects', async () => {
+    const platform = { ...project, id: 'two', name: 'Platform', folder: 'Production' }
+    mocks.listProjects.mockResolvedValue([project, platform])
+    mocks.organizeProject.mockResolvedValue({ ...platform, archived: true })
+    render(<Dashboard token="token" onSignOut={() => {}} />)
+
+    const search = await screen.findByRole('searchbox', { name: 'Search projects' })
+    fireEvent.change(search, { target: { value: 'Platform' } })
+    expect(screen.getByText('Platform')).toBeInTheDocument()
+    expect(screen.queryByText('Payments')).not.toBeInTheDocument()
+    fireEvent.change(search, { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('Project folder'), { target: { value: 'Production' } })
+    expect(screen.getByText('Platform')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
+    expect(mocks.organizeProject).toHaveBeenCalledWith('token', 'two', 'Production', true)
   })
 })

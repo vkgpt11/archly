@@ -3,6 +3,7 @@ package io.archly.project;
 import io.archly.project.ProjectDtos.CreateProjectRequest;
 import io.archly.project.ProjectDtos.ProjectResponse;
 import io.archly.project.ProjectDtos.UpdateProjectRequest;
+import io.archly.project.ProjectDtos.OrganizeProjectRequest;
 import jakarta.persistence.OptimisticLockException;
 import java.util.List;
 import java.util.UUID;
@@ -53,7 +54,14 @@ public class ProjectService {
         Project source = findOwned(email, id);
         Project copy = new Project(email, source.getName() + " — Copy", source.getCanvasJson(),
             richTextSanitizer.sanitize(source.getMarkdown()));
+        copy.organize(source.getFolder(), false);
         return response(repository.save(copy));
+    }
+
+    public ProjectResponse organize(String email, UUID id, OrganizeProjectRequest request) {
+        Project project = findOwned(email, id);
+        project.organize(request.folder(), request.archived());
+        return response(repository.save(project));
     }
 
     public void delete(String email, UUID id) {
@@ -67,6 +75,6 @@ public class ProjectService {
 
     private ProjectResponse response(Project project) {
         return new ProjectResponse(project.getId(), project.getName(), project.getCanvasJson(),
-            richTextSanitizer.sanitize(project.getMarkdown()), project.getRevision(), project.getCreatedAt(), project.getUpdatedAt());
+            richTextSanitizer.sanitize(project.getMarkdown()), project.getFolder(), project.isArchived(), project.getRevision(), project.getCreatedAt(), project.getUpdatedAt());
     }
 }

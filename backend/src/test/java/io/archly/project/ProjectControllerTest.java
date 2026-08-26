@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -176,5 +177,65 @@ class ProjectControllerTest {
         mvc.perform(get("/api/projects/{id}", id).with(identity))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.markdown").value("<p>Safe</p><p><a>Unsafe</a></p>"));
+    }
+
+    @Test
+    void organizesProjectsIntoFoldersAndArchive() throws Exception {
+        var identity = jwt().jwt(token -> token.claim("email", "organize@gmail.com"));
+        String created = mvc.perform(post("/api/projects").with(identity).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Platform\"}"))
+            .andReturn().getResponse().getContentAsString();
+        String id = objectMapper.readTree(created).get("id").asText();
+
+        mvc.perform(put("/api/projects/{id}/organization", id).with(identity).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"folder\":\"Production\",\"archived\":true}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.folder").value("Production"))
+            .andExpect(jsonPath("$.archived").value(true));
+    }
+
+    @Test
+    void enforcesReadOnlyShareAndRevocationWithoutAuthentication() throws Exception {
+        var identity = jwt().jwt(token -> token.claim("email", "share@gmail.com"));
+        String created = mvc.perform(post("/api/projects").with(identity).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Shared architecture\"}"))
+            .andReturn().getResponse().getContentAsString();
+        String projectId = objectMapper.readTree(created).get("id").asText();
+        String shareBody = mvc.perform(post("/api/projects/{id}/shares", projectId).with(identity)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"permission\":\"READ\"}"))
+            .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        JsonNode share = objectMapper.readTree(shareBody);
+        String token = share.get("token").asText();
+        String shareId = share.get("id").asText();
+
+        mvc.perform(get("/api/shares/{token}", token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.permission").value("READ"))
+            .andExpect(jsonPath("$.project.name").value("Shared architecture"));
+        mvc.perform(put("/api/shares/{token}", token).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Hacked\",\"canvasJson\":\"{\\\"nodes\\\":[],\\\"edges\\\":[]}\",\"markdown\":\"<p>x</p>\",\"revision\":0}"))
+            .andExpect(status().isForbidden());
+        mvc.perform(delete("/api/projects/{projectId}/shares/{shareId}", projectId, shareId).with(identity))
+            .andExpect(status().isNoContent());
+        mvc.perform(get("/api/shares/{token}", token)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void editableShareCanUpdateButCannotBypassRevisionChecks() throws Exception {
+        var identity = jwt().jwt(token -> token.claim("email", "edit-share@gmail.com"));
+        String created = mvc.perform(post("/api/projects").with(identity).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Editable architecture\"}"))
+            .andReturn().getResponse().getContentAsString();
+        String projectId = objectMapper.readTree(created).get("id").asText();
+        String shareBody = mvc.perform(post("/api/projects/{id}/shares", projectId).with(identity)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"permission\":\"EDIT\"}"))
+            .andReturn().getResponse().getContentAsString();
+        String token = objectMapper.readTree(shareBody).get("token").asText();
+        String update = "{\"name\":\"Edited anonymously\",\"canvasJson\":\"{\\\"nodes\\\":[],\\\"edges\\\":[]}\",\"markdown\":\"<p>Edited</p>\",\"revision\":0}";
+
+        mvc.perform(put("/api/shares/{token}", token).contentType(MediaType.APPLICATION_JSON).content(update))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.project.revision").value(1));
+        mvc.perform(put("/api/shares/{token}", token).contentType(MediaType.APPLICATION_JSON).content(update))
+            .andExpect(status().isConflict());
     }
 }

@@ -39,6 +39,12 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .empty-state { width: 100%; min-height: 260px; display: flex; flex-direction: column; justify-content: center; gap: 8px; border: 2px dashed #d7d5e3; border-radius: 20px; color: #5c6070; background: white; }
 .empty-state strong { color: #292c38; font-size: 19px; }
 .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 22px; }
+.project-filters { display: grid; grid-template-columns: minmax(220px, 1fr) auto 180px; gap: 10px; margin: 18px 0; }
+.project-filters input, .project-filters select { min-width: 0; padding: 9px 11px; border: 1px solid var(--border); border-radius: 9px; color: var(--text); background: var(--surface); }
+.project-scope { display: flex; padding: 3px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); }
+.project-scope button { padding: 5px 10px; border: 0; border-radius: 6px; color: var(--muted); background: transparent; }
+.project-scope button.active { color: var(--text); background: var(--surface-muted); }
+.project-empty-filter { grid-column: 1 / -1; padding: 30px; text-align: center; }
 .project-card { overflow: hidden; border: 1px solid #e3e3eb; border-radius: 18px; background: white; transition: transform .2s, box-shadow .2s; }
 .project-card:hover { transform: translateY(-3px); box-shadow: 0 16px 36px rgba(30,30,50,.1); }
 .project-copy { margin-right: 10px; font-size: 12px; }
@@ -57,6 +63,9 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .editor-shell { height: 100vh; display: flex; flex-direction: column; }
 .editor-header { flex: 0 0 auto; }
 .icon-button { font-size: 22px; }
+.header-action { display: inline-flex; align-items: center; gap: 5px; padding: 6px 9px; border: 1px solid var(--border); border-radius: 8px; color: var(--text-soft); background: var(--surface); font-size: 10px; }
+.header-action svg { width: 13px; height: 13px; }
+.header-action:hover { color: var(--text); background: var(--surface-soft); }
 .project-name { width: min(100%, 360px); min-width: 0; border: 0; outline: 0; color: #242632; background: transparent; font-weight: 750; }
 .view-switcher { display: flex; padding: 3px; border-radius: 10px; background: #f0f0f5; }
 .view-switcher button { padding: 7px 11px; border: 0; border-radius: 8px; color: #707485; background: transparent; font-size: 12px; text-transform: capitalize; }
@@ -302,3 +311,35 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 :root[data-theme="dark"] .architecture-node-actor { --node-bg: #391a2c; --node-icon-bg: #56223f; --node-accent: #f472b6; --node-text: #fdf2f8; --node-soft: #dfbbcd; }
 :root[data-theme="dark"] .architecture-node-note { --node-bg: #332d13; --node-icon-bg: #4b4216; --node-accent: #facc15; --node-text: #fefce8; --node-soft: #d9d1a8; }
 :root[data-theme="dark"] .architecture-node-custom { --node-bg: #2b2342; --node-icon-bg: #3d315e; --node-accent: #a78bfa; --node-text: #f5f3ff; --node-soft: #c4b5d9; }
+
+.modal-backdrop { position: fixed; z-index: 110; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(14,15,22,.52); backdrop-filter: blur(3px); }
+.share-dialog, .export-dialog { width: min(520px, 100%); max-height: min(680px, 90vh); overflow: auto; padding: 20px; border: 1px solid var(--border); border-radius: 16px; color: var(--text); background: var(--surface); box-shadow: 0 24px 70px rgba(0,0,0,.28); }
+.share-dialog header, .export-dialog header { display: flex; align-items: flex-start; justify-content: space-between; }
+.share-dialog h2, .export-dialog h2 { margin: 2px 0 16px; }
+.modal-close { width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 7px; color: var(--muted); background: transparent; }
+.modal-close:hover { color: var(--text); background: var(--surface-muted); }
+.modal-close svg { width: 15px; height: 15px; }
+.share-create, .created-share { display: flex; gap: 8px; }
+.share-create select, .created-share input { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); background: var(--surface-soft); }
+.created-share { margin-top: 10px; }
+.share-list { display: grid; gap: 7px; margin-top: 16px; }
+.share-list article { display: flex; align-items: center; justify-content: space-between; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; }
+.share-list article div { display: grid; gap: 2px; }
+.share-list small { color: var(--muted); }
+.selection-export { display: flex; align-items: center; gap: 7px; margin-bottom: 12px; color: var(--text-soft); font-size: 11px; }
+.export-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.export-grid button { display: grid; gap: 3px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; color: var(--text); background: var(--surface-soft); text-align: left; }
+.export-grid button:hover { border-color: var(--accent); }
+.export-grid span { color: var(--muted); font-size: 10px; }
+.shared-project-shell { min-height: 100vh; color: var(--text); background: var(--surface); }
+.shared-project-shell > header { height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; border-bottom: 1px solid var(--border); }
+.shared-project-shell > header > div { display: flex; align-items: center; gap: 10px; }
+.shared-project-shell > header strong, .shared-project-shell > header small { display: block; }
+.shared-project-shell > header small { margin-top: 2px; color: var(--muted); }
+.brand-mark.small { width: 30px; height: 30px; font-size: 13px; }
+.shared-project-content { height: calc(100vh - 64px); display: grid; grid-template-columns: minmax(260px, 32%) 1fr; }
+.shared-document { overflow: auto; padding: 28px; border-right: 1px solid var(--border); }
+.shared-readonly { pointer-events: none; }
+.shared-readonly .canvas-toolbox, .shared-readonly .canvas-history, .shared-readonly .canvas-navigation, .shared-readonly .react-flow__controls, .shared-readonly .react-flow__minimap, .shared-readonly .component-lock { display: none; }
+.shared-error { min-height: 100vh; display: grid; place-content: center; text-align: center; }
+@media (max-width: 720px) { .project-filters { grid-template-columns: 1fr; } .shared-project-content { grid-template-columns: 1fr; grid-template-rows: 42% 1fr; } .shared-document { border-right: 0; border-bottom: 1px solid var(--border); } }

@@ -12,19 +12,22 @@ import { common, createLowlight } from 'lowlight'
 import {
   Bold, Code2, Heading1, Heading2, Italic, Link2, List, ListOrdered,
   Highlighter, ImagePlus, Palette, Quote, Redo2, RotateCcw, SquareCode, Strikethrough, Undo2,
+  Download, Share2, X,
 } from 'lucide-react'
 import { ApiError, api } from '../api'
 import type { CanvasData, Project } from '../types'
+import type { ShareLink, SharePermission } from '../types'
+import { copyDiagramToClipboard, exportProject, type ExportFormat } from '../diagramExport'
 import { sanitizeRichText } from '../sanitizeRichText'
 import {
   canonicalCanvasJson, clearDraft, contentSignature, createDraft, draftRecovery, loadDraft,
-  serializeCanvas, storeConflictBackup, storeDraft, type ProjectDraft,
+  currentTabId, publishProjectSaved, readProjectSaveSignal, serializeCanvas, storeConflictBackup, storeDraft, type ProjectDraft,
 } from '../projectPersistence'
 import CanvasWorkspace from './CanvasWorkspace'
 import ThemeToggle from './ThemeToggle'
 
 type View = 'canvas' | 'document' | 'split'
-type Props = { token: string; initialProject: Project; onBack: (project: Project) => void }
+type Props = { token?: string; shareToken?: string; initialProject: Project; onBack?: (project: Project) => void }
 type SaveState = 'saved' | 'saving' | 'error' | 'offline' | 'conflict'
 type SaveConflict = { local: ProjectDraft; server: Project }
 
@@ -109,9 +112,10 @@ function parseCanvas(value: string): CanvasData {
   try { return JSON.parse(value) as CanvasData } catch { return { nodes: [], edges: [] } }
 }
 
-export default function Editor({ token, initialProject, onBack }: Props) {
+export default function Editor({ token = '', shareToken, initialProject, onBack }: Props) {
+  const tabId = useRef(currentTabId()).current
   const [recovery] = useState(() => {
-    const draft = loadDraft(initialProject.id)
+    const draft = loadDraft(initialProject.id, tabId)
     const mode = draftRecovery(draft, initialProject)
     return { draft, mode, content: mode === 'none' ? initialProject : draft! }
   })
@@ -131,6 +135,13 @@ export default function Editor({ token, initialProject, onBack }: Props) {
   const [linkUrl, setLinkUrl] = useState('https://')
   const [linkError, setLinkError] = useState('')
   const [imageError, setImageError] = useState('')
+  const [shareOpen, setShareOpen] = useState(false)
+  const [shares, setShares] = useState<ShareLink[]>([])
+  const [sharePermission, setSharePermission] = useState<SharePermission>('READ')
+  const [newShareUrl, setNewShareUrl] = useState('')
+  const [exportOpen, setExportOpen] = useState(false)
+  const [selectionExport, setSelectionExport] = useState(false)
+  const [actionMessage, setActionMessage] = useState('')
   const [saveState, setSaveState] = useState<SaveState>(recovery.mode === 'conflict' ? 'conflict' : recovery.mode === 'resume' ? 'saving' : 'saved')
   const [conflict, setConflict] = useState<SaveConflict | null>(() => recovery.mode === 'conflict' ? { local: recovery.draft!, server: initialProject } : null)
   const latestProject = useRef(project)
@@ -140,8 +151,10 @@ export default function Editor({ token, initialProject, onBack }: Props) {
   const saveQueued = useRef(false)
   const lastSavedSignature = useRef(contentSignature({ ...initialProject, canvasJson: canonicalCanvasJson(initialProject.canvasJson) }))
   const conflictActive = conflict !== null
+  const conflictRef = useRef(conflict)
 
   useEffect(() => { latestProject.current = project }, [project])
+  useEffect(() => { conflictRef.current = conflict }, [conflict])
 
   const richTextEditor = useEditor({
     extensions: [
@@ -176,6 +189,13 @@ export default function Editor({ token, initialProject, onBack }: Props) {
     },
   })
 
+  const saveProject = useCallback((candidate: Project) => shareToken
+    ? api.saveSharedProject(shareToken, candidate)
+    : api.saveProject(token, candidate), [shareToken, token])
+  const getProject = useCallback((id: string) => shareToken
+    ? api.getSharedProject(shareToken).then((response) => response.project)
+    : api.getProject(token, id), [shareToken, token])
+
   const insertScreenshot = async (file?: File) => {
     if (!file || !richTextEditor) return
     setImageError('')
@@ -204,7 +224,7 @@ export default function Editor({ token, initialProject, onBack }: Props) {
     setSaveState('saving')
 
     try {
-      const saved = await api.saveProject(token, candidate)
+      const saved = await saveProject(candidate)
       const merged = {
         ...latestProject.current,
         revision: saved.revision,
@@ -213,6 +233,7 @@ export default function Editor({ token, initialProject, onBack }: Props) {
       }
       latestProject.current = merged
       lastSavedSignature.current = candidateSignature
+      publishProjectSaved(saved.id, tabId, saved.revision)
       setProject((current) => ({
         ...current,
         revision: saved.revision,
@@ -228,8 +249,8 @@ export default function Editor({ token, initialProject, onBack }: Props) {
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
         try {
-          const serverProject = await api.getProject(token, latestProject.current.id)
-          const local = createDraft(candidate)
+          const serverProject = await getProject(latestProject.current.id)
+          const local = createDraft(candidate, tabId)
           storeDraft(local)
           storeConflictBackup(local, serverProject)
           setConflict({ local, server: serverProject })
@@ -244,7 +265,7 @@ export default function Editor({ token, initialProject, onBack }: Props) {
       saveInFlight.current = false
       if (saveQueued.current) window.setTimeout(() => void flushSave(), 0)
     }
-  }, [conflictActive, token])
+  }, [conflictActive, getProject, saveProject, tabId])
 
   useEffect(() => {
     latestProject.current = {
@@ -259,7 +280,7 @@ export default function Editor({ token, initialProject, onBack }: Props) {
       if (!conflictActive) setSaveState('saved')
       return
     }
-    const draft = createDraft(latestProject.current)
+    const draft = createDraft(latestProject.current, tabId)
     storeDraft(draft)
     if (conflictActive) {
       setConflict((current) => current && contentSignature(current.local) !== signature ? { ...current, local: draft } : current)
@@ -269,13 +290,64 @@ export default function Editor({ token, initialProject, onBack }: Props) {
     setSaveState(navigator.onLine ? 'saving' : 'offline')
     const timer = window.setTimeout(() => void flushSave(), 900)
     return () => window.clearTimeout(timer)
-  }, [nodes, edges, viewport, project.id, project.name, project.markdown, conflictActive, flushSave])
+  }, [nodes, edges, viewport, project.id, project.name, project.markdown, conflictActive, flushSave, tabId])
 
   useEffect(() => {
     const retryWhenOnline = () => { if (!conflictActive) void flushSave() }
     window.addEventListener('online', retryWhenOnline)
     return () => window.removeEventListener('online', retryWhenOnline)
   }, [conflictActive, flushSave])
+
+  useEffect(() => {
+    const receiveSaveFromAnotherTab = async (event: StorageEvent) => {
+      const signal = readProjectSaveSignal(event, initialProject.id, tabId)
+      if (!signal || signal.revision <= latestProject.current.revision || conflictRef.current) return
+      try {
+        const server = await getProject(initialProject.id)
+        if (contentSignature(latestProject.current) === lastSavedSignature.current) {
+          activateServerProject(server)
+          return
+        }
+        const local = createDraft(latestProject.current, tabId)
+        storeDraft(local)
+        storeConflictBackup(local, server)
+        setConflict({ local, server })
+        setSaveState('conflict')
+      } catch {
+        // The normal save path still detects the server revision conflict.
+      }
+    }
+    window.addEventListener('storage', receiveSaveFromAnotherTab)
+    return () => window.removeEventListener('storage', receiveSaveFromAnotherTab)
+  }, [getProject, initialProject.id, tabId])
+
+  async function openSharing() {
+    if (!token || shareToken) return
+    setShareOpen(true); setNewShareUrl(''); setActionMessage('')
+    try { setShares(await api.listShares(token, project.id)) } catch (error) { setActionMessage((error as Error).message) }
+  }
+
+  async function createShare() {
+    try {
+      const created = await api.createShare(token, project.id, sharePermission)
+      setShares((current) => [created, ...current])
+      setNewShareUrl(`${window.location.origin}/share/${created.token}`)
+    } catch (error) { setActionMessage((error as Error).message) }
+  }
+
+  async function revokeShare(share: ShareLink) {
+    await api.revokeShare(token, project.id, share.id)
+    setShares((current) => current.map((item) => item.id === share.id ? { ...item, revoked: true } : item))
+  }
+
+  async function runExport(format: ExportFormat | 'clipboard') {
+    setActionMessage('')
+    try {
+      if (format === 'clipboard') await copyDiagramToClipboard(selectionExport)
+      else await exportProject({ ...latestProject.current, canvasJson: JSON.stringify({ nodes, edges, viewport }) }, format, selectionExport)
+      setActionMessage(format === 'clipboard' ? 'Diagram copied.' : 'Export created.')
+    } catch (error) { setActionMessage((error as Error).message) }
+  }
 
   const showCanvas = view !== 'document'
   const showDocument = view !== 'canvas'
@@ -327,13 +399,8 @@ export default function Editor({ token, initialProject, onBack }: Props) {
     setLinkEditorOpen(false)
   }
 
-  function useServerVersion() {
-    if (!conflict) return
-    const server = {
-      ...conflict.server,
-      canvasJson: canonicalCanvasJson(conflict.server.canvasJson),
-      markdown: sanitizeRichText(conflict.server.markdown),
-    }
+  function activateServerProject(value: Project) {
+    const server = { ...value, canvasJson: canonicalCanvasJson(value.canvasJson), markdown: sanitizeRichText(value.markdown) }
     const canvas = parseCanvas(server.canvasJson)
     latestProject.current = server
     lastSavedSignature.current = contentSignature(server)
@@ -345,6 +412,11 @@ export default function Editor({ token, initialProject, onBack }: Props) {
     clearDraft(server.id)
     setConflict(null)
     setSaveState('saved')
+  }
+
+  function useServerVersion() {
+    if (!conflict) return
+    activateServerProject(conflict.server)
   }
 
   function keepLocalVersion() {
@@ -374,7 +446,7 @@ export default function Editor({ token, initialProject, onBack }: Props) {
     <main className="editor-shell">
       <header className="editor-header">
         <div className="editor-header-left">
-          <button className="icon-button" onClick={() => onBack(latestProject.current)} aria-label="Back to projects">←</button>
+          {onBack && <button className="icon-button" onClick={() => onBack(latestProject.current)} aria-label="Back to projects">←</button>}
           <input className="project-name" value={project.name} onChange={(event) => setProject({ ...project, name: event.target.value })} aria-label="Project name" />
         </div>
         <div className="view-switcher" aria-label="Editor view">
@@ -383,6 +455,8 @@ export default function Editor({ token, initialProject, onBack }: Props) {
           ))}
         </div>
         <div className="editor-header-right">
+          {!shareToken && <button className="header-action" onClick={() => void openSharing()} aria-label="Share project"><Share2 />Share</button>}
+          <button className="header-action" onClick={() => setExportOpen(true)} aria-label="Export project"><Download />Export</button>
           <ThemeToggle />
           <span className={`save-state ${saveState}`}>{saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Save failed' : saveState === 'offline' ? 'Offline' : saveState === 'conflict' ? 'Conflict' : 'Saved'}</span>
           {(saveState === 'error' || saveState === 'offline') && <button className="save-retry" onClick={() => void flushSave()}>Retry</button>}
@@ -477,6 +551,23 @@ export default function Editor({ token, initialProject, onBack }: Props) {
           </section>
         )}
       </div>
+      {shareOpen && <div className="modal-backdrop" onMouseDown={() => setShareOpen(false)}>
+        <section className="share-dialog" role="dialog" aria-modal="true" aria-labelledby="share-title" onMouseDown={(event) => event.stopPropagation()}>
+          <header><div><p className="eyebrow">Project access</p><h2 id="share-title">Share project</h2></div><button className="modal-close" onClick={() => setShareOpen(false)} aria-label="Close sharing"><X /></button></header>
+          <div className="share-create"><select aria-label="Share permission" value={sharePermission} onChange={(event) => setSharePermission(event.target.value as SharePermission)}><option value="READ">Anyone with link can view</option><option value="EDIT">Anyone with link can edit</option></select><button className="primary-button compact" onClick={() => void createShare()}>Create link</button></div>
+          {newShareUrl && <div className="created-share"><input aria-label="New share link" readOnly value={newShareUrl} /><button onClick={() => void navigator.clipboard.writeText(newShareUrl)}>Copy</button></div>}
+          <div className="share-list">{shares.map((share) => <article key={share.id}><div><strong>{share.permission === 'EDIT' ? 'Editable link' : 'Read-only link'}</strong><small>{share.revoked ? 'Revoked' : `Created ${new Date(share.createdAt).toLocaleDateString()}`}</small></div>{!share.revoked && <button className="danger-link" onClick={() => void revokeShare(share)}>Revoke</button>}</article>)}</div>
+          {actionMessage && <p className="fine-print" role="status">{actionMessage}</p>}
+        </section>
+      </div>}
+      {exportOpen && <div className="modal-backdrop" onMouseDown={() => setExportOpen(false)}>
+        <section className="export-dialog" role="dialog" aria-modal="true" aria-labelledby="export-title" onMouseDown={(event) => event.stopPropagation()}>
+          <header><div><p className="eyebrow">Download or copy</p><h2 id="export-title">Export project</h2></div><button className="modal-close" onClick={() => setExportOpen(false)} aria-label="Close export"><X /></button></header>
+          <label className="selection-export"><input type="checkbox" checked={selectionExport} onChange={(event) => setSelectionExport(event.target.checked)} /> Selection only</label>
+          <div className="export-grid"><button onClick={() => void runExport('png')}><strong>PNG</strong><span>Raster image</span></button><button onClick={() => void runExport('svg')}><strong>SVG</strong><span>Vector image</span></button><button onClick={() => void runExport('markdown')}><strong>Markdown</strong><span>Documentation source</span></button><button onClick={() => void runExport('source')}><strong>Archly source</strong><span>Editable JSON</span></button><button onClick={() => void runExport('clipboard')}><strong>Copy image</strong><span>PNG to clipboard</span></button></div>
+          {actionMessage && <p className="fine-print" role="status">{actionMessage}</p>}
+        </section>
+      </div>}
       {conflict && (
         <div className="conflict-backdrop">
           <section className="conflict-dialog" role="dialog" aria-modal="true" aria-labelledby="conflict-title">

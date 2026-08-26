@@ -257,6 +257,12 @@ const componentDefinitions: Array<{ kind: ArchitectureKind; label: string; descr
   { kind: 'external', label: 'Discord', description: 'Community messaging platform', iconId: 'discord', category: 'General', keywords: 'chat community webhook notification bot' },
 ]
 
+const recentComponentsKey = 'archly-recent-components'
+const componentDefinitionKey = (item: { kind: ArchitectureKind; iconId?: string }) => `${item.kind}:${item.iconId || 'default'}`
+function loadRecentComponents(): string[] {
+  try { return JSON.parse(localStorage.getItem(recentComponentsKey) || '[]') as string[] } catch { return [] }
+}
+
 const iconByKind = {
   service: Server, web: AppWindow, mobile: Smartphone, database: Database, cache: Braces,
   queue: Workflow, storage: Cloud, external: ExternalLink, actor: UserRound, container: Boxes,
@@ -671,6 +677,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
   const [tool, setTool] = useState<CanvasTool>('select')
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [propertiesOpen, setPropertiesOpen] = useState(false)
+  const [recentComponents, setRecentComponents] = useState(loadRecentComponents)
   const [minimapVisible, setMinimapVisible] = useState(true)
   const [search, setSearch] = useState('')
   const [componentCategory, setComponentCategory] = useState('All')
@@ -759,6 +766,12 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
     }
     remember()
     setNodes((current) => [...current.map((item) => ({ ...item, selected: false })), { ...node, selected: true }])
+    const recentKey = componentDefinitionKey({ kind, iconId })
+    setRecentComponents((current) => {
+      const next = [recentKey, ...current.filter((item) => item !== recentKey)].slice(0, 8)
+      localStorage.setItem(recentComponentsKey, JSON.stringify(next))
+      return next
+    })
     setLibraryOpen(false)
   }
 
@@ -958,9 +971,9 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
     return () => document.removeEventListener('keydown', handleKeyDown)
   })
 
-  const componentCategories = ['All', ...new Set(componentDefinitions.map((item) => item.category || 'General'))]
+  const componentCategories = ['All', ...(recentComponents.length ? ['Recent'] : []), ...new Set(componentDefinitions.map((item) => item.category || 'General'))]
   const filteredComponents = componentDefinitions.filter((item) =>
-    (componentCategory === 'All' || item.category === componentCategory)
+    (componentCategory === 'All' || componentCategory === 'Recent' && recentComponents.includes(componentDefinitionKey(item)) || item.category === componentCategory)
     && `${item.label} ${item.description} ${item.category || ''} ${item.keywords || ''}`.toLowerCase().includes(search.toLowerCase()))
   const groupedComponents = filteredComponents.reduce((groups, item) => {
     const category = item.category || 'General'

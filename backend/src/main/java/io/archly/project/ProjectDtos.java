@@ -15,18 +15,21 @@ public final class ProjectDtos {
         String markdown,
         long revision
     ) {}
+    public record OrganizeProjectRequest(@Size(max = 80) String folder, boolean archived) {}
     public record ProjectResponse(
         UUID id,
         String name,
         String canvasJson,
         String markdown,
+        String folder,
+        boolean archived,
         long revision,
         Instant createdAt,
         Instant updatedAt
     ) {
         static ProjectResponse from(Project project) {
             return new ProjectResponse(project.getId(), project.getName(), project.getCanvasJson(),
-                project.getMarkdown(), project.getRevision(), project.getCreatedAt(), project.getUpdatedAt());
+                project.getMarkdown(), project.getFolder(), project.isArchived(), project.getRevision(), project.getCreatedAt(), project.getUpdatedAt());
         }
     }
 }

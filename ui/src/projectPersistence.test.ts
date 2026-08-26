@@ -16,7 +16,7 @@ const project: Project = {
 }
 
 describe('project persistence', () => {
-  beforeEach(() => localStorage.clear())
+  beforeEach(() => { localStorage.clear(); window.name = '' })
 
   it('does not change durable canvas content for selection or measured edit dimensions', () => {
     const baseNode = JSON.parse(project.canvasJson).nodes[0] as Node
@@ -48,6 +48,11 @@ describe('project persistence', () => {
   it('uses canonical canvas content in signatures', () => {
     const signature = JSON.parse(contentSignature(project)) as { canvasJson: string }
     expect(signature.canvasJson).toBe(canonicalCanvasJson(project.canvasJson))
+  })
+
+  it('does not treat viewport-only changes as saveable content changes', () => {
+    const movedViewport = { ...project, canvasJson: JSON.stringify({ ...JSON.parse(project.canvasJson), viewport: { x: 200, y: 100, zoom: 1.4 } }) }
+    expect(contentSignature(movedViewport)).toBe(contentSignature(project))
   })
 
   it('preserves the viewport while removing transient selection state', () => {

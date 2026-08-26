@@ -6,7 +6,7 @@ import { getComponentSize, getEdgeLabelWidth, truncateCanvasText } from './canva
 import { useState } from 'react'
 import type { Edge, Node } from '@xyflow/react'
 
-afterEach(cleanup)
+afterEach(() => { cleanup(); localStorage.clear() })
 
 function Harness() {
   const [nodes, setNodes] = useState<Node[]>([])
@@ -231,6 +231,15 @@ describe('CanvasWorkspace', () => {
     fireEvent.dragOver(container.querySelector('.react-flow')!, { dataTransfer: transfer })
     fireEvent.drop(container.querySelector('.react-flow')!, { dataTransfer: transfer, clientX: 500, clientY: 350 })
     expect(screen.getByLabelText('Component name')).toHaveValue('Service / API')
+  })
+
+  it('shows recently used components when the library is reopened', () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Add component' }))
+    fireEvent.click(screen.getByRole('button', { name: /Service \/ API:/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add component' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Recent' }))
+    expect(screen.getByRole('button', { name: /Service \/ API:/ })).toBeInTheDocument()
   })
 
   it('searches technology aliases and persists a selectable icon', () => {

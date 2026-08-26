@@ -82,8 +82,9 @@ Functional requirement summary: **30 Done**, **0 Partial**, and **29 Not done**.
 | PROJ-002 | Must | The dashboard lists projects by most recent update. | Done |
 | PROJ-003 | Must | Users can open, rename, duplicate, and delete projects. | Done |
 | PROJ-004 | Must | Deletion requires confirmation. | Done |
-| PROJ-005 | Should | Users can search projects by name. | Not done |
-| PROJ-006 | Could | Users can organize projects into folders. | Not done |
+| PROJ-005 | Should | Users can search projects by name. | Done |
+| PROJ-006 | Could | Users can organize projects into folders. | Done |
+| PROJ-007 | Should | Users can archive and restore projects. | Done |
 
 ### 5.3 Canvas
 
@@ -154,21 +155,21 @@ Detailed canvas behavior, visual layout, and acceptance criteria are defined in 
 | ID | Priority | Requirement | Implementation status |
 | --- | --- | --- | --- |
 | SHR-001 | Must | Projects are private by default. | Done |
-| SHR-002 | Must | Owners can create and revoke read-only links. | Not done |
-| SHR-003 | Must | Read-only visitors cannot call mutation APIs. | Not done |
-| SHR-004 | Should | Shared projects can be viewed without an account. | Not done |
-| SHR-005 | Could | Owners can create editable links. | Not done |
+| SHR-002 | Must | Owners can create and revoke read-only links. | Done |
+| SHR-003 | Must | Read-only visitors cannot call mutation APIs. | Done |
+| SHR-004 | Should | Shared projects can be viewed without an account. | Done |
+| SHR-005 | Could | Owners can create editable links. | Done |
 
 ### 5.9 Export
 
 | ID | Priority | Requirement | Implementation status |
 | --- | --- | --- | --- |
-| EXP-001 | Must | Users can export a canvas as PNG. | Not done |
-| EXP-002 | Must | Users can export a canvas as SVG. | Not done |
-| EXP-003 | Must | Users can export documents as Markdown. | Not done |
-| EXP-004 | Must | Users can download editable diagram source. | Not done |
-| EXP-005 | Should | The full canvas or selected elements can be exported. | Not done |
-| EXP-006 | Should | Rendered diagrams can be copied to the clipboard. | Not done |
+| EXP-001 | Must | Users can export a canvas as PNG. | Done |
+| EXP-002 | Must | Users can export a canvas as SVG. | Done |
+| EXP-003 | Must | Users can export documents as Markdown. | Done |
+| EXP-004 | Must | Users can download editable diagram source. | Done |
+| EXP-005 | Should | The full canvas or selected elements can be exported. | Done |
+| EXP-006 | Should | Rendered diagrams can be copied to the clipboard. | Done |
 
 ## 6. Data requirements
 
@@ -303,8 +304,8 @@ V1 is ready for prototype testing when:
 | 5. Document notes can embed a project diagram | Not done | Document and canvas views exist, but diagram embedding is not implemented. |
 | 6. Autosave communicates failures and prevents stale overwrites | Done | Saving, saved, offline, conflict, and failed states are visible; stale revisions are rejected, both versions are preserved locally, and users can retry or explicitly choose a version. |
 | 7. A named snapshot can be created and restored | Not done | Snapshot storage and UI are not implemented. |
-| 8. A revoked share link can no longer open the project | Not done | Share links are not implemented. |
+| 8. A revoked share link can no longer open the project | Done | Share tokens are hashed server-side, permission checked for every request, and rejected immediately after revocation. |
 | 9. A read-only visitor cannot modify a project through the UI or API | Not done | Anonymous or link-based read-only access is not implemented. |
-| 10. PNG, SVG, source, and Markdown exports work | Not done | Export actions and endpoints are not implemented. |
+| 10. PNG, SVG, source, and Markdown exports work | Done | The editor exports rendered PNG/SVG, Markdown, versioned editable source, selections, and clipboard images. |
 | 11. Automated tests cover authentication, authorization, persistence, concurrency, and sharing | Partial | UI and project API tests exist, but the complete authentication, cross-owner authorization, concurrency, and sharing matrix is not covered. |
 | 12. No release-blocking accessibility, security, or data-loss defect remains | Not done | Formal accessibility, security, supported-browser, and data-loss release audits have not been completed. |

@@ -23,6 +23,7 @@
     "@tiptap/starter-kit": "^2.27.2",
     "@xyflow/react": "^12.3.6",
     "aws-react-icons": "^3.3.0",
+    "html-to-image": "^1.11.13",
     "lowlight": "^3.3.0",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",

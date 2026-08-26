@@ -21,6 +21,10 @@ public class Project {
     private String canvasJson;
     @Column(nullable = false, columnDefinition = "text")
     private String markdown;
+    @Column(length = 80)
+    private String folder;
+    @Column(nullable = false)
+    private boolean archived;
     @Version
     private long revision;
     @Column(nullable = false)
@@ -43,6 +47,7 @@ public class Project {
         this.markdown = markdown;
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
+        this.archived = false;
     }
 
     public void update(String name, String canvasJson, String markdown) {
@@ -52,11 +57,19 @@ public class Project {
         this.updatedAt = Instant.now();
     }
 
+    public void organize(String folder, boolean archived) {
+        this.folder = folder == null || folder.isBlank() ? null : folder.trim();
+        this.archived = archived;
+        this.updatedAt = Instant.now();
+    }
+
     public UUID getId() { return id; }
     public String getOwnerEmail() { return ownerEmail; }
     public String getName() { return name; }
     public String getCanvasJson() { return canvasJson; }
     public String getMarkdown() { return markdown; }
+    public String getFolder() { return folder; }
+    public boolean isArchived() { return archived; }
     public long getRevision() { return revision; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }

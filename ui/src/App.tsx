@@ -3,10 +3,12 @@ import { GoogleLogin } from '@react-oauth/google'
 import Dashboard from './components/Dashboard'
 import ThemeToggle from './components/ThemeToggle'
 import { ApiError, api } from './api'
+import SharedProjectView from './components/SharedProjectView'
 
 type Props = { googleEnabled?: boolean }
 
 export default function App({ googleEnabled = true }: Props) {
+  const shareToken = window.location.pathname.match(/^\/share\/([^/]+)$/)?.[1]
   const [credential, setCredential] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [authenticating, setAuthenticating] = useState(false)
@@ -27,6 +29,8 @@ export default function App({ googleEnabled = true }: Props) {
       setAuthenticating(false)
     }
   }
+
+  if (shareToken) return <SharedProjectView shareToken={decodeURIComponent(shareToken)} />
 
   if (credential) {
     return <Dashboard token={credential} onSignOut={() => setCredential(null)} />

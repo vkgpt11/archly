@@ -3,6 +3,7 @@ package io.archly.project;
 import io.archly.project.ProjectDtos.CreateProjectRequest;
 import io.archly.project.ProjectDtos.ProjectResponse;
 import io.archly.project.ProjectDtos.UpdateProjectRequest;
+import io.archly.project.ProjectDtos.OrganizeProjectRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -59,6 +60,12 @@ public class ProjectController {
     @Operation(summary = "Duplicate a project", description = "Creates an independent copy with a new ID and revision.")
     ProjectResponse duplicate(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
         return service.duplicate(jwt.getClaimAsString("email"), id);
+    }
+
+    @PutMapping("/{id}/organization")
+    @Operation(summary = "Organize a project", description = "Moves a project into a folder or archives it.")
+    ProjectResponse organize(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id, @Valid @RequestBody OrganizeProjectRequest request) {
+        return service.organize(jwt.getClaimAsString("email"), id, request);
     }
 
     @DeleteMapping("/{id}")

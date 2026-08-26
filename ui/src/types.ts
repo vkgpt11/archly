@@ -7,7 +7,13 @@ export type Project = {
   name: string
   canvasJson: string
   markdown: string
+  folder?: string | null
+  archived?: boolean
   revision: number
   createdAt: string
   updatedAt: string
 }
+
+export type SharePermission = 'READ' | 'EDIT'
+export type ShareLink = { id: string; token?: string; permission: SharePermission; revoked: boolean; createdAt: string; revokedAt?: string | null }
+export type SharedProject = { project: Project; permission: SharePermission }
