@@ -11,7 +11,7 @@ public final class ProjectDtos {
     public record CreateProjectRequest(@NotBlank @Size(max = 120) String name) {}
     public record UpdateProjectRequest(
         @NotBlank @Size(max = 120) String name,
-        @NotBlank String canvasJson,
+        @NotBlank @Size(max = 2_000_000) String canvasJson,
         String markdown,
         long revision
     ) {}

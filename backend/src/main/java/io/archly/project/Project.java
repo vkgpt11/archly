@@ -35,7 +35,7 @@ public class Project {
     protected Project() {}
 
     public Project(String ownerEmail, String name) {
-        this(ownerEmail, name, "{\"nodes\":[],\"edges\":[]}",
+        this(ownerEmail, name, "{\"schemaVersion\":1,\"nodes\":[],\"edges\":[]}",
             "<h1>" + escapeHtml(name) + "</h1><p>Describe your architecture here.</p>");
     }
 

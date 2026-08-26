@@ -2,7 +2,7 @@ import type { Edge, Node } from '@xyflow/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Project } from './types'
 import {
-  canonicalCanvasJson, clearDraft, contentSignature, createDraft, draftRecovery, loadDraft,
+  canonicalCanvasJson, clearDraft, contentSignature, createDraft, draftRecovery, loadDraft, parseCanvasJson,
   serializeCanvas, storeDraft,
 } from './projectPersistence'
 
@@ -65,5 +65,12 @@ describe('project persistence', () => {
     const edge: Edge = { id: 'a-a', source: 'a', target: 'a', data: { routing: 'smoothstep', waypoints: [{ x: 20, y: 30 }] } }
     const canvas = JSON.parse(serializeCanvas([], [edge]))
     expect(canvas.edges[0].data).toEqual({ routing: 'smoothstep' })
+  })
+
+  it('rejects malformed and unsupported canvas documents instead of converting them to empty diagrams', () => {
+    expect(() => parseCanvasJson('not-json')).toThrow()
+    expect(() => parseCanvasJson('[]')).toThrow('JSON object')
+    expect(() => parseCanvasJson('{"schemaVersion":2,"nodes":[],"edges":[]}')).toThrow('not supported')
+    expect(() => parseCanvasJson('{"schemaVersion":1,"nodes":{},"edges":[]}')).toThrow('must be arrays')
   })
 })

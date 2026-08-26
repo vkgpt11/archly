@@ -17,10 +17,13 @@ import org.springframework.web.server.ResponseStatusException;
 public class ProjectService {
     private final ProjectRepository repository;
     private final RichTextSanitizer richTextSanitizer;
+    private final CanvasJsonValidator canvasJsonValidator;
 
-    public ProjectService(ProjectRepository repository, RichTextSanitizer richTextSanitizer) {
+    public ProjectService(ProjectRepository repository, RichTextSanitizer richTextSanitizer,
+                          CanvasJsonValidator canvasJsonValidator) {
         this.repository = repository;
         this.richTextSanitizer = richTextSanitizer;
+        this.canvasJsonValidator = canvasJsonValidator;
     }
 
     @Transactional(readOnly = true)
@@ -42,6 +45,7 @@ public class ProjectService {
         if (project.getRevision() != request.revision()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Project was updated elsewhere. Reload before saving.");
         }
+        canvasJsonValidator.validate(request.canvasJson());
         project.update(request.name().trim(), request.canvasJson(), richTextSanitizer.sanitize(request.markdown()));
         try {
             return response(repository.saveAndFlush(project));

@@ -104,7 +104,7 @@ class ProjectControllerTest {
             .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         String id = objectMapper.readTree(createdBody).get("id").asText();
         String update = """
-            {"name":"Payments","canvasJson":"{\\"nodes\\":[{\\"id\\":\\"api\\"}],\\"edges\\":[]}","markdown":"<p>Design</p>","revision":0}
+            {"name":"Payments","canvasJson":"{\\"nodes\\":[{\\"id\\":\\"api\\",\\"position\\":{\\"x\\":0,\\"y\\":0},\\"data\\":{}}],\\"edges\\":[]}","markdown":"<p>Design</p>","revision":0}
             """;
         mvc.perform(put("/api/projects/{id}", id).with(identity)
                 .contentType(MediaType.APPLICATION_JSON).content(update)).andExpect(status().isOk());
@@ -114,7 +114,7 @@ class ProjectControllerTest {
             .andExpect(jsonPath("$.id").value(org.hamcrest.Matchers.not(id)))
             .andExpect(jsonPath("$.name").value("Payments — Copy"))
             .andExpect(jsonPath("$.revision").value(0))
-            .andExpect(jsonPath("$.canvasJson").value("{\"nodes\":[{\"id\":\"api\"}],\"edges\":[]}"))
+            .andExpect(jsonPath("$.canvasJson").value("{\"nodes\":[{\"id\":\"api\",\"position\":{\"x\":0,\"y\":0},\"data\":{}}],\"edges\":[]}"))
             .andExpect(jsonPath("$.markdown").value("<p>Design</p>"));
     }
 
@@ -149,6 +149,53 @@ class ProjectControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.revision").value(1))
             .andExpect(jsonPath("$.markdown").value("<p>Tab A wins</p>"));
+    }
+
+    @Test
+    void rejectsMalformedUnsupportedAndStructurallyInvalidCanvasData() throws Exception {
+        var identity = jwt().jwt(token -> token.claim("email", "canvas-validation@gmail.com"));
+        String created = mvc.perform(post("/api/projects").with(identity)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Validated canvas\"}"))
+            .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String id = objectMapper.readTree(created).get("id").asText();
+
+        List<String> invalidCanvases = List.of(
+            "not-json",
+            "[]",
+            "{\"schemaVersion\":2,\"nodes\":[],\"edges\":[]}",
+            "{\"schemaVersion\":1,\"nodes\":{},\"edges\":[]}",
+            "{\"schemaVersion\":1,\"nodes\":[{\"id\":\"api\",\"data\":{}}],\"edges\":[]}",
+            "{\"schemaVersion\":1,\"nodes\":[],\"edges\":[{\"id\":\"edge\",\"source\":\"missing\",\"target\":\"missing\"}]}"
+        );
+        for (String invalidCanvas : invalidCanvases) {
+            var update = objectMapper.createObjectNode().put("name", "Validated canvas")
+                .put("canvasJson", invalidCanvas).put("markdown", "<p>Safe</p>").put("revision", 0);
+            mvc.perform(put("/api/projects/{id}", id).with(identity)
+                    .contentType(MediaType.APPLICATION_JSON).content(update.toString()))
+                .andExpect(status().isBadRequest());
+        }
+
+        var nested = objectMapper.createObjectNode();
+        com.fasterxml.jackson.databind.node.ObjectNode cursor = nested;
+        for (int level = 0; level < 25; level++) {
+            var child = objectMapper.createObjectNode();
+            cursor.set("child", child);
+            cursor = child;
+        }
+        var node = objectMapper.createObjectNode().put("id", "api");
+        node.set("position", objectMapper.createObjectNode().put("x", 0).put("y", 0));
+        node.set("data", nested);
+        var canvas = objectMapper.createObjectNode().put("schemaVersion", 1);
+        canvas.set("nodes", objectMapper.createArrayNode().add(node));
+        canvas.set("edges", objectMapper.createArrayNode());
+        var nestedUpdate = objectMapper.createObjectNode().put("name", "Validated canvas")
+            .put("canvasJson", canvas.toString()).put("markdown", "<p>Safe</p>").put("revision", 0);
+        mvc.perform(put("/api/projects/{id}", id).with(identity)
+                .contentType(MediaType.APPLICATION_JSON).content(nestedUpdate.toString()))
+            .andExpect(status().isBadRequest());
+
+        mvc.perform(get("/api/projects/{id}", id).with(identity))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.revision").value(0));
     }
 
     @Test

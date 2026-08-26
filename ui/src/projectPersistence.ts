@@ -47,8 +47,12 @@ export function readProjectSaveSignal(event: StorageEvent, projectId: string, ow
   } catch { return null }
 }
 
-function parseCanvas(value: string): CanvasData {
-  try { return JSON.parse(value) as CanvasData } catch { return { nodes: [], edges: [] } }
+export function parseCanvasJson(value: string): CanvasData {
+  const canvas = JSON.parse(value) as Partial<CanvasData> | null
+  if (!canvas || typeof canvas !== 'object' || Array.isArray(canvas)) throw new Error('Canvas data must be a JSON object.')
+  if (canvas.schemaVersion !== undefined && canvas.schemaVersion !== 1) throw new Error('This canvas schema version is not supported.')
+  if (!Array.isArray(canvas.nodes) || !Array.isArray(canvas.edges)) throw new Error('Canvas nodes and edges must be arrays.')
+  return canvas as CanvasData
 }
 
 function durableNode(node: Node): Node {
@@ -76,16 +80,16 @@ function durableEdge(edge: Edge): Edge {
 }
 
 export function serializeCanvas(nodes: Node[], edges: Edge[], viewport?: Viewport): string {
-  return JSON.stringify({ nodes: nodes.map(durableNode), edges: edges.map(durableEdge), ...(viewport ? { viewport } : {}) })
+  return JSON.stringify({ schemaVersion: 1, nodes: nodes.map(durableNode), edges: edges.map(durableEdge), ...(viewport ? { viewport } : {}) })
 }
 
 export function canonicalCanvasJson(value: string): string {
-  const canvas = parseCanvas(value)
+  const canvas = parseCanvasJson(value)
   return serializeCanvas(canvas.nodes, canvas.edges, canvas.viewport)
 }
 
 export function contentSignature(content: ProjectContent): string {
-  const canvas = parseCanvas(content.canvasJson)
+  const canvas = parseCanvasJson(content.canvasJson)
   return JSON.stringify({
     name: content.name,
     canvasJson: serializeCanvas(canvas.nodes, canvas.edges),
@@ -131,6 +135,11 @@ export function storeConflictBackup(local: ProjectDraft, server: Project): void 
 }
 
 export function draftRecovery(draft: ProjectDraft | null, server: Project): 'none' | 'resume' | 'conflict' {
-  if (!draft || contentSignature(draft) === contentSignature(server)) return 'none'
+  if (!draft) return 'none'
+  try {
+    if (contentSignature(draft) === contentSignature(server)) return 'none'
+  } catch {
+    return 'none'
+  }
   return draft.baseRevision === server.revision ? 'resume' : 'conflict'
 }

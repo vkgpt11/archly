@@ -48,6 +48,15 @@ describe('Editor conflict recovery', () => {
   })
   afterEach(cleanup)
 
+  it('surfaces invalid stored canvas data and does not overwrite it through autosave', async () => {
+    render(<Editor initialProject={{ ...initialProject, canvasJson: 'not-json' }} />)
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Canvas could not be loaded')
+    expect(screen.getByRole('alert')).toHaveTextContent('automatic saving are disabled')
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    expect(apiMocks.saveProject).not.toHaveBeenCalled()
+  })
+
   it('preserves the local draft and shows both versions after a stale save', async () => {
     const serverProject = { ...initialProject, name: 'Changed in Tab A', revision: 1, updatedAt: '2026-08-24T01:00:00Z' }
     apiMocks.saveProject.mockRejectedValue(new ApiError('Conflict', 409))

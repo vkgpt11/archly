@@ -21,7 +21,7 @@ import { copyDiagramToClipboard, exportProject, type ExportFormat } from '../dia
 import { sanitizeRichText } from '../sanitizeRichText'
 import {
   canonicalCanvasJson, clearDraft, contentSignature, createDraft, draftRecovery, loadDraft,
-  currentTabId, publishProjectSaved, readProjectSaveSignal, serializeCanvas, storeConflictBackup, storeDraft, type ProjectDraft,
+  currentTabId, parseCanvasJson, publishProjectSaved, readProjectSaveSignal, serializeCanvas, storeConflictBackup, storeDraft, type ProjectDraft,
 } from '../projectPersistence'
 import CanvasWorkspace from './CanvasWorkspace'
 import ThemeToggle from './ThemeToggle'
@@ -108,10 +108,6 @@ function readScreenshot(file: File): Promise<string> {
   })
 }
 
-function parseCanvas(value: string): CanvasData {
-  try { return JSON.parse(value) as CanvasData } catch { return { nodes: [], edges: [] } }
-}
-
 export default function Editor({ token = '', shareToken, initialProject, onBack }: Props) {
   const tabId = useRef(currentTabId()).current
   const [recovery] = useState(() => {
@@ -119,12 +115,24 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
     const mode = draftRecovery(draft, initialProject)
     return { draft, mode, content: mode === 'none' ? initialProject : draft! }
   })
-  const initialCanvas = parseCanvas(recovery.content.canvasJson)
+  const [canvasLoad] = useState(() => {
+    try {
+      const canvas = parseCanvasJson(recovery.content.canvasJson)
+      return { canvas, canvasJson: canonicalCanvasJson(recovery.content.canvasJson), error: '' }
+    } catch {
+      return {
+        canvas: { schemaVersion: 1, nodes: [], edges: [] } as CanvasData,
+        canvasJson: recovery.content.canvasJson,
+        error: 'This project contains invalid canvas data. Editing and automatic saving are disabled to protect the stored diagram.',
+      }
+    }
+  })
+  const initialCanvas = canvasLoad.canvas
   const [project, setProject] = useState({
     ...initialProject,
     name: recovery.content.name,
     markdown: sanitizeRichText(recovery.content.markdown),
-    canvasJson: canonicalCanvasJson(recovery.content.canvasJson),
+    canvasJson: canvasLoad.canvasJson,
   })
   const [nodes, setNodes] = useNodesState(initialCanvas.nodes)
   const [edges, setEdges] = useEdgesState(initialCanvas.edges)
@@ -142,6 +150,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
   const [exportOpen, setExportOpen] = useState(false)
   const [selectionExport, setSelectionExport] = useState(false)
   const [actionMessage, setActionMessage] = useState('')
+  const [canvasLoadError, setCanvasLoadError] = useState(canvasLoad.error)
   const [saveState, setSaveState] = useState<SaveState>(recovery.mode === 'conflict' ? 'conflict' : recovery.mode === 'resume' ? 'saving' : 'saved')
   const [conflict, setConflict] = useState<SaveConflict | null>(() => recovery.mode === 'conflict' ? { local: recovery.draft!, server: initialProject } : null)
   const latestProject = useRef(project)
@@ -149,7 +158,9 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
   const imageInput = useRef<HTMLInputElement>(null)
   const saveInFlight = useRef(false)
   const saveQueued = useRef(false)
-  const lastSavedSignature = useRef(contentSignature({ ...initialProject, canvasJson: canonicalCanvasJson(initialProject.canvasJson) }))
+  const lastSavedSignature = useRef(canvasLoad.error
+    ? `invalid:${initialProject.canvasJson}`
+    : contentSignature({ ...initialProject, canvasJson: canvasLoad.canvasJson }))
   const conflictActive = conflict !== null
   const conflictRef = useRef(conflict)
 
@@ -196,6 +207,29 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
     ? api.getSharedProject(shareToken).then((response) => response.project)
     : api.getProject(token, id), [shareToken, token])
 
+  const activateServerProject = useCallback((value: Project) => {
+    let canvas: CanvasData
+    try {
+      canvas = parseCanvasJson(value.canvasJson)
+    } catch {
+      setCanvasLoadError('The server returned invalid canvas data. Your current diagram has been preserved and was not replaced.')
+      setSaveState('error')
+      return
+    }
+    const server = { ...value, canvasJson: canonicalCanvasJson(value.canvasJson), markdown: sanitizeRichText(value.markdown) }
+    latestProject.current = server
+    lastSavedSignature.current = contentSignature(server)
+    richTextEditor?.commands.setContent(server.markdown, false)
+    setNodes(canvas.nodes)
+    setEdges(canvas.edges)
+    setViewport(canvas.viewport || { x: 0, y: 0, zoom: 1 })
+    setProject(server)
+    clearDraft(server.id)
+    setConflict(null)
+    setCanvasLoadError('')
+    setSaveState('saved')
+  }, [richTextEditor, setEdges, setNodes])
+
   const insertScreenshot = async (file?: File) => {
     if (!file || !richTextEditor) return
     setImageError('')
@@ -210,6 +244,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
   }
 
   const flushSave = useCallback(async () => {
+    if (canvasLoadError) return
     if (saveInFlight.current) { saveQueued.current = true; return }
     if (conflictActive) return
     const candidate = latestProject.current
@@ -265,9 +300,13 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
       saveInFlight.current = false
       if (saveQueued.current) window.setTimeout(() => void flushSave(), 0)
     }
-  }, [conflictActive, getProject, saveProject, tabId])
+  }, [canvasLoadError, conflictActive, getProject, saveProject, tabId])
 
   useEffect(() => {
+    if (canvasLoadError) {
+      setSaveState('error')
+      return
+    }
     latestProject.current = {
       ...latestProject.current,
       name: project.name,
@@ -290,7 +329,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
     setSaveState(navigator.onLine ? 'saving' : 'offline')
     const timer = window.setTimeout(() => void flushSave(), 900)
     return () => window.clearTimeout(timer)
-  }, [nodes, edges, viewport, project.id, project.name, project.markdown, conflictActive, flushSave, tabId])
+  }, [nodes, edges, viewport, project.id, project.name, project.markdown, canvasLoadError, conflictActive, flushSave, tabId])
 
   useEffect(() => {
     const retryWhenOnline = () => { if (!conflictActive) void flushSave() }
@@ -319,7 +358,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
     }
     window.addEventListener('storage', receiveSaveFromAnotherTab)
     return () => window.removeEventListener('storage', receiveSaveFromAnotherTab)
-  }, [getProject, initialProject.id, tabId])
+  }, [activateServerProject, getProject, initialProject.id, tabId])
 
   async function openSharing() {
     if (!token || shareToken) return
@@ -399,21 +438,6 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
     setLinkEditorOpen(false)
   }
 
-  function activateServerProject(value: Project) {
-    const server = { ...value, canvasJson: canonicalCanvasJson(value.canvasJson), markdown: sanitizeRichText(value.markdown) }
-    const canvas = parseCanvas(server.canvasJson)
-    latestProject.current = server
-    lastSavedSignature.current = contentSignature(server)
-    richTextEditor?.commands.setContent(server.markdown, false)
-    setNodes(canvas.nodes)
-    setEdges(canvas.edges)
-    setViewport(canvas.viewport || { x: 0, y: 0, zoom: 1 })
-    setProject(server)
-    clearDraft(server.id)
-    setConflict(null)
-    setSaveState('saved')
-  }
-
   function useServerVersion() {
     if (!conflict) return
     activateServerProject(conflict.server)
@@ -459,9 +483,10 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
           <button className="header-action" onClick={() => setExportOpen(true)} aria-label="Export project"><Download />Export</button>
           <ThemeToggle />
           <span className={`save-state ${saveState}`}>{saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Save failed' : saveState === 'offline' ? 'Offline' : saveState === 'conflict' ? 'Conflict' : 'Saved'}</span>
-          {(saveState === 'error' || saveState === 'offline') && <button className="save-retry" onClick={() => void flushSave()}>Retry</button>}
+          {!canvasLoadError && (saveState === 'error' || saveState === 'offline') && <button className="save-retry" onClick={() => void flushSave()}>Retry</button>}
         </div>
       </header>
+      {canvasLoadError && <div className="canvas-data-error" role="alert"><strong>Canvas could not be loaded.</strong> {canvasLoadError}</div>}
       <div className="editor-body" ref={editorBody}>
         {showDocument && (
           <section className="document-panel" style={view === 'split' ? { flexBasis: `${documentWidth}%` } : undefined}>

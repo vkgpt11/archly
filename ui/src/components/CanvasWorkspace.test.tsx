@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import CanvasWorkspace, { alignCanvasNodes, applyGroupAwareNodeChanges, arrangeCanvasNodes, assignNodeToContainingContainer, distributeCanvasNodes, moveSelectedCanvasNodes, reorderSelectedCanvasNodes, selectPersistentGroup } from './CanvasWorkspace'
+import CanvasWorkspace from './CanvasWorkspace'
+import { alignCanvasNodes, applyGroupAwareNodeChanges, arrangeCanvasNodes, assignNodeToContainingContainer, distributeCanvasNodes, moveSelectedCanvasNodes, reorderSelectedCanvasNodes, selectPersistentGroup } from './canvasInteractions'
 import { clearNodeSelection, selectOnlyEdge } from './canvasSelection'
 import { getComponentSize, getEdgeLabelWidth, truncateCanvasText } from './canvasSizing'
 import { useState } from 'react'

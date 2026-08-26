@@ -76,6 +76,7 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .conflict-dialog { width: min(100%, 580px); padding: 26px; border: 1px solid var(--border); border-radius: 18px; color: var(--text); background: var(--surface); box-shadow: 0 28px 90px rgba(0,0,0,.32); }
 .conflict-dialog .eyebrow { margin-top: 0; }.conflict-dialog h2 { margin: 0; font-size: 24px; }.conflict-dialog > p:not(.eyebrow) { color: var(--text-soft); line-height: 1.55; }
 .conflict-versions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }.conflict-versions article { display: flex; flex-direction: column; gap: 5px; padding: 14px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface-soft); }.conflict-versions span, .conflict-versions small, .conflict-note { color: var(--text-soft); }
+.canvas-data-error { padding: 10px 18px; border-bottom: 1px solid color-mix(in srgb, #dc2626 45%, var(--border)); background: color-mix(in srgb, #dc2626 12%, var(--surface)); color: var(--text); font-size: 13px; }
 .conflict-actions { display: flex; justify-content: flex-end; gap: 8px; }.conflict-actions > button:not(.primary-button) { padding: 9px 11px; border: 1px solid var(--border); border-radius: 9px; color: var(--text); background: var(--surface); font-size: 12px; font-weight: 700; }.conflict-note { display: block; margin-top: 14px; line-height: 1.45; }
 .editor-body { min-height: 0; flex: 1; display: flex; }
 .document-panel, .canvas-panel { min-width: 0; flex: 1 1 0; }
