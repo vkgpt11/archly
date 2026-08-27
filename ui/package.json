@@ -20,7 +20,7 @@
     "@tiptap/extension-image": "^2.27.2",
     "@tiptap/extension-link": "^2.27.2",
     "@tiptap/extension-text-style": "^2.27.2",
-    "@tiptap/react": "^2.27.2",
+    "@tiptap/react": "^3.30.3",
     "@tiptap/starter-kit": "^2.27.2",
     "@xyflow/react": "^12.3.6",
     "aws-react-icons": "^3.3.0",
