@@ -8,6 +8,11 @@ updates:
     groups:
       development-tooling:
         dependency-type: development
+    ignore:
+      # Major UI/tooling releases have coupled peer requirements and need planned migrations.
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
   - package-ecosystem: maven
     directory: /backend
     schedule:
