@@ -1,7 +1,7 @@
 substitutions:
-  _REGION: asia-south1
+  _REGION: asia-east1
   _SERVICE: archly-api
-  _UI_ORIGIN: https://your-project.web.app
+  _UI_ORIGIN: https://archly-prod-123.web.app
   _GOOGLE_CLIENT_ID: your-production-client-id.apps.googleusercontent.com
 
 steps:

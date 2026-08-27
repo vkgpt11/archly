@@ -10,10 +10,13 @@ This directory contains the production-only deployment configuration for:
 Local development remains controlled by the existing root README, `ui/.env`,
 `application.yml`, and `deployment/docker-compose.yml`.
 
+For the account-level setup checklist, IAM requirements, GitHub variables, and
+deployment sequence, see `doc/gcp-deployment-configuration.md`.
+
 ## Required cloud resources
 
-1. A Google Cloud project with billing enabled.
-2. A Firebase project linked to that Google Cloud project.
+1. Google Cloud project `archly-prod-123` with billing enabled.
+2. Firebase project `archly-prod-123` linked to that Google Cloud project.
 3. An Artifact Registry Docker repository named `archly`.
 4. Cloud Build, Cloud Run, Artifact Registry and Secret Manager APIs enabled.
 5. A Neon project in a region close to the selected Cloud Run region.
@@ -35,8 +38,9 @@ deployment secrets.
 
 ## Deploy the API
 
-Update the substitutions in `cloudbuild-backend.yaml`, then run from the
-repository root:
+The checked-in defaults use region `asia-east1`, service `archly-api`, and UI
+origin `https://archly-prod-123.web.app`. Add the production Google OAuth client
+ID before running this command from the repository root:
 
 ```powershell
 gcloud builds submit --config deployment/gcp/cloudbuild-backend.yaml .
@@ -60,8 +64,9 @@ npx firebase-tools deploy --config deployment/gcp/firebase.json --only hosting
 ```
 
 After Firebase assigns the final hosting domain, configure that exact origin
-in `_UI_ORIGIN`, redeploy Cloud Run, and add the domain to the Google OAuth
-client's authorized JavaScript origins.
+in `_UI_ORIGIN`, redeploy Cloud Run, and add
+`https://archly-prod-123.web.app` to the Google OAuth client's authorized
+JavaScript origins. No custom domain is configured for the initial deployment.
 
 ## Firebase Storage status
 
@@ -79,7 +84,8 @@ as a separate product requirement.
 
 ## GitHub deployment workflow
 
-`Deploy to GCP` is manual and runs the complete CI workflow before deployment.
+GitHub Actions is the selected deployment method. `Deploy to GCP` is manual and
+runs the complete CI workflow before deployment.
 Configure a protected GitHub `production` environment with:
 
 Secrets:
@@ -90,7 +96,7 @@ Secrets:
 Variables:
 
 - `GCP_PROJECT_ID`
-- `GCP_REGION` (for example `asia-south1`)
+- `GCP_REGION` (`asia-east1`)
 - `CLOUD_RUN_SERVICE` (for example `archly-api`)
 - `CLOUD_RUN_API_URL` (the service URL ending in `/api`)
 - `FIREBASE_PROJECT_ID`
