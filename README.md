@@ -6,7 +6,7 @@ Archly is a technical diagramming and documentation prototype built with React, 
 
 - `ui/` — React and TypeScript application
 - `backend/` — Java 17 and Spring Boot API
-- `deployment/` — Docker Compose deployment
+- `deployment/` — local Docker Compose and production GCP deployment configuration
 - `doc/` — product requirements and technical documentation
 
 ## Prerequisites
@@ -74,9 +74,25 @@ Open `http://localhost:8088`.
 
 ## Production deployment
 
-The cost-optimized production target is Firebase Hosting, Google Cloud Run and
-Neon PostgreSQL. Firebase Storage is reserved for the separately specified
-image-storage migration. See [deployment/gcp/README.md](deployment/gcp/README.md)
-for implementation configuration and
-[doc/deployment-requirements-gcp.md](doc/deployment-requirements-gcp.md) for the
-separate deployment requirements.
+The initial cost-optimized production target uses:
+
+- Firebase Hosting for the React UI
+- Google Cloud Run in `asia-east1` for the Spring Boot API
+- Neon PostgreSQL through a pooled JDBC endpoint
+- Google Secret Manager for database credentials
+- GitHub Actions with Workload Identity Federation for deployment
+
+The configured Google Cloud and Firebase project is `archly-prod-123`, the
+Cloud Run service is `archly-api`, and the initial frontend origin is
+`https://archly-prod-123.web.app`. Firebase Storage remains deny-by-default and
+is reserved for the separately planned image-storage migration.
+
+Production deployment is manual: open **Actions → Deploy to GCP → Run
+workflow**. The workflow runs the complete CI suite before deploying the API
+and UI. Authentication bypass flags must remain disabled in production.
+
+Deployment references:
+
+- [Account, IAM, secrets and deployment checklist](doc/gcp-deployment-configuration.md)
+- [Executable GCP configuration](deployment/gcp/README.md)
+- [Deployment requirements](doc/deployment-requirements-gcp.md)
