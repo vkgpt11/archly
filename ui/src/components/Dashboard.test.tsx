@@ -19,6 +19,7 @@ describe('Dashboard project actions', () => {
     Object.values(mocks).forEach((mock) => mock.mockReset())
     mocks.listProjects.mockResolvedValue({ items: [project], page: 0, size: 100, totalItems: 1, totalPages: 1 })
     mocks.getProject.mockResolvedValue(project)
+    mocks.deleteProject.mockResolvedValue(undefined)
   })
 
   it('duplicates a project as a new dashboard entry', async () => {
@@ -68,5 +69,23 @@ describe('Dashboard project actions', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('changed elsewhere')
     expect(mocks.getProject).toHaveBeenCalledWith('token', 'one')
+  })
+
+  it('confirms project deletion in-app and removes it only after the API succeeds', async () => {
+    render(<Dashboard token="token" onSignOut={() => {}} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete' }))
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('Delete “Payments”?')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete project' }))
+    expect(mocks.deleteProject).toHaveBeenCalledWith('token', 'one')
+    expect(await screen.findByText('Create your first architecture')).toBeInTheDocument()
+  })
+
+  it('keeps the project and reports an API deletion failure', async () => {
+    mocks.deleteProject.mockRejectedValue(new Error('Delete request failed'))
+    render(<Dashboard token="token" onSignOut={() => {}} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete project' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Delete request failed')
+    expect(screen.getByText('Payments')).toBeInTheDocument()
   })
 })

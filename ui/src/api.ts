@@ -9,8 +9,20 @@ export class ApiError extends Error {
   }
 }
 
+const requestTimeoutMs = 15_000
+
+async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController()
+  const timer = window.setTimeout(() => controller.abort(), requestTimeoutMs)
+  try { return await fetch(url, { ...init, signal: controller.signal }) }
+  catch (error) {
+    if (controller.signal.aborted) throw new ApiError('The API did not respond within 15 seconds. Check the backend and try again.', 408)
+    throw error
+  } finally { window.clearTimeout(timer) }
+}
+
 async function request<T>(token: string, path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${baseUrl}${path}`, {
+  const response = await fetchWithTimeout(`${baseUrl}${path}`, {
     ...init,
     headers: {
       Authorization: `Bearer ${token}`,
@@ -26,7 +38,7 @@ async function request<T>(token: string, path: string, init?: RequestInit): Prom
 }
 
 async function publicRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${baseUrl}${path}`, { ...init, headers: { 'Content-Type': 'application/json', ...init?.headers } })
+  const response = await fetchWithTimeout(`${baseUrl}${path}`, { ...init, headers: { 'Content-Type': 'application/json', ...init?.headers } })
   if (!response.ok) {
     const body = await response.json().catch(() => ({}))
     throw new ApiError(body.message || `Request failed (${response.status})`, response.status)

@@ -351,4 +351,24 @@ class ProjectControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].id").value(shareId));
     }
+
+    @Test
+    void deletesAnOwnedProjectAndInvalidatesItsShareLinks() throws Exception {
+        var owner = jwt().jwt(token -> token.claim("email", "delete-owner@gmail.com"));
+        String created = mvc.perform(post("/api/projects").with(owner)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Disposable design\"}"))
+            .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String projectId = objectMapper.readTree(created).get("id").asText();
+        String shared = mvc.perform(post("/api/projects/{id}/shares", projectId).with(owner)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"permission\":\"READ\"}"))
+            .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String shareToken = objectMapper.readTree(shared).get("token").asText();
+
+        mvc.perform(delete("/api/projects/{id}", projectId).with(owner))
+            .andExpect(status().isNoContent());
+        mvc.perform(get("/api/projects/{id}", projectId).with(owner))
+            .andExpect(status().isNotFound());
+        mvc.perform(get("/api/shares/{token}", shareToken))
+            .andExpect(status().isNotFound());
+    }
 }

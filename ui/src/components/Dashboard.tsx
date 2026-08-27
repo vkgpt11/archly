@@ -21,6 +21,8 @@ export default function Dashboard({ token, onSignOut }: Props) {
   const [scope, setScope] = useState<'active' | 'archived'>('active')
   const [folder, setFolder] = useState('All')
   const [nextPage, setNextPage] = useState<number | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<ProjectSummary | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     api.listProjects(token)
@@ -72,10 +74,19 @@ export default function Dashboard({ token, onSignOut }: Props) {
     } catch (reason) { setError((reason as Error).message) }
   }
 
-  async function removeProject(project: ProjectSummary) {
-    if (!window.confirm(`Delete “${project.name}”? This cannot be undone.`)) return
-    await api.deleteProject(token, project.id)
-    setProjects((current) => current.filter((item) => item.id !== project.id))
+  async function removeProject() {
+    if (!pendingDelete || deleting) return
+    setDeleting(true)
+    setError('')
+    try {
+      await api.deleteProject(token, pendingDelete.id)
+      setProjects((current) => current.filter((item) => item.id !== pendingDelete.id))
+      setPendingDelete(null)
+    } catch (reason) {
+      setError((reason as Error).message || 'The project could not be deleted. Please try again.')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   async function organizeProject(project: ProjectSummary, nextFolder: string | null, archived = Boolean(project.archived)) {
@@ -149,7 +160,7 @@ export default function Dashboard({ token, onSignOut }: Props) {
                     if (next !== null) void organizeProject(project, next.trim() || null)
                   }}>Move</button>
                   <button className="text-button" onClick={() => void organizeProject(project, project.folder || null, !project.archived)}>{project.archived ? 'Restore' : 'Archive'}</button>
-                  <button className="danger-link" onClick={() => removeProject(project)}>Delete</button>
+                  <button className="danger-link" onClick={() => setPendingDelete(project)}>Delete</button>
                 </div>
               </article>
             ))}
@@ -163,6 +174,17 @@ export default function Dashboard({ token, onSignOut }: Props) {
             <div className="template-grid">{architectureTemplates.map((template) => <button key={template.id} onClick={() => void createProject(template)}>
               <strong>{template.name}</strong><span>{template.description}</span><small>{template.nodes.length ? `${template.nodes.length} editable components` : 'Empty canvas'}</small>
             </button>)}</div>
+          </section>
+        </div>}
+        {pendingDelete && <div className="modal-backdrop" onMouseDown={() => !deleting && setPendingDelete(null)}>
+          <section className="delete-project-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-project-title" aria-describedby="delete-project-description" onMouseDown={(event) => event.stopPropagation()}>
+            <p className="eyebrow">Delete project</p>
+            <h2 id="delete-project-title">Delete “{pendingDelete.name}”?</h2>
+            <p id="delete-project-description">This permanently removes the document, diagram, and active share links. This action cannot be undone.</p>
+            <div className="delete-project-actions">
+              <button className="text-button" disabled={deleting} onClick={() => setPendingDelete(null)}>Cancel</button>
+              <button className="danger-button" disabled={deleting} onClick={() => void removeProject()}>{deleting ? 'Deleting…' : 'Delete project'}</button>
+            </div>
           </section>
         </div>}
       </section>

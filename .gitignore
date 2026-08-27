@@ -19,6 +19,7 @@ backend/data/
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 # Operating system
 .DS_Store

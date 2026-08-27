@@ -1,0 +1,40 @@
+substitutions:
+  _REGION: asia-south1
+  _SERVICE: archly-api
+  _UI_ORIGIN: https://your-project.web.app
+  _GOOGLE_CLIENT_ID: your-production-client-id.apps.googleusercontent.com
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --tag
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/archly/backend:${BUILD_ID}
+      - backend
+  - name: gcr.io/cloud-builders/docker
+    args: [push, '${_REGION}-docker.pkg.dev/${PROJECT_ID}/archly/backend:${BUILD_ID}']
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/archly/backend:${BUILD_ID}
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --min=0
+      - --max=2
+      - --concurrency=20
+      - --cpu=1
+      - --memory=1Gi
+      - --timeout=60
+      - --port=8080
+      - --set-env-vars=SPRING_PROFILES_ACTIVE=cloud,ARCHLY_AUTH_DEV_BYPASS=false,UI_ORIGINS=${_UI_ORIGIN},GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID},DATABASE_MAX_POOL_SIZE=5,JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=75.0
+      - --set-secrets=DATABASE_URL=archly-neon-jdbc-url:latest,DATABASE_USERNAME=archly-neon-username:latest,DATABASE_PASSWORD=archly-neon-password:latest
+
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/archly/backend:${BUILD_ID}
+
+options:
+  logging: CLOUD_LOGGING_ONLY

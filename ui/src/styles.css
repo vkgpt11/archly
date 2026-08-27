@@ -59,6 +59,9 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .project-meta { position: relative; padding: 18px; }
 .project-title { display: block; max-width: calc(100% - 45px); padding: 0; border: 0; color: #252734; background: transparent; font-weight: 750; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .project-meta p { margin: 7px 0 0; color: var(--text-soft); font-size: 12px; }
+.delete-project-dialog { width: min(430px, calc(100vw - 32px)); padding: 24px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); box-shadow: 0 24px 70px rgba(20,21,30,.28); }
+.delete-project-dialog h2 { margin: 5px 0 10px; font-size: 20px; }.delete-project-dialog > p:not(.eyebrow) { margin: 0; color: var(--text-soft); line-height: 1.5; }
+.delete-project-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 22px; }.danger-button { padding: 8px 13px; border: 1px solid var(--danger); border-radius: 8px; color: white; background: var(--danger); }.danger-button:disabled { cursor: wait; opacity: .65; }
 .danger-link { position: absolute; right: 16px; bottom: 16px; border: 0; color: #a64957; background: transparent; font-size: 12px; }
 .editor-shell { height: 100vh; display: flex; flex-direction: column; }
 .editor-header { flex: 0 0 auto; }

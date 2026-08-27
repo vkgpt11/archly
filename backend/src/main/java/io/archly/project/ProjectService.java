@@ -21,13 +21,16 @@ public class ProjectService {
     private final RichTextSanitizer richTextSanitizer;
     private final CanvasJsonValidator canvasJsonValidator;
     private final ProjectContentValidator projectContentValidator;
+    private final ProjectShareRepository shareRepository;
 
     public ProjectService(ProjectRepository repository, RichTextSanitizer richTextSanitizer,
-                          CanvasJsonValidator canvasJsonValidator, ProjectContentValidator projectContentValidator) {
+                          CanvasJsonValidator canvasJsonValidator, ProjectContentValidator projectContentValidator,
+                          ProjectShareRepository shareRepository) {
         this.repository = repository;
         this.richTextSanitizer = richTextSanitizer;
         this.canvasJsonValidator = canvasJsonValidator;
         this.projectContentValidator = projectContentValidator;
+        this.shareRepository = shareRepository;
     }
 
     @Transactional(readOnly = true)
@@ -85,7 +88,11 @@ public class ProjectService {
     }
 
     public void delete(String email, UUID id) {
-        repository.delete(findOwned(email, id));
+        Project project = findOwned(email, id);
+        shareRepository.deleteAllByProjectId(project.getId());
+        shareRepository.flush();
+        repository.delete(project);
+        repository.flush();
     }
 
     private Project findOwned(String email, UUID id) {

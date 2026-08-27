@@ -71,3 +71,12 @@ docker compose --env-file deployment/.env -f deployment/docker-compose.yml up --
 ```
 
 Open `http://localhost:8088`.
+
+## Production deployment
+
+The cost-optimized production target is Firebase Hosting, Google Cloud Run and
+Neon PostgreSQL. Firebase Storage is reserved for the separately specified
+image-storage migration. See [deployment/gcp/README.md](deployment/gcp/README.md)
+for implementation configuration and
+[doc/deployment-requirements-gcp.md](doc/deployment-requirements-gcp.md) for the
+separate deployment requirements.

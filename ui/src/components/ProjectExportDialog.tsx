@@ -14,7 +14,7 @@ export default function ProjectExportDialog({ project, nodes, edges, viewport, o
     setMessage('')
     try {
       const exports = await import('../diagramExport')
-      if (format === 'clipboard') await exports.copyDiagramToClipboard(selectionOnly)
+      if (format === 'clipboard') await exports.copyDiagramToClipboard({ ...project, canvasJson: JSON.stringify({ nodes, edges, viewport }) }, selectionOnly)
       else await exports.exportProject({ ...project, canvasJson: JSON.stringify({ nodes, edges, viewport }) }, format, selectionOnly)
       setMessage(format === 'clipboard' ? 'Diagram copied.' : 'Export created.')
     } catch (error) { setMessage((error as Error).message) }

@@ -5,7 +5,7 @@ const project = {
   canvasJson: JSON.stringify({ schemaVersion: 1, nodes: [
     { id: 'near', type: 'architecture', position: { x: 40, y: 60 }, data: { kind: 'service', label: 'Visible API' } },
     { id: 'far', type: 'architecture', position: { x: 1800, y: 1200 }, data: { kind: 'database', label: 'Far Away Database' } },
-  ], edges: [{ id: 'near-far', type: 'editable', source: 'near', target: 'far', label: 'replicates' }] }),
+  ], edges: [{ id: 'near-far', type: 'editable', source: 'near', target: 'far', label: 'replicates', markerEnd: { type: 'arrowclosed' } }] }),
   revision: 0, createdAt: '2026-08-26T00:00:00Z', updatedAt: '2026-08-26T00:00:00Z',
 }
 
@@ -34,6 +34,14 @@ test('exports full SVG with theme styling and off-screen content', async ({ page
   const contents = await (await import('node:fs/promises')).readFile(await download.path(), 'utf8')
   expect(contents).toContain('Far Away Database')
   expect(contents).toContain('Visible API')
+  expect(contents).toContain('data-archly-export-arrow="end"')
+  expect(contents).toMatch(/<polygon[^>]+data-archly-export-arrow="end"/)
+  expect(contents).toMatch(/<path[^>]+class="react-flow__edge-path"[^>]+stroke="(?!none|transparent)[^"]+"/)
+  expect(contents).toMatch(/<path[^>]+class="react-flow__edge-path"[^>]+stroke-width="(?:1\.5|[2-9][\d.]*)"/)
+  expect(contents).toMatch(/react-flow__viewport[^>]+background(?:-color)?: transparent/)
+  expect(contents).not.toContain('data-archly-export-background')
+  expect(Number(contents.match(/<svg[^>]*\bwidth="(\d+)"/)?.[1])).toBeGreaterThan(1_800)
+  expect(Number(contents.match(/<svg[^>]*\bheight="(\d+)"/)?.[1])).toBeGreaterThan(1_200)
   expect(contents.length).toBeGreaterThan(1_000)
 })
 
