@@ -9,6 +9,7 @@ This directory contains the product and technical documentation for Archly.
 - [V1 canvas requirements](canvas-requirements-v1.md)
 - [GCP deployment requirements](deployment-requirements-gcp.md)
 - [GCP deployment configuration checklist](gcp-deployment-configuration.md)
+- [Deployment frequently asked questions](deployment-faq.md)
 
 ## Planned documentation
 
