@@ -23,6 +23,7 @@ steps:
       - --region=${_REGION}
       - --platform=managed
       - --allow-unauthenticated
+      - --service-account=archly-runtime@archly-prod-123.iam.gserviceaccount.com
       - --min=0
       - --max=2
       - --concurrency=20
@@ -35,6 +36,8 @@ steps:
 
 images:
   - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/archly/backend:${BUILD_ID}
+
+serviceAccount: projects/archly-prod-123/serviceAccounts/archly-deployer@archly-prod-123.iam.gserviceaccount.com
 
 options:
   logging: CLOUD_LOGGING_ONLY

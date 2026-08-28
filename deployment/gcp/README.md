@@ -49,6 +49,8 @@ gcloud builds submit --config deployment/gcp/cloudbuild-backend.yaml .
 The service deliberately uses zero minimum instances, at most two instances,
 and a five-connection database pool. Flyway migrations execute when a new
 instance starts, so only backward-compatible migrations should be deployed.
+Cloud Build executes as `archly-deployer@archly-prod-123.iam.gserviceaccount.com`
+and Cloud Run executes as `archly-runtime@archly-prod-123.iam.gserviceaccount.com`.
 
 ## Deploy the UI
 
@@ -91,7 +93,7 @@ Configure a protected GitHub `production` environment with:
 Secrets:
 
 - `GCP_WORKLOAD_IDENTITY_PROVIDER`
-- `GCP_SERVICE_ACCOUNT`
+- `GCP_SERVICE_ACCOUNT` = `archly-deployer@archly-prod-123.iam.gserviceaccount.com`
 
 Variables:
 

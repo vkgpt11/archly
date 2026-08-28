@@ -117,6 +117,10 @@ Create a dedicated runtime service account, for example:
 archly-runtime@GCP_PROJECT_ID.iam.gserviceaccount.com
 ```
 
+Configuration status: created as
+`archly-runtime@archly-prod-123.iam.gserviceaccount.com`, with access to the
+three Archly Neon secrets.
+
 Grant it only the permissions required at runtime:
 
 - Secret Manager Secret Accessor for the three Archly secrets
@@ -208,6 +212,16 @@ key. Add these protected GitHub environment secrets:
 GCP_WORKLOAD_IDENTITY_PROVIDER
 GCP_SERVICE_ACCOUNT
 ```
+
+Set `GCP_SERVICE_ACCOUNT` to:
+
+```text
+archly-deployer@archly-prod-123.iam.gserviceaccount.com
+```
+
+The deployer account and its Service Account User binding on the runtime
+account have been created. Workload Identity Federation remains to be
+configured.
 
 The deployment service account needs the minimum permissions required to:
 
