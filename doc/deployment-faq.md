@@ -80,6 +80,67 @@ an administrator, and rerun the entire workflow after propagation.
 The message about files excluded by the default `.gcloudignore` is
 informational and is not the cause of this failure.
 
+### Why does Cloud Run deployment fail with `Permission denied to enable service run.googleapis.com`?
+
+This failure occurs after the backend container has built and been pushed to
+Artifact Registry, but before Cloud Run can create a revision. Typical output
+includes:
+
+```text
+The following APIs are not enabled on project [archly-prod-123]:
+run.googleapis.com
+Permission denied to enable service [run.googleapis.com]
+permission: serviceusage.services.enable
+reason: AUTH_PERMISSION_DENIED
+```
+
+The successful Docker push proves that Cloud Build and Artifact Registry are
+working. The deployer account correctly lacks permission to enable arbitrary
+Google APIs. API activation is a one-time administrator responsibility and
+must not be solved by granting Service Usage Admin to the deployment pipeline.
+
+In Google Cloud Shell, authenticate as a project administrator and enable the
+Cloud Run API:
+
+```bash
+gcloud services enable run.googleapis.com --project=archly-prod-123
+```
+
+To prevent another sequential API failure, enable the complete required set:
+
+```bash
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com firebase.googleapis.com firebasehosting.googleapis.com storage.googleapis.com cloudresourcemanager.googleapis.com iam.googleapis.com iamcredentials.googleapis.com sts.googleapis.com --project=archly-prod-123
+```
+
+Verify Cloud Run is enabled:
+
+```bash
+gcloud services list --enabled --project=archly-prod-123 --filter="name:run.googleapis.com"
+```
+
+The result should include `run.googleapis.com`.
+
+The deployer should be allowed to consume enabled project services, without
+being allowed to enable or disable them:
+
+```bash
+gcloud projects add-iam-policy-binding archly-prod-123 --member="serviceAccount:archly-deployer@archly-prod-123.iam.gserviceaccount.com" --role="roles/serviceusage.serviceUsageConsumer"
+```
+
+It also needs Cloud Run deployment access:
+
+```bash
+gcloud projects add-iam-policy-binding archly-prod-123 --member="serviceAccount:archly-deployer@archly-prod-123.iam.gserviceaccount.com" --role="roles/run.admin"
+```
+
+The deployer must separately retain Service Account User permission on
+`archly-runtime@archly-prod-123.iam.gserviceaccount.com`. The runtime account,
+not the deployer, reads the three Neon secrets.
+
+Wait several minutes for API and IAM propagation, then rerun the complete
+deployment workflow. The container image pushed by the failed run is valid but
+unused; a new workflow run will create a new image tag.
+
 ### Why does Google Cloud Shell report `--project: command not found`?
 
 Google Cloud Shell runs Bash. A backtick is PowerShell's line-continuation
