@@ -10,8 +10,10 @@ This directory contains the production-only deployment configuration for:
 Local development remains controlled by the existing root README, `ui/.env`,
 `application.yml`, and `deployment/docker-compose.yml`.
 
-For the account-level setup checklist, IAM requirements, GitHub variables, and
-deployment sequence, see `doc/gcp-deployment-configuration.md`.
+The single source of truth for GCP, Firebase, Neon, Google OAuth, IAM, GitHub
+variables, secrets, and the deployment sequence is
+`doc/gcp-deployment-configuration.md`. This README explains only how the files
+in this directory are executed; do not duplicate account configuration here.
 
 ## Required cloud resources
 

@@ -4,8 +4,10 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
   id-token: write
+  security-events: write
 
 jobs:
   verify:
@@ -15,6 +17,9 @@ jobs:
     needs: verify
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: google-github-actions/auth@v2
