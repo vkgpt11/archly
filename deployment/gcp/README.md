@@ -100,9 +100,10 @@ Variables:
 - `GCP_PROJECT_ID`
 - `GCP_REGION` (`asia-east1`)
 - `CLOUD_RUN_SERVICE` (for example `archly-api`)
-- `CLOUD_RUN_API_URL` (the service URL ending in `/api`)
 - `FIREBASE_PROJECT_ID`
 - `FIREBASE_HOSTING_ORIGIN` (origin only, with no trailing slash)
 - `GOOGLE_CLIENT_ID`
 
 Use environment reviewers to require approval before the deployment job starts.
+The workflow discovers the deployed Cloud Run service URL and passes its `/api`
+address directly into the subsequent Vite production build.

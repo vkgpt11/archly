@@ -180,7 +180,6 @@ Add these environment variables:
 GCP_PROJECT_ID
 GCP_REGION
 CLOUD_RUN_SERVICE
-CLOUD_RUN_API_URL
 FIREBASE_PROJECT_ID
 FIREBASE_HOSTING_ORIGIN
 GOOGLE_CLIENT_ID
@@ -200,8 +199,10 @@ GCP_REGION=asia-east1
 CLOUD_RUN_SERVICE=archly-api
 FIREBASE_PROJECT_ID=archly-prod-123
 FIREBASE_HOSTING_ORIGIN=https://archly-prod-123.web.app
-CLOUD_RUN_API_URL=https://GENERATED-CLOUD-RUN-SERVICE.run.app/api
 ```
+
+The workflow discovers the Cloud Run URL after deploying the API and injects
+the URL plus `/api` into the Vite build automatically.
 
 ## 10. GitHub authentication to GCP
 
@@ -219,9 +220,9 @@ Set `GCP_SERVICE_ACCOUNT` to:
 archly-deployer@archly-prod-123.iam.gserviceaccount.com
 ```
 
-The deployer account and its Service Account User binding on the runtime
-account have been created. Workload Identity Federation remains to be
-configured.
+The deployer account, its Service Account User binding on the runtime account,
+the Workload Identity pool, GitHub provider, protected `production`
+environment, and both GitHub authentication secrets have been created.
 
 The deployment service account needs the minimum permissions required to:
 
@@ -248,11 +249,9 @@ Federation is unavailable and an explicitly approved exception exists.
 9. Configure Workload Identity Federation.
 10. Add protected GitHub production variables and secrets.
 11. Run the manual `Deploy to GCP` workflow.
-12. Record the generated Cloud Run URL.
-13. Set `CLOUD_RUN_API_URL` to the generated URL plus `/api`.
-14. Redeploy the UI if the API URL changed after its first build.
-15. Confirm Google OAuth origins and backend CORS.
-16. Run production authentication, project CRUD, save/recovery, sharing, and
+12. Let the workflow resolve the generated Cloud Run URL for the UI build.
+13. Confirm Google OAuth origins and backend CORS.
+14. Run production authentication, project CRUD, save/recovery, sharing, and
     export smoke tests.
 
 ## 12. Cost and safety controls

@@ -32,6 +32,16 @@ jobs:
           _REGION="${{ vars.GCP_REGION }}",_SERVICE="${{ vars.CLOUD_RUN_SERVICE }}",_UI_ORIGIN="${{ vars.FIREBASE_HOSTING_ORIGIN }}",_GOOGLE_CLIENT_ID="${{ vars.GOOGLE_CLIENT_ID }}"
           .
 
+      - name: Resolve deployed API URL
+        shell: bash
+        run: |
+          service_url="$(gcloud run services describe "${{ vars.CLOUD_RUN_SERVICE }}" \
+            --project "${{ vars.GCP_PROJECT_ID }}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --format='value(status.url)')"
+          test -n "$service_url"
+          echo "VITE_API_URL=${service_url}/api" >> "$GITHUB_ENV"
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -40,7 +50,6 @@ jobs:
       - name: Build UI
         working-directory: ui
         env:
-          VITE_API_URL: ${{ vars.CLOUD_RUN_API_URL }}
           VITE_GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
           VITE_DEV_AUTH: 'false'
         run: |
