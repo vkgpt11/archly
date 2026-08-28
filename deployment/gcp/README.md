@@ -38,9 +38,9 @@ deployment secrets.
 
 ## Deploy the API
 
-The checked-in defaults use region `asia-east1`, service `archly-api`, and UI
-origin `https://archly-prod-123.web.app`. Add the production Google OAuth client
-ID before running this command from the repository root:
+The checked-in defaults use region `asia-east1`, service `archly-api`, UI origin
+`https://archly-prod-123.web.app`, and the Archly production Google OAuth client
+ID. Run this command from the repository root:
 
 ```powershell
 gcloud builds submit --config deployment/gcp/cloudbuild-backend.yaml .

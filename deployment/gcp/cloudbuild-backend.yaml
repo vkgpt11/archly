@@ -2,7 +2,7 @@ substitutions:
   _REGION: asia-east1
   _SERVICE: archly-api
   _UI_ORIGIN: https://archly-prod-123.web.app
-  _GOOGLE_CLIENT_ID: your-production-client-id.apps.googleusercontent.com
+  _GOOGLE_CLIENT_ID: 222938267134-rcss0fnu7snhe4tmi1c1vlr9htoruif2.apps.googleusercontent.com
 
 steps:
   - name: gcr.io/cloud-builders/docker
