@@ -18,10 +18,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.jwt.JwtValidationException;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.util.List;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,7 +32,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 class ProjectControllerTest {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper objectMapper;
-    @MockBean JwtDecoder jwtDecoder;
+    @MockitoBean JwtDecoder jwtDecoder;
 
     @Test
     void requiresAuthentication() throws Exception {

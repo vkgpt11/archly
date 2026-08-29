@@ -24,9 +24,11 @@ export default function App({ googleEnabled = true }: Props) {
       setCredential(token)
     } catch (failure) {
       setCredential(null)
-      setError(failure instanceof ApiError && failure.status === 401
-        ? 'Only verified personal @gmail.com accounts are supported. Google Workspace and other email domains cannot sign in.'
-        : 'Could not verify your Google account. Please try again.')
+      setError(token === 'archly-local-dev'
+        ? 'Local developer sign-in failed. Start the API with ARCHLY_AUTH_DEV_BYPASS=true and try again.'
+        : failure instanceof ApiError && failure.status === 401
+          ? 'Only verified personal @gmail.com accounts are supported. Google Workspace and other email domains cannot sign in.'
+          : 'Could not verify your Google account. Please try again.')
     } finally {
       setAuthenticating(false)
     }

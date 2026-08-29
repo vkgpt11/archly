@@ -18,7 +18,10 @@ vi.mock('@react-oauth/google', () => ({
 }))
 
 describe('App', () => {
-  afterEach(cleanup)
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllEnvs()
+  })
 
   beforeEach(() => {
     localStorage.clear()
@@ -57,5 +60,16 @@ describe('App', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Only verified personal @gmail.com accounts are supported. Google Workspace and other email domains cannot sign in.')
     expect(screen.getByRole('heading', { name: /build systems people understand/i })).toBeInTheDocument()
+  })
+
+  it('explains how to recover when local developer sign-in fails', async () => {
+    vi.stubEnv('VITE_DEV_AUTH', 'true')
+    apiMocks.validateSession.mockRejectedValue(new TypeError('Failed to fetch'))
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: /continue as local developer/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Local developer sign-in failed. Start the API with ARCHLY_AUTH_DEV_BYPASS=true and try again.')
   })
 })
