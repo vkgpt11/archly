@@ -27,6 +27,13 @@ export default function Dashboard({ token, isAdmin = false, onSignOut }: Props) 
   const [adminOpen, setAdminOpen] = useState(() => window.location.hash === '#/admin')
 
   useEffect(() => {
+    const syncAdminRoute = () => setAdminOpen(window.location.hash === '#/admin')
+    window.addEventListener('hashchange', syncAdminRoute)
+    syncAdminRoute()
+    return () => window.removeEventListener('hashchange', syncAdminRoute)
+  }, [])
+
+  useEffect(() => {
     api.listProjects(token)
       .then((rawResponse) => {
         const response = normalizeProjectPage(rawResponse)

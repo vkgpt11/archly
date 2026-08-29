@@ -10,16 +10,26 @@ vi.mock('../api', async (importOriginal) => {
   return { ...original, api: mocks }
 })
 vi.mock('./Editor', () => ({ default: () => <div>Project editor</div> }))
+vi.mock('../admin/AdminDashboard', () => ({ default: () => <div>Administration dashboard</div> }))
 
 const project: Project = { id: 'one', name: 'Payments', canvasJson: '{"nodes":[],"edges":[]}', markdown: '<p>Design</p>', revision: 0, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }
 
 describe('Dashboard project actions', () => {
-  afterEach(cleanup)
+  afterEach(() => { cleanup(); window.location.hash = '' })
   beforeEach(() => {
     Object.values(mocks).forEach((mock) => mock.mockReset())
     mocks.listProjects.mockResolvedValue({ items: [project], page: 0, size: 100, totalItems: 1, totalPages: 1 })
     mocks.getProject.mockResolvedValue(project)
     mocks.deleteProject.mockResolvedValue(undefined)
+  })
+
+  it('opens administration from a direct hash route and follows hash navigation', async () => {
+    window.location.hash = '#/admin'
+    render(<Dashboard token="token" isAdmin onSignOut={() => {}} />)
+    expect(await screen.findByText('Administration dashboard')).toBeInTheDocument()
+    window.location.hash = ''
+    window.dispatchEvent(new HashChangeEvent('hashchange'))
+    expect(await screen.findByRole('heading', { name: 'Architecture projects' })).toBeInTheDocument()
   })
 
   it('duplicates a project as a new dashboard entry', async () => {
