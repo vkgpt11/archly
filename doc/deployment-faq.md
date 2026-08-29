@@ -187,5 +187,124 @@ Use PowerShell backticks only in a PowerShell terminal. Use Bash backslashes or
 single-line commands in Google Cloud Shell, Linux terminals, and GitHub Actions
 shell steps.
 
+### Why does Firebase Hosting still show `Site Not Found` after the UI build succeeds?
+
+A successful Vite build does not publish Firebase Hosting. The deployment is
+complete only when the Firebase step reports `Deploy complete!`. GitHub's
+`Post job cleanup`, credential removal, and orphan-process cleanup messages are
+normal security cleanup and do not prove that a Firebase release was created.
+
+Check the live site:
+
+```bash
+curl --head https://archly-prod-123.web.app
+```
+
+If it returns `404`, list the configured Hosting sites:
+
+```bash
+npx --yes firebase-tools@15.28.2 hosting:sites:list --project=archly-prod-123
+```
+
+If `archly-prod-123` appears in the list, the site exists but has no successful
+release. Do not try to create the same Hosting site again. Resolve the failed
+Firebase deployment step and rerun the complete workflow.
+
+Messages such as `npm warn deprecated` emitted while `npx` installs
+`firebase-tools` come from the Firebase CLI's transient dependency tree. They
+do not describe the Archly production bundle. Review them during CLI upgrades,
+but diagnose deployment using the command's final exit status and Firebase
+error message.
+
+### How is a missing default Firebase Storage bucket created from Cloud Shell?
+
+The workflow deploys both Hosting and deny-all Storage rules. Storage rules
+cannot be deployed until a default Cloud Storage for Firebase bucket exists.
+Creating a normal Google Cloud Storage bucket is not sufficient because the
+bucket must also be linked to the Firebase project.
+
+New default Firebase Storage buckets require the project to use the Blaze
+pay-as-you-go plan, even when usage remains inside no-cost allowances.
+
+Enable both APIs:
+
+```bash
+gcloud services enable firebasestorage.googleapis.com storage.googleapis.com --project=archly-prod-123
+```
+
+Check for an existing default bucket:
+
+```bash
+curl --silent --show-error \
+  --header "Authorization: Bearer $(gcloud auth print-access-token)" \
+  "https://firebasestorage.googleapis.com/v1alpha/projects/archly-prod-123/defaultBucket"
+```
+
+A `404 NOT_FOUND` response means the default bucket has not been provisioned.
+Create and link it in the selected production region:
+
+```bash
+curl --fail-with-body --silent --show-error \
+  --request POST \
+  --header "Authorization: Bearer $(gcloud auth print-access-token)" \
+  --header "Content-Type: application/json" \
+  --data '{"location":"asia-east1"}' \
+  "https://firebasestorage.googleapis.com/v1alpha/projects/archly-prod-123/defaultBucket"
+```
+
+The expected result is:
+
+```text
+Bucket: archly-prod-123.firebasestorage.app
+Location: ASIA-EAST1
+Storage class: STANDARD
+```
+
+Verify the Firebase link through the API:
+
+```bash
+curl --fail-with-body --silent --show-error \
+  --header "Authorization: Bearer $(gcloud auth print-access-token)" \
+  "https://firebasestorage.googleapis.com/v1alpha/projects/archly-prod-123/defaultBucket"
+```
+
+Verify the underlying bucket:
+
+```bash
+gcloud storage buckets describe gs://archly-prod-123.firebasestorage.app
+```
+
+Do not make the bucket public. The next successful workflow run applies the
+checked-in deny-all Firebase Storage rules.
+
+### Which permission does the deployment account need for Firebase?
+
+The GitHub deployment identity must be able to deploy Firebase Hosting and
+Storage rules. Grant the configured deployer Firebase administration access:
+
+```bash
+gcloud projects add-iam-policy-binding archly-prod-123 \
+  --member="serviceAccount:archly-deployer@archly-prod-123.iam.gserviceaccount.com" \
+  --role="roles/firebase.admin"
+```
+
+Verify its project roles:
+
+```bash
+gcloud projects get-iam-policy archly-prod-123 \
+  --flatten="bindings[].members" \
+  --filter="bindings.members:archly-deployer@archly-prod-123.iam.gserviceaccount.com" \
+  --format="table(bindings.role)"
+```
+
+Wait several minutes for IAM propagation, rerun **Deploy to GCP**, and require
+all of these signals before declaring success:
+
+1. The Firebase step exits successfully.
+2. The log includes `Deploy complete!` and the Hosting URL.
+3. `https://archly-prod-123.web.app` returns the Archly application rather than
+   `Site Not Found`.
+4. Direct Firebase Storage reads and writes remain denied.
+
 For the complete deployment procedure, see
 [GCP deployment configuration](gcp-deployment-configuration.md).
