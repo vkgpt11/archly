@@ -17,6 +17,10 @@ This file is the single source of truth for production configuration. Files in
 `deployment/gcp/` implement these settings; they should link here instead of
 duplicating account setup instructions.
 
+For a start-to-finish recreation of the environment, follow
+[deployment-rebuild-guide.md](deployment-rebuild-guide.md). For individual
+failure signatures, use [deployment-faq.md](deployment-faq.md).
+
 ## 1. Architecture and configuration ownership
 
 | System | Responsibility | Configuration location |

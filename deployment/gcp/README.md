@@ -14,6 +14,8 @@ The single source of truth for GCP, Firebase, Neon, Google OAuth, IAM, GitHub
 variables, secrets, and the deployment sequence is
 `doc/gcp-deployment-configuration.md`. This README explains only how the files
 in this directory are executed; do not duplicate account configuration here.
+For a clean-room recreation in dependency order, including every failure seen
+during the first setup, use `doc/deployment-rebuild-guide.md`.
 
 ## Required cloud resources
 

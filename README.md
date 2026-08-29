@@ -207,6 +207,7 @@ sections in the detailed deployment runbook.
 
 Deployment references:
 
+- [Rebuild production from an empty cloud project](doc/deployment-rebuild-guide.md)
 - [Detailed GCP, Firebase, Neon and GitHub deployment runbook](doc/gcp-deployment-configuration.md)
 - [Deployment FAQ](doc/deployment-faq.md)
 - [Executable GCP configuration](deployment/gcp/README.md)

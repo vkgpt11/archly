@@ -5,6 +5,9 @@ questions for GCP, Firebase, Neon, Google OAuth, and GitHub Actions. Never
 include passwords, access tokens, service-account keys, or credential-bearing
 connection URLs in an FAQ entry.
 
+For a clean installation rather than troubleshooting an existing one, follow
+[deployment-rebuild-guide.md](deployment-rebuild-guide.md).
+
 ### Why does deployment fail with `Cloud Build API has not been used`?
 
 The GitHub workflow can authenticate successfully but cannot submit the backend
