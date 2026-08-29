@@ -61,8 +61,12 @@ jobs:
           npm ci
           npm run build
       - name: Deploy Firebase Hosting and locked Storage rules
-        run: >-
-          npx firebase-tools deploy
-          --project "${{ vars.FIREBASE_PROJECT_ID }}"
-          --config deployment/gcp/firebase.json
-          --only hosting,storage
+        shell: bash
+        run: |
+          test -f ui/dist/index.html
+          test -f deployment/gcp/storage.rules
+          npx --yes firebase-tools@15.28.2 deploy \
+            --project "${{ vars.FIREBASE_PROJECT_ID }}" \
+            --config deployment/gcp/firebase.json \
+            --only hosting,storage \
+            --non-interactive

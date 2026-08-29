@@ -306,5 +306,35 @@ all of these signals before declaring success:
    `Site Not Found`.
 4. Direct Firebase Storage reads and writes remain denied.
 
+### Why does Firebase report `Error reading rules file deployment/gcp/storage.rules`?
+
+Paths inside `firebase.json` are resolved from the directory containing that
+configuration file. Archly stores its Firebase configuration at
+`deployment/gcp/firebase.json`. A rules value of
+`deployment/gcp/storage.rules` therefore resolves to a duplicated path and the
+CLI cannot read it.
+
+The correct configuration uses paths relative to `deployment/gcp/`:
+
+```json
+{
+  "hosting": {
+    "public": "../../ui/dist"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  }
+}
+```
+
+The Hosting directory moves two levels up to the repository's `ui/dist`
+output. The Storage rules file is beside `firebase.json`. The deployment
+workflow checks that both generated Hosting content and the rules file exist
+before invoking Firebase CLI.
+
+This error occurs before Firebase applies either Hosting content or Storage
+rules. Fix the paths, commit and push the correction, then rerun the complete
+deployment workflow.
+
 For the complete deployment procedure, see
 [GCP deployment configuration](gcp-deployment-configuration.md).
