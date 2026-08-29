@@ -65,6 +65,9 @@ jobs:
         run: |
           test -f ui/dist/index.html
           test -f deployment/gcp/storage.rules
+          rm -rf deployment/gcp/site
+          cp -R ui/dist deployment/gcp/site
+          test -f deployment/gcp/site/index.html
           npx --yes firebase-tools@15.28.2 deploy \
             --project "${{ vars.FIREBASE_PROJECT_ID }}" \
             --config deployment/gcp/firebase.json \

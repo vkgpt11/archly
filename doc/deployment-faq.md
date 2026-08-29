@@ -319,7 +319,7 @@ The correct configuration uses paths relative to `deployment/gcp/`:
 ```json
 {
   "hosting": {
-    "public": "../../ui/dist"
+    "public": "site"
   },
   "storage": {
     "rules": "storage.rules"
@@ -327,14 +327,47 @@ The correct configuration uses paths relative to `deployment/gcp/`:
 }
 ```
 
-The Hosting directory moves two levels up to the repository's `ui/dist`
-output. The Storage rules file is beside `firebase.json`. The deployment
-workflow checks that both generated Hosting content and the rules file exist
-before invoking Firebase CLI.
+The Storage rules file is beside `firebase.json`. The Hosting `site` directory
+is a generated staging copy of `ui/dist`, described in the next entry. The
+deployment workflow checks that both generated Hosting content and the rules
+file exist before invoking Firebase CLI.
 
 This error occurs before Firebase applies either Hosting content or Storage
 rules. Fix the paths, commit and push the correction, then rerun the complete
 deployment workflow.
+
+### Why does Firebase report `../../ui/dist is outside of project directory`?
+
+Firebase CLI treats the directory containing the selected `firebase.json` as
+the deployment project directory. It refuses to publish a Hosting directory
+outside that boundary. Because Archly keeps `firebase.json` under
+`deployment/gcp/`, directly referencing the repository's `ui/dist` directory
+with `../../ui/dist` is rejected even when the directory exists.
+
+Archly solves this by using a generated staging directory inside the Firebase
+project directory:
+
+```json
+{
+  "hosting": {
+    "public": "site"
+  }
+}
+```
+
+After the production UI build, the GitHub workflow prepares the staging copy:
+
+```bash
+test -f ui/dist/index.html
+rm -rf deployment/gcp/site
+cp -R ui/dist deployment/gcp/site
+test -f deployment/gcp/site/index.html
+```
+
+`deployment/gcp/site/` is ignored by Git because it contains generated build
+output. Firebase publishes that directory, while source assets remain owned by
+`ui/`. The workflow recreates the directory on every deployment so deleted or
+renamed UI assets cannot survive as stale files.
 
 For the complete deployment procedure, see
 [GCP deployment configuration](gcp-deployment-configuration.md).
