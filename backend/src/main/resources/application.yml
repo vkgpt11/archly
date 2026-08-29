@@ -11,6 +11,12 @@ spring:
     enabled: true
 
 archly:
+  admin:
+    emails: ${ARCHLY_ADMIN_EMAILS:}
+  analytics:
+    enabled: ${ARCHLY_ANALYTICS_ENABLED:true}
+    raw-event-retention-days: ${ARCHLY_ANALYTICS_RETENTION_DAYS:90}
+    cleanup-cron: ${ARCHLY_ANALYTICS_CLEANUP_CRON:0 15 3 * * *}
   auth:
     dev-bypass: ${ARCHLY_AUTH_DEV_BYPASS:false}
   google:

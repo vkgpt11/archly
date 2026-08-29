@@ -2,6 +2,8 @@
 node_modules/
 dist/
 .vite/
+test-results/
+playwright-report/
 deployment/gcp/site/
 
 # Java

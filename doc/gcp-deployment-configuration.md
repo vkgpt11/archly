@@ -71,6 +71,7 @@ not a GitHub variable and does not need to be copied manually.
 | `archly-neon-jdbc-url` | Google Secret Manager | Neon pooled JDBC URL without embedded username or password |
 | `archly-neon-username` | Google Secret Manager | Neon database role name |
 | `archly-neon-password` | Google Secret Manager | Current rotated Neon password |
+| `archly-admin-emails` | Google Secret Manager | Comma-separated verified personal Gmail administrators; initial value `vikasgupta.cs90@gmail.com` |
 
 Never store the Neon password or a complete credential-bearing connection URL
 in GitHub variables, workflow logs, `.env` files, commits, or documentation.
@@ -83,6 +84,7 @@ The password previously exposed during setup must remain rotated.
 | Runtime service account created | Done |
 | Deployment service account created | Done |
 | Runtime access to all three Neon secrets | Done |
+| Production administrator secret and runtime access | Done — secret version 1 created and runtime access verified on 2026-08-29 |
 | Deployer can act as runtime account | Done |
 | Workload Identity pool and GitHub provider | Done |
 | GitHub `production` environment | Done |
@@ -490,6 +492,19 @@ gcloud secrets create archly-neon-username --replication-policy automatic
 gcloud secrets create archly-neon-password --replication-policy automatic
 ```
 
+Create the production administrator secret from Google Cloud Shell with this
+single-line command. `printf` avoids adding a newline to the value:
+
+```bash
+printf '%s' 'vikasgupta.cs90@gmail.com' | gcloud secrets create archly-admin-emails --project=archly-prod-123 --replication-policy=automatic --data-file=-
+```
+
+If the secret already exists, add a new version instead:
+
+```bash
+printf '%s' 'vikasgupta.cs90@gmail.com' | gcloud secrets versions add archly-admin-emails --project=archly-prod-123 --data-file=-
+```
+
 Add values through **Google Cloud Console → Security → Secret Manager** so the
 password is not exposed in shell history. Add a new secret version during
 rotation rather than overwriting documentation or workflow files.
@@ -510,8 +525,23 @@ gcloud secrets add-iam-policy-binding archly-neon-password `
   --role roles/secretmanager.secretAccessor
 ```
 
+Grant the runtime account access to the administrator secret using this
+single-line Cloud Shell command:
+
+```bash
+gcloud secrets add-iam-policy-binding archly-admin-emails --project=archly-prod-123 --member='serviceAccount:archly-runtime@archly-prod-123.iam.gserviceaccount.com' --role='roles/secretmanager.secretAccessor'
+```
+
+Verify both the secret and its IAM binding without printing the secret value:
+
+```bash
+gcloud secrets describe archly-admin-emails --project=archly-prod-123
+gcloud secrets get-iam-policy archly-admin-emails --project=archly-prod-123 --format='table(bindings.role,bindings.members)'
+```
+
 The deployer does not need permission to read secret values. Cloud Run receives
-them as `DATABASE_URL`, `DATABASE_USERNAME`, and `DATABASE_PASSWORD` using
+them as `DATABASE_URL`, `DATABASE_USERNAME`, and `DATABASE_PASSWORD`, and the
+administrator allowlist as `ARCHLY_ADMIN_EMAILS`, using
 Secret Manager references in `cloudbuild-backend.yaml`.
 
 ### 12.7 Configure Firebase

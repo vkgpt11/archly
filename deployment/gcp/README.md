@@ -34,6 +34,8 @@ Create these Secret Manager secrets. Values must not be committed:
   `jdbc:postgresql://...-pooler.../neondb?sslmode=require`
 - `archly-neon-username`
 - `archly-neon-password`
+- `archly-admin-emails`: comma-separated verified personal Gmail administrators;
+  initial production value is `vikasgupta.cs90@gmail.com`
 
 Grant the Cloud Run runtime service account `Secret Manager Secret Accessor`.
 Grant the Cloud Build service account the minimum roles needed to push to the

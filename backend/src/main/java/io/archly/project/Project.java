@@ -15,6 +15,7 @@ public class Project {
     private UUID id;
     @Column(nullable = false)
     private String ownerEmail;
+    private UUID ownerUserId;
     @Column(nullable = false, length = 120)
     private String name;
     @Column(nullable = false, columnDefinition = "text")
@@ -65,6 +66,8 @@ public class Project {
 
     public UUID getId() { return id; }
     public String getOwnerEmail() { return ownerEmail; }
+    public UUID getOwnerUserId() { return ownerUserId; }
+    public void linkOwnerUser(UUID userId) { if (ownerUserId == null) ownerUserId = userId; }
     public String getName() { return name; }
     public String getCanvasJson() { return canvasJson; }
     public String getMarkdown() { return markdown; }

@@ -4,6 +4,8 @@ import io.archly.project.ProjectDtos.CreateProjectRequest;
 import io.archly.project.ProjectDtos.ProjectResponse;
 import io.archly.project.ProjectDtos.UpdateProjectRequest;
 import io.archly.project.ProjectDtos.OrganizeProjectRequest;
+import io.archly.analytics.ProductAnalyticsService;
+import io.archly.analytics.ProductEvent;
 import jakarta.persistence.OptimisticLockException;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
@@ -22,15 +24,17 @@ public class ProjectService {
     private final CanvasJsonValidator canvasJsonValidator;
     private final ProjectContentValidator projectContentValidator;
     private final ProjectShareRepository shareRepository;
+    private final ProductAnalyticsService analytics;
 
     public ProjectService(ProjectRepository repository, RichTextSanitizer richTextSanitizer,
                           CanvasJsonValidator canvasJsonValidator, ProjectContentValidator projectContentValidator,
-                          ProjectShareRepository shareRepository) {
+                          ProjectShareRepository shareRepository, ProductAnalyticsService analytics) {
         this.repository = repository;
         this.richTextSanitizer = richTextSanitizer;
         this.canvasJsonValidator = canvasJsonValidator;
         this.projectContentValidator = projectContentValidator;
         this.shareRepository = shareRepository;
+        this.analytics = analytics;
     }
 
     @Transactional(readOnly = true)
@@ -43,7 +47,9 @@ public class ProjectService {
     }
 
     public ProjectResponse create(String email, CreateProjectRequest request) {
-        return response(repository.save(new Project(email, request.name().trim())));
+        Project project = repository.save(new Project(email, request.name().trim()));
+        analytics.record(email, project.getId(), ProductEvent.Type.PROJECT_CREATED);
+        return response(project);
     }
 
     @Transactional(readOnly = true)
@@ -60,7 +66,9 @@ public class ProjectService {
         projectContentValidator.validateMarkdown(request.markdown());
         project.update(request.name().trim(), request.canvasJson(), richTextSanitizer.sanitize(request.markdown()));
         try {
-            return response(repository.saveAndFlush(project));
+            Project saved = repository.saveAndFlush(project);
+            analytics.record(email, id, ProductEvent.Type.PROJECT_CONTENT_SAVED);
+            return response(saved);
         } catch (OptimisticLockException | OptimisticLockingFailureException exception) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Project was updated elsewhere. Reload before saving.");
         }
@@ -71,17 +79,23 @@ public class ProjectService {
         Project copy = new Project(email, source.getName() + " — Copy", source.getCanvasJson(),
             richTextSanitizer.sanitize(source.getMarkdown()));
         copy.organize(source.getFolder(), false);
-        return response(repository.save(copy));
+        Project saved = repository.save(copy);
+        analytics.record(email, saved.getId(), ProductEvent.Type.PROJECT_DUPLICATED);
+        return response(saved);
     }
 
     public ProjectResponse organize(String email, UUID id, OrganizeProjectRequest request) {
         Project project = findOwned(email, id);
+        boolean wasArchived = project.isArchived();
         if (project.getRevision() != request.revision()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Project was updated elsewhere. Reload before organizing.");
         }
         project.organize(request.folder(), request.archived());
         try {
-            return response(repository.saveAndFlush(project));
+            Project saved = repository.saveAndFlush(project);
+            if (wasArchived != saved.isArchived()) analytics.record(email, id,
+                saved.isArchived() ? ProductEvent.Type.PROJECT_ARCHIVED : ProductEvent.Type.PROJECT_RESTORED);
+            return response(saved);
         } catch (OptimisticLockException | OptimisticLockingFailureException exception) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Project was updated elsewhere. Reload before organizing.");
         }
@@ -89,6 +103,7 @@ public class ProjectService {
 
     public void delete(String email, UUID id) {
         Project project = findOwned(email, id);
+        analytics.record(email, id, ProductEvent.Type.PROJECT_DELETED);
         shareRepository.deleteAllByProjectId(project.getId());
         shareRepository.flush();
         repository.delete(project);

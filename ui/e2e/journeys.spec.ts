@@ -79,6 +79,25 @@ test('creates, edits, autosaves, returns to dashboard, and duplicates a project'
   await expect(page.getByText('Checkout platform — Copy', { exact: true })).toBeVisible()
 })
 
+test('administrator opens aggregate analytics while normal users have no admin navigation', async ({ page }) => {
+  await page.route('**/api/**', async route => {
+    const path = new URL(route.request().url()).pathname
+    if (path === '/api/auth/session') return route.fulfill({ json: { email: 'admin@gmail.com', isAdmin: true } })
+    if (path === '/api/projects') return route.fulfill({ json: { items: [], page: 0, size: 24, totalItems: 0, totalPages: 0 } })
+    if (path === '/api/admin/metrics/summary') return route.fulfill({ json: { period: '30d', timezone: 'UTC', start: now, end: now, users: { total: 4, newUsers: 2, active: 3 }, diagrams: { current: 9, archived: 1, created: 5, deleted: 1, perActiveUser: 1.67 }, conversion: { firstDiagramPercent: 75, firstSavePercent: 50 } } })
+    if (path === '/api/admin/metrics/timeseries') return route.fulfill({ json: { metric: 'diagrams-created', timezone: 'UTC', buckets: [{ date: '2026-08-27', value: 5 }] } })
+    if (path === '/api/admin/users') return route.fulfill({ json: { items: [{ id: 'one', maskedEmail: 'a***@gmail.com', firstLoginAt: now, lastLoginAt: now, projectCount: 2 }], page: 0, size: 25, totalItems: 1, totalPages: 1 } })
+    return route.fulfill({ status: 404 })
+  })
+  await signIn(page)
+  await page.getByRole('button', { name: 'Administration' }).click()
+  await expect(page.getByRole('heading', { name: 'Usage overview' })).toBeVisible()
+  await expect(page.getByText('Observed users').locator('..')).toContainText('4')
+  await expect(page.getByText('a***@gmail.com')).toBeVisible()
+  const accessibility = await new AxeBuilder({ page }).analyze()
+  expect(accessibility.violations).toEqual([])
+})
+
 test('creates and revokes a read-only share link', async ({ page }) => {
   await installStatefulApi(page)
   await signIn(page)

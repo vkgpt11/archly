@@ -5,13 +5,14 @@ import ThemeToggle from './ThemeToggle'
 import { architectureTemplates, templateCanvas, type ArchitectureTemplate } from '../architectureTemplates'
 
 const Editor = lazy(() => import('./Editor'))
+const AdminDashboard = lazy(() => import('../admin/AdminDashboard'))
 const normalizeProjectPage = (response: ProjectPage | ProjectSummary[]): ProjectPage => Array.isArray(response)
   ? { items: response, page: 0, size: response.length, totalItems: response.length, totalPages: 1 }
   : response
 
-type Props = { token: string; onSignOut: () => void }
+type Props = { token: string; isAdmin?: boolean; onSignOut: () => void }
 
-export default function Dashboard({ token, onSignOut }: Props) {
+export default function Dashboard({ token, isAdmin = false, onSignOut }: Props) {
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [selected, setSelected] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
@@ -23,6 +24,7 @@ export default function Dashboard({ token, onSignOut }: Props) {
   const [nextPage, setNextPage] = useState<number | null>(null)
   const [pendingDelete, setPendingDelete] = useState<ProjectSummary | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [adminOpen, setAdminOpen] = useState(() => window.location.hash === '#/admin')
 
   useEffect(() => {
     api.listProjects(token)
@@ -121,10 +123,15 @@ export default function Dashboard({ token, onSignOut }: Props) {
     )
   }
 
+  if (adminOpen && isAdmin) return <Suspense fallback={<main className="shared-error"><p>Loading administration…</p></main>}>
+    <AdminDashboard token={token} onBack={() => { window.location.hash = ''; setAdminOpen(false) }} />
+  </Suspense>
+
   return (
     <main className="dashboard-shell">
       <header className="topbar">
         <a className="brand" href="#" aria-label="Archly home"><span>A</span> Archly</a>
+        {isAdmin && <button className="text-button" onClick={() => { window.location.hash = '#/admin'; setAdminOpen(true) }}>Administration</button>}
         <ThemeToggle />
         <button className="text-button" onClick={onSignOut}>Sign out</button>
       </header>

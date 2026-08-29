@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState } from 'react'
 import { GoogleLogin } from '@react-oauth/google'
 import ThemeToggle from './components/ThemeToggle'
-import { ApiError, api } from './api'
+import { ApiError, api, type AuthSession } from './api'
 
 const Dashboard = lazy(() => import('./components/Dashboard'))
 const SharedProjectView = lazy(() => import('./components/SharedProjectView'))
@@ -12,6 +12,7 @@ type Props = { googleEnabled?: boolean }
 export default function App({ googleEnabled = true }: Props) {
   const shareToken = window.location.pathname.match(/^\/share\/([^/]+)$/)?.[1]
   const [credential, setCredential] = useState<string | null>(null)
+  const [session, setSession] = useState<AuthSession | null>(null)
   const [error, setError] = useState('')
   const [authenticating, setAuthenticating] = useState(false)
   const devBypassEnabled = import.meta.env.VITE_DEV_AUTH === 'true'
@@ -20,10 +21,12 @@ export default function App({ googleEnabled = true }: Props) {
     setError('')
     setAuthenticating(true)
     try {
-      await api.validateSession(token)
+      const verifiedSession = await api.validateSession(token)
+      setSession(verifiedSession)
       setCredential(token)
     } catch (failure) {
       setCredential(null)
+      setSession(null)
       setError(token === 'archly-local-dev'
         ? 'Local developer sign-in failed. Start the API with ARCHLY_AUTH_DEV_BYPASS=true and try again.'
         : failure instanceof ApiError && failure.status === 401
@@ -36,8 +39,8 @@ export default function App({ googleEnabled = true }: Props) {
 
   if (shareToken) return <Suspense fallback={loading}><SharedProjectView shareToken={decodeURIComponent(shareToken)} /></Suspense>
 
-  if (credential) {
-    return <Suspense fallback={loading}><Dashboard token={credential} onSignOut={() => setCredential(null)} /></Suspense>
+  if (credential && session) {
+    return <Suspense fallback={loading}><Dashboard token={credential} isAdmin={session.isAdmin} onSignOut={() => { setCredential(null); setSession(null) }} /></Suspense>
   }
 
   return (

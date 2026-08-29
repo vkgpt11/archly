@@ -1,4 +1,16 @@
 import type { Project, ProjectPage, ShareLink, SharePermission, SharedProject } from './types'
+import { authSessionId } from './authSession'
+
+export type AuthSession = { email: string; isAdmin: boolean }
+export type AdminPeriod = '24h' | '7d' | '30d' | '90d'
+export type AdminSummary = {
+  period: AdminPeriod; timezone: 'UTC'; start: string; end: string
+  users: { total: number; newUsers: number; active: number }
+  diagrams: { current: number; archived: number; created: number; deleted: number; perActiveUser: number }
+  conversion: { firstDiagramPercent: number; firstSavePercent: number }
+}
+export type AdminTimeSeries = { metric: string; timezone: 'UTC'; buckets: { date: string; value: number }[] }
+export type AdminUserPage = { items: { id: string; maskedEmail: string; firstLoginAt: string; lastLoginAt: string; projectCount: number }[]; page: number; size: number; totalItems: number; totalPages: number }
 
 const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
 
@@ -46,8 +58,14 @@ async function publicRequest<T>(path: string, init?: RequestInit): Promise<T> {
   return response.status === 204 ? (undefined as T) : response.json()
 }
 
+async function download(token: string, path: string): Promise<Blob> {
+  const response = await fetchWithTimeout(`${baseUrl}${path}`, { headers: { Authorization: `Bearer ${token}` } })
+  if (!response.ok) throw new ApiError(`Request failed (${response.status})`, response.status)
+  return response.blob()
+}
+
 export const api = {
-  validateSession: (token: string) => request<{ email: string }>(token, '/auth/session'),
+  validateSession: (token: string) => request<AuthSession>(token, '/auth/session', { headers: { 'X-Archly-Session': authSessionId() } }),
   listProjects: (token: string, page = 0, size = 24) => request<ProjectPage | Project[]>(token, `/projects?page=${page}&size=${size}`),
   createProject: (token: string, name: string) =>
     request<Project>(token, '/projects', { method: 'POST', body: JSON.stringify({ name }) }),
@@ -77,4 +95,8 @@ export const api = {
   saveSharedProject: (shareToken: string, project: Project) => publicRequest<SharedProject>(`/shares/${encodeURIComponent(shareToken)}`, {
     method: 'PUT', body: JSON.stringify({ name: project.name, canvasJson: project.canvasJson, markdown: project.markdown, revision: project.revision }),
   }).then((response) => response.project),
+  adminSummary: (token: string, period: AdminPeriod) => request<AdminSummary>(token, `/admin/metrics/summary?period=${period}`),
+  adminTimeSeries: (token: string, metric: string, period: AdminPeriod) => request<AdminTimeSeries>(token, `/admin/metrics/timeseries?metric=${encodeURIComponent(metric)}&period=${period}`),
+  adminUsers: (token: string, page = 0, size = 25) => request<AdminUserPage>(token, `/admin/users?page=${page}&size=${size}`),
+  adminCsv: (token: string, period: AdminPeriod) => download(token, `/admin/metrics/export?period=${period}`),
 }
