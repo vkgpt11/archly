@@ -16,6 +16,13 @@ const project: Project = {
 }
 
 describe('project persistence', () => {
+  it('preserves exact diagram source including comments and whitespace', () => {
+    const source = 'direction down\n\n# Keep this comment\nservice api "API"\n'
+    const serialized = serializeCanvas([], [], { x: 0, y: 0, zoom: 1 }, source)
+    expect(parseCanvasJson(serialized).diagramCode).toBe(source)
+    expect(parseCanvasJson(canonicalCanvasJson(serialized)).diagramCode).toBe(source)
+  })
+
   beforeEach(() => { localStorage.clear(); sessionStorage.clear(); window.name = '' })
 
   it('does not change durable canvas content for selection or measured edit dimensions', () => {

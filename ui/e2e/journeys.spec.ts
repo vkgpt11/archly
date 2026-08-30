@@ -109,6 +109,34 @@ test('creates and revokes a read-only share link', async ({ page }) => {
   await expect(page.getByText('Revoked')).toBeVisible()
 })
 
+test('creates and autosaves a nested region from persistent diagram code', async ({ page }) => {
+  await installStatefulApi(page)
+  await signIn(page)
+  await page.getByRole('button', { name: 'Open Existing architecture' }).click()
+  await page.getByRole('button', { name: 'Diagram as code' }).click()
+  const source = `direction right
+
+# Production topology
+region east "AWS · us-east-1" {
+  container vpc "Production VPC" {
+    aws-lambda api "Orders API"
+    aws-rds db "Orders DB"
+    api.right -> db.left : "SQL"
+  }
+}`
+  await page.getByRole('textbox', { name: 'Diagram code' }).fill(source)
+  await page.getByRole('button', { name: 'Draw diagram' }).click()
+  await expect(page.getByText('AWS · us-east-1', { exact: true })).toBeVisible()
+  await expect(page.getByText('Production VPC', { exact: true })).toBeVisible()
+  await expect(page.getByText('Orders API', { exact: true })).toBeVisible()
+  await expect(page.getByText('Orders DB', { exact: true })).toBeVisible()
+  await expect(page.getByLabel('Line text')).toHaveValue('SQL')
+  await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 5_000 })
+  await page.getByRole('button', { name: 'Close diagram code' }).click()
+  await page.getByRole('button', { name: 'Diagram as code' }).click()
+  await expect(page.getByRole('textbox', { name: 'Diagram code' })).toHaveValue(source)
+})
+
 test('dashboard and editor have no serious or critical axe violations', async ({ page }) => {
   await installStatefulApi(page)
   await signIn(page)

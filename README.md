@@ -2,6 +2,8 @@
 
 Archly is a technical diagramming and documentation prototype built with React, React Flow, Java, Spring Boot, and PostgreSQL.
 
+See [Diagram as code](doc/diagram-as-code.md) for the editable architecture DSL, regions, component shorthands, styling, and live-preview controls.
+
 ## Repository structure
 
 - `ui/` — React and TypeScript application

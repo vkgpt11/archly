@@ -60,6 +60,38 @@ function GroupHarness() {
 }
 
 describe('CanvasWorkspace', () => {
+  it('draws a diagram from code and keeps invalid code from replacing the canvas', () => {
+    const { container } = render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))
+    const editor = screen.getByLabelText('Diagram code')
+    fireEvent.change(editor, { target: { value: 'web client "Web"\nservice api "API"\nclient -> api : "HTTPS"' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Draw diagram' }))
+    expect(screen.getAllByText('Web')).toHaveLength(1)
+    expect(screen.getAllByText('API')).toHaveLength(1)
+    fireEvent.change(editor, { target: { value: 'api -> missing' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Draw diagram' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Line 1: unknown component “api”')
+    expect(container.querySelector('.diagram-code-lines .error')).toHaveTextContent('1')
+    expect(screen.getByText('API')).toBeInTheDocument()
+  })
+
+  it('shows a line number for every diagram-code line', () => {
+    const { container } = render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))
+    fireEvent.change(screen.getByLabelText('Diagram code'), { target: { value: 'direction right\n\nservice api "API"' } })
+    expect([...container.querySelectorAll('.diagram-code-lines span')].map((line) => line.textContent)).toEqual(['1', '2', '3'])
+  })
+
+  it('searches the shorthand reference and inserts a unique component declaration', () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))
+    fireEvent.click(screen.getByRole('button', { name: /Component reference/ }))
+    fireEvent.change(screen.getByLabelText('Search component shorthands'), { target: { value: 'lambda' } })
+    fireEvent.click(screen.getByRole('button', { name: /aws-lambda.*Lambda/i }))
+    expect((screen.getByLabelText('Diagram code') as HTMLTextAreaElement).value).toContain('aws-lambda awsLambda "AWS Lambda"')
+  })
+
+
   it('exposes active canvas tools without relying on color alone', () => {
     render(<Harness />)
     const select = screen.getByRole('button', { name: 'Select' })
@@ -601,6 +633,29 @@ describe('CanvasWorkspace', () => {
     expect(moved[1].position).toEqual({ x: 70, y: 90 })
     const outside = assignNodeToContainingContainer(moved.map((node) => node.id === 'child' ? { ...node, position: { x: 400, y: 400 } } : node), 'child')
     expect(outside[1].data.containerId).toBeUndefined()
+  })
+
+  it('moves every nested descendant when a region moves', () => {
+    const nodes: Node[] = [
+      { id: 'region', position: { x: 0, y: 0 }, data: { kind: 'container' }, style: { width: 500, height: 400 } },
+      { id: 'vpc', position: { x: 40, y: 50 }, data: { kind: 'container', containerId: 'region' }, style: { width: 350, height: 250 } },
+      { id: 'api', position: { x: 90, y: 110 }, data: { kind: 'service', containerId: 'vpc' }, style: { width: 60, height: 42 } },
+    ]
+    const moved = applyGroupAwareNodeChanges([{ type: 'position', id: 'region', position: { x: 100, y: 80 } }], nodes)
+    expect(moved.find((node) => node.id === 'vpc')?.position).toEqual({ x: 140, y: 130 })
+    expect(moved.find((node) => node.id === 'api')?.position).toEqual({ x: 190, y: 190 })
+  })
+
+  it('assigns nested containers without creating containment cycles', () => {
+    const nodes: Node[] = [
+      { id: 'region', position: { x: 0, y: 0 }, data: { kind: 'container' }, style: { width: 500, height: 400 } },
+      { id: 'vpc', position: { x: 50, y: 50 }, data: { kind: 'container' }, style: { width: 300, height: 220 } },
+      { id: 'child', position: { x: 100, y: 100 }, data: { kind: 'service', containerId: 'vpc' }, style: { width: 60, height: 42 } },
+    ]
+    const nested = assignNodeToContainingContainer(nodes, 'vpc')
+    expect(nested.find((node) => node.id === 'vpc')?.data.containerId).toBe('region')
+    const cycleAttempt = assignNodeToContainingContainer(nested.map((node) => node.id === 'region' ? { ...node, position: { x: 70, y: 70 }, style: { width: 120, height: 100 } } : node), 'region')
+    expect(cycleAttempt.find((node) => node.id === 'region')?.data.containerId).toBeUndefined()
   })
 
   it('brings selected nodes forward and sends them backward', () => {

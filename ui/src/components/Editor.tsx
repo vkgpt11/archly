@@ -141,6 +141,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
   const [nodes, setNodes] = useNodesState(initialCanvas.nodes)
   const [edges, setEdges] = useEdgesState(initialCanvas.edges)
   const [viewport, setViewport] = useState(initialCanvas.viewport || { x: 0, y: 0, zoom: 1 })
+  const [diagramCode, setDiagramCode] = useState(initialCanvas.diagramCode || '')
   const [view, setView] = useState<View>('split')
   const [documentWidth, setDocumentWidth] = useState(25)
   const [linkEditorOpen, setLinkEditorOpen] = useState(false)
@@ -229,6 +230,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
     setNodes(canvas.nodes)
     setEdges(canvas.edges)
     setViewport(canvas.viewport || { x: 0, y: 0, zoom: 1 })
+    setDiagramCode(canvas.diagramCode || '')
     setProject(server)
     clearDraft(server.id)
     setConflict(null)
@@ -317,7 +319,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
       ...latestProject.current,
       name: project.name,
       markdown: project.markdown,
-      canvasJson: serializeCanvas(nodes, edges, viewport),
+      canvasJson: serializeCanvas(nodes, edges, viewport, diagramCode || undefined),
     }
     const signature = contentSignature(latestProject.current)
     if (signature === lastSavedSignature.current) {
@@ -335,7 +337,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
     setSaveState(navigator.onLine ? 'saving' : 'offline')
     const timer = window.setTimeout(() => void flushSave(), 900)
     return () => window.clearTimeout(timer)
-  }, [nodes, edges, viewport, project.id, project.name, project.markdown, canvasLoadError, conflictActive, flushSave, tabId])
+  }, [nodes, edges, viewport, diagramCode, project.id, project.name, project.markdown, canvasLoadError, conflictActive, flushSave, tabId])
 
   useEffect(() => {
     const retryWhenOnline = () => { if (!conflictActive) void flushSave() }
@@ -536,7 +538,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
         )}
         {showCanvas && (
           <section className="canvas-panel" style={view === 'split' ? { flexBasis: `${100 - documentWidth}%` } : undefined}>
-            <Suspense fallback={<p className="muted">Loading canvas…</p>}><CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} viewport={viewport} onViewportChange={setViewport} /></Suspense>
+            <Suspense fallback={<p className="muted">Loading canvas…</p>}><CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} viewport={viewport} onViewportChange={setViewport} diagramCode={diagramCode} onDiagramCodeChange={setDiagramCode} /></Suspense>
           </section>
         )}
       </div>

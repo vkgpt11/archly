@@ -77,20 +77,20 @@ function durableEdge(edge: Edge): Edge {
   return durable
 }
 
-export function serializeCanvas(nodes: Node[], edges: Edge[], viewport?: Viewport): string {
-  return JSON.stringify({ schemaVersion: 1, nodes: nodes.map(durableNode), edges: edges.map(durableEdge), ...(viewport ? { viewport } : {}) })
+export function serializeCanvas(nodes: Node[], edges: Edge[], viewport?: Viewport, diagramCode?: string): string {
+  return JSON.stringify({ schemaVersion: 1, nodes: nodes.map(durableNode), edges: edges.map(durableEdge), ...(viewport ? { viewport } : {}), ...(diagramCode !== undefined ? { diagramCode } : {}) })
 }
 
 export function canonicalCanvasJson(value: string): string {
   const canvas = parseCanvasJson(value)
-  return serializeCanvas(canvas.nodes, canvas.edges, canvas.viewport)
+  return serializeCanvas(canvas.nodes, canvas.edges, canvas.viewport, canvas.diagramCode)
 }
 
 export function contentSignature(content: ProjectContent): string {
   const canvas = parseCanvasJson(content.canvasJson)
   return JSON.stringify({
     name: content.name,
-    canvasJson: serializeCanvas(canvas.nodes, canvas.edges),
+    canvasJson: serializeCanvas(canvas.nodes, canvas.edges, undefined, canvas.diagramCode),
     markdown: content.markdown,
   })
 }

@@ -7,7 +7,7 @@ import {
 import {
   AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical,
   AlignHorizontalDistributeCenter, AlignStartHorizontal, AlignStartVertical, AlignVerticalDistributeCenter, AppWindow, Box, Boxes,
-  Activity, ArrowLeft, ArrowRight, Bell, BellRing, Bot, BrainCircuit, Braces, ChevronDown, CircuitBoard,
+  Activity, ArrowLeft, ArrowRight, Bell, BellRing, Bot, BrainCircuit, Braces, ChevronDown, CircuitBoard, Code2,
   Cloud, Cog, Container, Copy, Cpu, Database, DatabaseZap, Expand, ExternalLink, FileCode2, FileText, Fingerprint,
   Focus, Gauge, GitBranch, Globe2, Grid3X3, Hand, Group, Library, ListTree, LocateFixed, Lock, Magnet, MessageSquareText,
   Mail, Minus, MousePointer2, Network, Plus, Redo2, ScrollText, Search, Server, ShieldCheck, Shuffle,
@@ -78,6 +78,7 @@ import {
 } from './canvasInteractions'
 import { aiGroupByLabel, aiGroupOrder, generalGroupByLabel, generalGroupOrder, type AiComponentGroup, type GeneralComponentGroup } from './canvasCatalogGroups'
 import { componentDefinitions } from './canvasCatalog'
+import { diagramToCode, parseDiagramCode } from '../diagramCode'
 
 type CanvasTool = 'select' | 'pan' | 'connect'
 
@@ -110,6 +111,8 @@ type Props = {
   setEdges: Dispatch<SetStateAction<Edge[]>>
   viewport?: Viewport
   onViewportChange?: (viewport: Viewport) => void
+  diagramCode?: string
+  onDiagramCodeChange?: (source: string) => void
 }
 
 
@@ -321,6 +324,7 @@ function EditableConnectionEdge(props: EdgeProps<Edge>) {
 
 const NODE_TYPES = { architecture: ArchitectureNode }
 const EDGE_TYPES = { editable: EditableConnectionEdge }
+const supportedKindNames = new Set(['service', 'web', 'mobile', 'database', 'cache', 'queue', 'storage', 'external', 'actor', 'container', 'note', 'text', 'custom'])
 
 function normalizedNode(node: Node): Node {
   if (node.type === 'architecture') return node
@@ -332,11 +336,17 @@ function normalizedNode(node: Node): Node {
   }
 }
 
-function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onViewportChange }: Props) {
+function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onViewportChange, diagramCode: initialDiagramCode = '', onDiagramCodeChange }: Props) {
   const flow = useReactFlow()
   const [tool, setTool] = useState<CanvasTool>('select')
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [propertiesOpen, setPropertiesOpen] = useState(false)
+  const [codeOpen, setCodeOpen] = useState(false)
+  const [diagramCode, setDiagramCode] = useState(initialDiagramCode)
+  const [codeError, setCodeError] = useState('')
+  const [livePreview, setLivePreview] = useState(false)
+  const [codeReferenceOpen, setCodeReferenceOpen] = useState(false)
+  const [codeReferenceSearch, setCodeReferenceSearch] = useState('')
   const [recentComponents, setRecentComponents] = useState(loadRecentComponents)
   const [minimapVisible, setMinimapVisible] = useState(true)
   const [search, setSearch] = useState('')
@@ -353,9 +363,11 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
   const nodesRef = useRef(nodes)
   const edgesRef = useRef(edges)
   const dragSnapshot = useRef<Snapshot | null>(null)
+  const codeLineNumbers = useRef<HTMLDivElement>(null)
 
   useEffect(() => { nodesRef.current = nodes }, [nodes])
   useEffect(() => { edgesRef.current = edges }, [edges])
+  useEffect(() => { setDiagramCode(initialDiagramCode) }, [initialDiagramCode])
   useEffect(() => {
     if (nodes.some((node) => node.type !== 'architecture')) setNodes((current) => current.map(normalizedNode))
   }, [nodes, setNodes])
@@ -448,6 +460,57 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
     setNodes((current) => current.filter((node) => !ids.has(node.id)))
     setEdges((current) => current.filter((edge) => !edge.selected && !ids.has(edge.source) && !ids.has(edge.target)))
   }
+
+  function openCodeEditor() {
+    if (!codeOpen && !diagramCode.trim()) {
+      const generated = diagramToCode(nodesRef.current, edgesRef.current)
+      setDiagramCode(generated)
+      onDiagramCodeChange?.(generated)
+    }
+    setCodeError('')
+    setCodeOpen((open) => !open)
+  }
+
+  function drawFromCode() {
+    try {
+      const result = parseDiagramCode(diagramCode)
+      remember()
+      setNodes(result.nodes)
+      setEdges(result.edges)
+      setCodeError('')
+      window.setTimeout(() => flow.fitView({ padding: 0.2 }), 0)
+    } catch (error) {
+      setCodeError(error instanceof Error ? error.message : 'Could not parse diagram code')
+    }
+  }
+
+  function insertCodeComponent(shorthand: string, label: string) {
+    const base = shorthand.replace(/[^A-Za-z0-9]+(.)/g, (_, letter: string) => letter.toUpperCase()).replace(/^[^A-Za-z]+/, '') || 'component'
+    const used = new Set([...diagramCode.matchAll(/^\s*[\w-]+\s+([A-Za-z][\w-]*)/gm)].map((match) => match[1]))
+    let id = base
+    let suffix = 2
+    while (used.has(id)) id = `${base}${suffix++}`
+    const next = `${diagramCode.replace(/\s*$/, '')}${diagramCode.trim() ? '\n' : ''}${shorthand} ${id} "${label.replace(/"/g, '\\"')}"`
+    setDiagramCode(next)
+    onDiagramCodeChange?.(next)
+    setCodeError('')
+  }
+
+  useEffect(() => {
+    if (!codeOpen || !livePreview) return
+    const timer = window.setTimeout(() => {
+      try {
+        const result = parseDiagramCode(diagramCode)
+        setNodes(result.nodes)
+        setEdges(result.edges)
+        setCodeError('')
+        window.setTimeout(() => flow.fitView({ padding: 0.2 }), 0)
+      } catch (error) {
+        setCodeError(error instanceof Error ? error.message : 'Could not parse diagram code')
+      }
+    }, 500)
+    return () => window.clearTimeout(timer)
+  }, [codeOpen, diagramCode, flow, livePreview, setEdges, setNodes])
 
   function duplicateSelectedEdge() {
     if (!selectedEdge) return
@@ -728,6 +791,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
         <button onClick={() => addComponent('note')} title="Add note" aria-label="Add note"><MessageSquareText /></button>
         <button className={tool === 'connect' ? 'active' : ''} aria-pressed={tool === 'connect'} onClick={() => setTool('connect')} title="Connect components" aria-label="Connect components"><Network /></button>
         <button onClick={() => addComponent('container')} title="Add container" aria-label="Add container"><Box /></button>
+        <button className={codeOpen ? 'active' : ''} aria-pressed={codeOpen} onClick={openCodeEditor} title="Diagram as code" aria-label="Diagram as code"><Code2 /></button>
         <span />
         <button className={propertiesOpen ? 'active' : ''} aria-pressed={propertiesOpen} disabled={selectedNodes.length + selectedEdges.length !== 1} onClick={() => setPropertiesOpen((open) => !open)} title="Properties" aria-label="Properties"><Cog /></button>
         <button onClick={deleteSelection} disabled={!selectedNodes.length && !selectedEdges.length} title="Delete selected" aria-label="Delete selected"><Trash2 /></button>
@@ -774,6 +838,25 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
           </div>
         </aside>
       )}
+
+      {codeOpen && <aside className="diagram-code-panel" aria-label="Diagram as code editor">
+        <header><div><strong>Diagram as code</strong><span>Define components and connections</span></div><button onClick={() => setCodeOpen(false)} aria-label="Close diagram code"><X /></button></header>
+        <label className="diagram-live-preview"><input type="checkbox" checked={livePreview} onChange={(event) => setLivePreview(event.target.checked)} />Live preview</label>
+        <button className="diagram-code-reference-toggle" aria-expanded={codeReferenceOpen} onClick={() => setCodeReferenceOpen((open) => !open)}><Library />Component reference <ChevronDown /></button>
+        {codeReferenceOpen && <section className="diagram-code-reference" aria-label="Component shorthand reference">
+          <input aria-label="Search component shorthands" placeholder="Search shorthands" value={codeReferenceSearch} onChange={(event) => setCodeReferenceSearch(event.target.value)} />
+          <div>{componentDefinitions.filter((item) => item.iconId && `${item.iconId} ${item.label} ${item.category}`.toLowerCase().includes(codeReferenceSearch.toLowerCase())).map((item) => {
+            const shorthand = supportedKindNames.has(item.iconId!) ? `icon-${item.iconId}` : item.iconId!
+            return <button key={`${item.iconId}-${item.label}`} onClick={() => insertCodeComponent(shorthand, item.label)}><code>{shorthand}</code><span>{item.label}</span></button>
+          })}</div>
+        </section>}
+        <div className="diagram-code-input">
+          <div className="diagram-code-lines" ref={codeLineNumbers} aria-hidden="true">{diagramCode.split('\n').map((_, index) => <span className={Number(codeError.match(/^Line (\d+)/)?.[1]) === index + 1 ? 'error' : ''} key={index}>{index + 1}</span>)}</div>
+          <textarea aria-label="Diagram code" value={diagramCode} onChange={(event) => { setDiagramCode(event.target.value); onDiagramCodeChange?.(event.target.value); setCodeError('') }} onKeyDown={(event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); drawFromCode() } }} onScroll={(event) => { if (codeLineNumbers.current) codeLineNumbers.current.scrollTop = event.currentTarget.scrollTop }} spellCheck={false} />
+        </div>
+        {codeError ? <p className="diagram-code-error" role="alert">{codeError}</p> : <p className="diagram-code-help"><code>region east "us-east-1" {'{'}</code><br /><code>&nbsp;&nbsp;aws-lambda api "API"</code><br /><code>{'}'}</code><br /><code>api.right -&gt; db.left : "reads"</code></p>}
+        <button className="diagram-code-draw" aria-label="Draw diagram" onClick={drawFromCode}><Sparkles />Draw diagram <kbd aria-hidden="true">Ctrl ↵</kbd></button>
+      </aside>}
 
       {propertiesOpen && selectedNodes.length === 1 && <aside className="canvas-properties" aria-label="Properties inspector">
         <header><div className="property-heading"><strong>Component</strong><small>{String(selectedNodes[0].data.kind || 'service')}</small></div><button className="property-close" onClick={() => setPropertiesOpen(false)} aria-label="Close properties"><X /></button></header>
