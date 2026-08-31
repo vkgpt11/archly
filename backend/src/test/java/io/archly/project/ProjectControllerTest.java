@@ -19,10 +19,13 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.jwt.JwtValidationException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.util.List;
+import java.time.Instant;
+import jakarta.servlet.http.Cookie;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -58,7 +61,21 @@ class ProjectControllerTest {
         mvc.perform(get("/api/auth/session")
                 .with(jwt().jwt(token -> token.claim("email", "owner@gmail.com"))))
             .andExpect(status().isOk())
+            .andExpect(header().string("Set-Cookie", org.hamcrest.Matchers.containsString("ARCHLY_AUTH=")))
+            .andExpect(header().string("Set-Cookie", org.hamcrest.Matchers.containsString("HttpOnly")))
             .andExpect(jsonPath("$.email").value("owner@gmail.com"));
+    }
+
+    @Test
+    void restoresAuthenticationFromHttpOnlyCookieAndClearsItOnLogout() throws Exception {
+        Instant now = Instant.now();
+        Jwt identity = Jwt.withTokenValue("cookie-token").header("alg", "test").subject("cookie-subject")
+            .claim("email", "cookie@gmail.com").issuedAt(now).expiresAt(now.plusSeconds(600)).build();
+        when(jwtDecoder.decode("cookie-token")).thenReturn(identity);
+        mvc.perform(get("/api/projects").cookie(new Cookie("ARCHLY_AUTH", "cookie-token"))).andExpect(status().isOk());
+        mvc.perform(post("/api/auth/logout").cookie(new Cookie("ARCHLY_AUTH", "cookie-token")))
+            .andExpect(status().isNoContent())
+            .andExpect(header().string("Set-Cookie", org.hamcrest.Matchers.containsString("Max-Age=0")));
     }
 
     @Test
@@ -68,7 +85,8 @@ class ProjectControllerTest {
                 .header("Access-Control-Request-Method", "POST")
                 .header("Access-Control-Request-Headers", "authorization,content-type"))
             .andExpect(status().isOk())
-            .andExpect(header().string("Access-Control-Allow-Origin", "http://127.0.0.1:5173"));
+            .andExpect(header().string("Access-Control-Allow-Origin", "http://127.0.0.1:5173"))
+            .andExpect(header().string("Access-Control-Allow-Credentials", "true"));
     }
 
     @Test

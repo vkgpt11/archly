@@ -26,7 +26,7 @@ const requestTimeoutMs = 15_000
 async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
   const controller = new AbortController()
   const timer = window.setTimeout(() => controller.abort(), requestTimeoutMs)
-  try { return await fetch(url, { ...init, signal: controller.signal }) }
+  try { return await fetch(url, { credentials: 'include', ...init, signal: controller.signal }) }
   catch (error) {
     if (controller.signal.aborted) throw new ApiError('The API did not respond within 15 seconds. Check the backend and try again.', 408)
     throw error
@@ -37,7 +37,7 @@ async function request<T>(token: string, path: string, init?: RequestInit): Prom
   const response = await fetchWithTimeout(`${baseUrl}${path}`, {
     ...init,
     headers: {
-      Authorization: `Bearer ${token}`,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       'Content-Type': 'application/json',
       ...init?.headers,
     },
@@ -59,13 +59,15 @@ async function publicRequest<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 async function download(token: string, path: string): Promise<Blob> {
-  const response = await fetchWithTimeout(`${baseUrl}${path}`, { headers: { Authorization: `Bearer ${token}` } })
+  const response = await fetchWithTimeout(`${baseUrl}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
   if (!response.ok) throw new ApiError(`Request failed (${response.status})`, response.status)
   return response.blob()
 }
 
 export const api = {
   validateSession: (token: string) => request<AuthSession>(token, '/auth/session', { headers: { 'X-Archly-Session': authSessionId() } }),
+  restoreSession: () => request<AuthSession>('', '/auth/session', { headers: { 'X-Archly-Session': authSessionId() } }),
+  logout: () => request<void>('', '/auth/logout', { method: 'POST' }),
   listProjects: (token: string, page = 0, size = 24) => request<ProjectPage | Project[]>(token, `/projects?page=${page}&size=${size}`),
   createProject: (token: string, name: string) =>
     request<Project>(token, '/projects', { method: 'POST', body: JSON.stringify({ name }) }),

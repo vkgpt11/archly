@@ -61,7 +61,8 @@ async function installStatefulApi(page: Page, seed = [project('existing', 'Exist
 
 async function signIn(page: Page) {
   await page.goto('/')
-  await page.getByRole('button', { name: 'Continue as local developer' }).click()
+  const signInButton = page.getByRole('button', { name: 'Continue as local developer' })
+  if (await signInButton.isVisible()) await signInButton.click()
 }
 
 test('creates, edits, autosaves, returns to dashboard, and duplicates a project', async ({ page }) => {

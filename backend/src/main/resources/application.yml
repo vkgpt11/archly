@@ -19,6 +19,7 @@ archly:
     cleanup-cron: ${ARCHLY_ANALYTICS_CLEANUP_CRON:0 15 3 * * *}
   auth:
     dev-bypass: ${ARCHLY_AUTH_DEV_BYPASS:false}
+    cookie-secure: ${ARCHLY_AUTH_COOKIE_SECURE:false}
   google:
     client-id: ${GOOGLE_CLIENT_ID:local-development-client-id}
   ui-origins: ${UI_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}

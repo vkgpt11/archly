@@ -18,7 +18,8 @@ async function openProject(page: Page) {
     return route.fulfill({ status: 404, json: { message: 'Not mocked' } })
   })
   await page.goto('/')
-  await page.getByRole('button', { name: 'Continue as local developer' }).click()
+  const signIn = page.getByRole('button', { name: 'Continue as local developer' })
+  if (await signIn.isVisible()) await signIn.click()
   await page.getByRole('button', { name: `Open ${project.name}` }).click()
   await expect(page.getByText('Far Away Database')).toBeAttached()
 }

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { GoogleLogin } from '@react-oauth/google'
 import ThemeToggle from './components/ThemeToggle'
 import { ApiError, api, type AuthSession } from './api'
@@ -15,7 +15,18 @@ export default function App({ googleEnabled = true }: Props) {
   const [session, setSession] = useState<AuthSession | null>(null)
   const [error, setError] = useState('')
   const [authenticating, setAuthenticating] = useState(false)
+  const [restoringSession, setRestoringSession] = useState(!shareToken)
   const devBypassEnabled = import.meta.env.VITE_DEV_AUTH === 'true'
+
+  useEffect(() => {
+    if (shareToken) return
+    let active = true
+    api.restoreSession()
+      .then((restored) => { if (active) { setSession(restored); setCredential('') } })
+      .catch(() => {})
+      .finally(() => { if (active) setRestoringSession(false) })
+    return () => { active = false }
+  }, [shareToken])
 
   const authenticate = async (token: string) => {
     setError('')
@@ -39,8 +50,12 @@ export default function App({ googleEnabled = true }: Props) {
 
   if (shareToken) return <Suspense fallback={loading}><SharedProjectView shareToken={decodeURIComponent(shareToken)} /></Suspense>
 
-  if (credential && session) {
-    return <Suspense fallback={loading}><Dashboard token={credential} isAdmin={session.isAdmin} onSignOut={() => { setCredential(null); setSession(null) }} /></Suspense>
+  if (restoringSession) return loading
+
+  if (credential !== null && session) {
+    return <Suspense fallback={loading}><Dashboard token={credential} isAdmin={session.isAdmin} onSignOut={() => {
+      void api.logout().finally(() => { setCredential(null); setSession(null) })
+    }} /></Suspense>
   }
 
   return (
