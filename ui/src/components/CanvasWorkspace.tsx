@@ -362,12 +362,21 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
   const clipboard = useRef<Snapshot>({ nodes: [], edges: [] })
   const nodesRef = useRef(nodes)
   const edgesRef = useRef(edges)
+  const canvasCodeSignature = useRef(diagramToCode(nodes, edges))
   const dragSnapshot = useRef<Snapshot | null>(null)
   const codeLineNumbers = useRef<HTMLDivElement>(null)
 
   useEffect(() => { nodesRef.current = nodes }, [nodes])
   useEffect(() => { edgesRef.current = edges }, [edges])
   useEffect(() => { setDiagramCode(initialDiagramCode) }, [initialDiagramCode])
+  useEffect(() => {
+    const generated = diagramToCode(nodes, edges)
+    if (generated === canvasCodeSignature.current) return
+    canvasCodeSignature.current = generated
+    setDiagramCode(generated)
+    onDiagramCodeChange?.(generated)
+    setCodeError('')
+  }, [edges, nodes, onDiagramCodeChange])
   useEffect(() => {
     if (nodes.some((node) => node.type !== 'architecture')) setNodes((current) => current.map(normalizedNode))
   }, [nodes, setNodes])
@@ -475,6 +484,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
     try {
       const result = parseDiagramCode(diagramCode)
       remember()
+      canvasCodeSignature.current = diagramToCode(result.nodes, result.edges)
       setNodes(result.nodes)
       setEdges(result.edges)
       setCodeError('')
@@ -501,6 +511,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
     const timer = window.setTimeout(() => {
       try {
         const result = parseDiagramCode(diagramCode)
+        canvasCodeSignature.current = diagramToCode(result.nodes, result.edges)
         setNodes(result.nodes)
         setEdges(result.edges)
         setCodeError('')

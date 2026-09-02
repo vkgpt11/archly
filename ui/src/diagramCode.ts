@@ -35,6 +35,7 @@ export function parseDiagramCode(source: string): DiagramCodeResult {
   const variables = new Map<string, string>()
   const nodeStyles: { id: string; options: Record<string, string>; line: number }[] = []
   const edgeStyles: { source: string; target: string; options: Record<string, string>; line: number }[] = []
+  const positions: { id: string; x: number; y: number; line: number }[] = []
   let direction: 'right' | 'down' = 'right'
 
   source.split(/\r?\n/).forEach((rawLine, index) => {
@@ -51,6 +52,15 @@ export function parseDiagramCode(source: string): DiagramCodeResult {
     if (nodeStyleMatch) { nodeStyles.push({ id: nodeStyleMatch[1], options: readOptions(nodeStyleMatch[2]), line: index + 1 }); return }
     const edgeStyleMatch = line.match(/^style-edge\s+([A-Za-z][\w-]*)\s*->\s*([A-Za-z][\w-]*)\s+(.+)$/i)
     if (edgeStyleMatch) { edgeStyles.push({ source: edgeStyleMatch[1], target: edgeStyleMatch[2], options: readOptions(edgeStyleMatch[3]), line: index + 1 }); return }
+    const positionMatch = line.match(/^position\s+([A-Za-z][\w-]*)\s+(.+)$/i)
+    if (positionMatch) {
+      const options = readOptions(positionMatch[2])
+      const x = Number(options.x)
+      const y = Number(options.y)
+      if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error(`Line ${index + 1}: position requires numeric x and y values`)
+      positions.push({ id: positionMatch[1], x, y, line: index + 1 })
+      return
+    }
     if (line === '}') {
       if (!containers.length) throw new Error(`Line ${index + 1}: unexpected closing brace`)
       containers.pop()
@@ -192,6 +202,11 @@ export function parseDiagramCode(source: string): DiagramCodeResult {
     parent.style = { ...parent.style, width: maxX, height: maxY }
   }
   layoutScope()
+  for (const item of positions) {
+    const node = nodeById.get(item.id)
+    if (!node) throw new Error(`Line ${item.line}: unknown component “${item.id}”`)
+    node.position = { x: item.x, y: item.y }
+  }
   const edges = connections.map((connection, index) => {
     const directive = edgeStyles.find((item) => item.source === connection.source && item.target === connection.target)
     if (directive?.options.color && !validColor(directive.options.color)) throw new Error(`Line ${directive.line}: color must be a six-digit hex color`)
@@ -229,6 +244,9 @@ export function diagramToCode(nodes: Node[], edges: Edge[]): string {
     const options = [node.data?.fill && `fill=${node.data.fill}`, node.data?.border && `border=${node.data.border}`, node.data?.textColor && `text=${node.data.textColor}`, node.data?.description && `description="${String(node.data.description).replace(/"/g, '\\"')}"`].filter(Boolean)
     lines.push(`style ${aliases.get(node.id)} ${options.join(' ')}`)
   })
+  if (nodes.length) lines.push('')
+  const coordinate = (value: number) => String(Math.round(value * 100) / 100)
+  nodes.forEach((node) => lines.push(`position ${aliases.get(node.id)} x=${coordinate(node.position.x)} y=${coordinate(node.position.y)}`))
   if (edges.length) lines.push('')
   for (const edge of edges) {
     const label = String(edge.label || '').replace(/"/g, '\\"')

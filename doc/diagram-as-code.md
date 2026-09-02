@@ -2,6 +2,8 @@
 
 Open a project canvas and select **Diagram as code** in the canvas toolbar. Source is saved with the project exactly as written, including comments and whitespace.
 
+Editing works in both directions. Drawing valid source updates the canvas; moving, adding, deleting, renaming, connecting, or styling items on the canvas updates the saved source. A code-driven redraw keeps the source's comments and formatting until the canvas is changed again.
+
 ## Components and connections
 
 ```text
@@ -50,6 +52,15 @@ style-edge api->db color=#ff5500 line=dashed routing=straight
 ```
 
 Colors use six-digit hexadecimal values. Edge routing is `straight`, `default`, or `smoothstep`. Notes and annotations use the normal `note` and `text` component types.
+
+## Exact positions
+
+```text
+service api "Orders API"
+position api x=240 y=120
+```
+
+`position` directives preserve canvas placement when source is generated from visual edits. Coordinates may be integers or decimals, including negative values.
 
 ## Editor controls
 
