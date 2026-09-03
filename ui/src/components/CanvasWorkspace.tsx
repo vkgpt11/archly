@@ -79,6 +79,10 @@ import {
 import { aiGroupByLabel, aiGroupOrder, generalGroupByLabel, generalGroupOrder, type AiComponentGroup, type GeneralComponentGroup } from './canvasCatalogGroups'
 import { componentDefinitions } from './canvasCatalog'
 import { diagramToCode, parseDiagramCode } from '../diagramCode'
+import DiagramLayoutPanel from './DiagramLayoutPanel'
+import { descendantIds, fitDiagramBoundaries } from '../diagramLayout'
+import { boundaryTypes, validateBoundaries } from '../diagramBoundaries'
+import { connectionMetadata, connectionProtocols } from '../diagramConnections'
 
 type CanvasTool = 'select' | 'pan' | 'connect'
 
@@ -93,6 +97,15 @@ type ArchitectureNodeData = {
   groupId?: string
   containerId?: string
   iconId?: string
+  shape?: string
+  opacity?: number
+  borderWidth?: number
+  customWidth?: number
+  customHeight?: number
+  padding?: number
+  boundaryType?: string
+  boundaryIdentifier?: string
+  provider?: string
 }
 
 type Snapshot = { nodes: Node[]; edges: Edge[] }
@@ -216,14 +229,16 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
   useEffect(() => {
     if (kind === 'container') return
     const current = getNode(id)
-    const size = getComponentSize(label, kind)
+    const automatic = getComponentSize(label, kind)
+    const size = { width: data.customWidth || automatic.width, height: data.customHeight || automatic.height }
     if (current?.width === size.width && current?.height === size.height) return
     updateNode(id, { ...size, style: { ...current?.style, ...size } })
-  }, [getNode, id, kind, label, updateNode])
+  }, [getNode, id, kind, label, updateNode, data.customWidth, data.customHeight])
 
   function updateContent(nextLabel: string) {
     const current = getNode(id)
-    const nextSize = kind === 'container' ? {} : getComponentSize(nextLabel, kind)
+    const automatic = getComponentSize(nextLabel, kind)
+    const nextSize = kind === 'container' ? {} : { width: data.customWidth || automatic.width, height: data.customHeight || automatic.height }
     const nextStyle = kind === 'container' ? current?.style : { ...current?.style, ...nextSize }
     updateNode(id, { ...nextSize, data: { ...data, label: nextLabel }, style: nextStyle })
   }
@@ -237,7 +252,7 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
   return (
     <div
       className={`architecture-node architecture-node-${kind}${iconFirst ? ' icon-first' : ''}${selected ? ' selected' : ''}${data.locked ? ' locked' : ''}`}
-      style={{ background: data.fill, borderColor: data.border, color: data.textColor }}
+      style={{ background: data.fill, borderColor: data.border, color: data.textColor, borderWidth: data.borderWidth, opacity: data.opacity, borderRadius: data.shape === 'ellipse' ? '50%' : data.shape === 'rectangle' ? 0 : data.shape === 'rounded' ? 16 : undefined }}
       onPointerDown={(event) => {
         if (!event.shiftKey) return
         event.stopPropagation()
@@ -293,7 +308,7 @@ function EditableConnectionEdge(props: EdgeProps<Edge>) {
     ? getStraightPath(pathArgs)
     : routing === 'default'
       ? getBezierPath(pathArgs)
-      : getSmoothStepPath(pathArgs)
+      : getSmoothStepPath({ ...pathArgs, borderRadius: routing === 'orthogonal' ? 0 : 5 })
   const label = String(props.label || '')
 
   function selectThisEdge() {
@@ -342,8 +357,10 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [propertiesOpen, setPropertiesOpen] = useState(false)
   const [codeOpen, setCodeOpen] = useState(false)
+  const [layoutOpen, setLayoutOpen] = useState(false)
   const [diagramCode, setDiagramCode] = useState(initialDiagramCode)
   const [codeError, setCodeError] = useState('')
+  const [mutationError, setMutationError] = useState('')
   const [livePreview, setLivePreview] = useState(false)
   const [codeReferenceOpen, setCodeReferenceOpen] = useState(false)
   const [codeReferenceSearch, setCodeReferenceSearch] = useState('')
@@ -458,6 +475,10 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
 
   function updateSelectedEdge(patch: Partial<Edge>, record = true) {
     if (!selectedEdge) return
+    if ('markerStart' in patch || 'markerEnd' in patch) {
+      const merged = { ...selectedEdge, ...patch }
+      patch.data = { ...merged.data, direction: merged.markerStart && merged.markerEnd ? 'bidirectional' : merged.markerStart ? 'reverse' : merged.markerEnd ? 'forward' : 'none' }
+    }
     if (record) remember()
     setEdges((current) => current.map((edge) => edge.id === selectedEdge.id ? { ...edge, ...patch } : edge))
   }
@@ -465,7 +486,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
   function deleteSelection() {
     if (!selectedNodes.length && !selectedEdges.length) return
     remember()
-    const ids = new Set(selectedNodes.map((node) => node.id))
+    const ids = descendantIds(nodesRef.current, new Set(selectedNodes.map((node) => node.id)))
     setNodes((current) => current.filter((node) => !ids.has(node.id)))
     setEdges((current) => current.filter((edge) => !edge.selected && !ids.has(edge.source) && !ids.has(edge.target)))
   }
@@ -501,6 +522,17 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
     let suffix = 2
     while (used.has(id)) id = `${base}${suffix++}`
     const next = `${diagramCode.replace(/\s*$/, '')}${diagramCode.trim() ? '\n' : ''}${shorthand} ${id} "${label.replace(/"/g, '\\"')}"`
+    setDiagramCode(next)
+    onDiagramCodeChange?.(next)
+    setCodeError('')
+  }
+
+  function insertTemplateExample() {
+    let name = 'ServiceStack'
+    let suffix = 2
+    while (new RegExp(`\\b${name}\\b`).test(diagramCode)) name = `ServiceStack${suffix++}`
+    const example = `template ${name}(name="Orders") {\n  container stack "\${name}" {\n    service api "\${name} API"\n    redis cache "Cache"\n    api.right -> cache.left : "cached reads"\n  }\n}\nuse ${name} ${name.toLowerCase()}(name="Orders")`
+    const next = `${diagramCode.trimEnd()}${diagramCode.trim() ? '\n\n' : ''}${example}`
     setDiagramCode(next)
     onDiagramCodeChange?.(next)
     setCodeError('')
@@ -610,7 +642,23 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
 
   function onReconnect(oldEdge: Edge, connection: Connection) {
     remember()
-    setEdges((current) => reconnectEdge(oldEdge, connection, current))
+    setEdges((current) => reconnectEdge(oldEdge, connection, current, { shouldReplaceId: false }))
+  }
+
+  function updateConnectionMetadata(key: string, value: string) {
+    if (!selectedEdge) return
+    try {
+      const data = { ...selectedEdge.data }
+      if (value === '') delete data[key]
+      else Object.assign(data, connectionMetadata({ [key]: value }))
+      const patch: Partial<Edge> = { data }
+      if (key === 'direction') {
+        patch.markerStart = ['reverse', 'bidirectional'].includes(value) ? { type: MarkerType.ArrowClosed } : undefined
+        patch.markerEnd = ['forward', 'bidirectional'].includes(value) ? { type: MarkerType.ArrowClosed } : undefined
+      }
+      updateSelectedEdge(patch)
+      setMutationError('')
+    } catch (error) { setMutationError((error as Error).message) }
   }
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
@@ -655,16 +703,22 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
 
   const updateSelectedNode = (patch: Partial<ArchitectureNodeData>, record = true) => {
     if (selectedNodes.length !== 1) return
-    if (record) remember()
     const selected = selectedNodes[0]
-    setNodes((current) => current.map((node) => {
+    const next = nodesRef.current.map((node) => {
       if (node.id !== selected.id) return node
-      const data = { ...node.data, ...patch } as ArchitectureNodeData
+      const data = { ...node.data, ...patch, ...('boundaryType' in patch ? { region: patch.boundaryType === 'region' } : {}) } as ArchitectureNodeData
       const kind = data.kind || 'service'
-      const size = kind === 'container' ? node.style : getComponentSize(data.label || 'Untitled component', kind)
+      const automatic = kind === 'container' ? node.style : getComponentSize(data.label || 'Untitled component', kind)
+      const size = { ...automatic, ...(data.customWidth ? { width: data.customWidth } : {}), ...(data.customHeight ? { height: data.customHeight } : {}) }
       const wasContainer = node.data?.kind === 'container'
       return { ...node, data, style: { ...node.style, ...size }, zIndex: kind === 'container' ? -1 : wasContainer ? 0 : node.zIndex }
-    }))
+    })
+    try {
+      validateBoundaries(next)
+      if (record) remember()
+      setNodes(fitDiagramBoundaries(next))
+      setMutationError('')
+    } catch (error) { setMutationError((error as Error).message) }
   }
 
   useEffect(() => {
@@ -744,6 +798,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
 
   return (
     <div className={`canvas-workspace${tool === 'connect' ? ' connect-mode' : ''}`}>
+      {mutationError && <p role="alert" className="diagram-code-error">{mutationError}</p>}
       <CanvasHistoryContext.Provider value={historyApi}>
       <ReactFlow
         nodes={nodes}
@@ -762,7 +817,10 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
         onNodeDragStop={(_, node) => {
           if (dragSnapshot.current) remember(dragSnapshot.current)
           dragSnapshot.current = null
-          setNodes((current) => assignNodeToContainingContainer(current, node.id))
+          setNodes((current) => {
+            const assigned = assignNodeToContainingContainer(current, node.id).map((item) => ({ ...item, data: { ...item.data } }))
+            try { validateBoundaries(assigned); return fitDiagramBoundaries(assigned) } catch { return fitDiagramBoundaries(current) }
+          })
         }}
         onDragOver={(event) => { if (event.dataTransfer.types.includes('application/x-archly-component')) event.preventDefault() }}
         onDrop={(event) => {
@@ -850,11 +908,16 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
         </aside>
       )}
 
+      {layoutOpen && <DiagramLayoutPanel nodes={nodes} edges={edges} apply={(next) => { remember(); setNodes(next) }} close={() => { setLayoutOpen(false); setCodeOpen(true) }} />}
       {codeOpen && <aside className="diagram-code-panel" aria-label="Diagram as code editor">
         <header><div><strong>Diagram as code</strong><span>Define components and connections</span></div><button onClick={() => setCodeOpen(false)} aria-label="Close diagram code"><X /></button></header>
         <label className="diagram-live-preview"><input type="checkbox" checked={livePreview} onChange={(event) => setLivePreview(event.target.checked)} />Live preview</label>
+        <button className="diagram-code-reference-toggle" onClick={insertTemplateExample}>Insert template example</button>
+        <button className="diagram-code-reference-toggle" onClick={() => { setCodeOpen(false); setPropertiesOpen(false); setLayoutOpen(true) }}>Automatic layout</button>
+        {/^\s*template\s/m.test(diagramCode) && <p className="diagram-code-help">Canvas edits expand template instances into ordinary component declarations.</p>}
         <button className="diagram-code-reference-toggle" aria-expanded={codeReferenceOpen} onClick={() => setCodeReferenceOpen((open) => !open)}><Library />Component reference <ChevronDown /></button>
         {codeReferenceOpen && <section className="diagram-code-reference" aria-label="Component shorthand reference">
+          <p>Use account, subscription, project, region, zone, vpc, vnet, subnet, cluster, or namespace blocks for boundaries. Layout blocks accept direction, horizontal-spacing, vertical-spacing, rank-separation, and routing. Style blocks accept fill, border, text, icon, shape, opacity, border-width, width, height, and padding. Declare named connections with connection ID a -&gt; b; use metadata-edge ID for protocol, port, async, encrypted, direction, and description. Export offers Mermaid, PlantUML, D2, and metadata with compatibility warnings.</p>
           <input aria-label="Search component shorthands" placeholder="Search shorthands" value={codeReferenceSearch} onChange={(event) => setCodeReferenceSearch(event.target.value)} />
           <div>{componentDefinitions.filter((item) => item.iconId && `${item.iconId} ${item.label} ${item.category}`.toLowerCase().includes(codeReferenceSearch.toLowerCase())).map((item) => {
             const shorthand = supportedKindNames.has(item.iconId!) ? `icon-${item.iconId}` : item.iconId!
@@ -873,6 +936,13 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
         <header><div className="property-heading"><strong>Component</strong><small>{String(selectedNodes[0].data.kind || 'service')}</small></div><button className="property-close" onClick={() => setPropertiesOpen(false)} aria-label="Close properties"><X /></button></header>
         <label>Title<input aria-label="Component property title" value={String(selectedNodes[0].data.label || '')} onFocus={() => remember()} onChange={(event) => updateSelectedNode({ label: event.target.value }, false)} /></label>
         <label>Description<textarea aria-label="Component description" value={String(selectedNodes[0].data.description || '')} onFocus={() => remember()} onChange={(event) => updateSelectedNode({ description: event.target.value }, false)} rows={2} /></label>
+        {selectedNodes[0].data.kind === 'container' && <>
+          <label>Boundary type<select aria-label="Boundary type" value={String(selectedNodes[0].data.boundaryType || '')} onChange={(event) => updateSelectedNode({ boundaryType: event.target.value || undefined })}><option value="">Generic container</option>{boundaryTypes.map((type) => <option key={type}>{type}</option>)}</select></label>
+          <label>Provider<select aria-label="Boundary provider" value={String(selectedNodes[0].data.provider || '')} onChange={(event) => updateSelectedNode({ provider: event.target.value || undefined })}><option value="">Inherit</option>{['aws', 'azure', 'gcp', 'kubernetes'].map((provider) => <option key={provider}>{provider}</option>)}</select></label>
+          <label>Provider identifier<input aria-label="Boundary identifier" value={String(selectedNodes[0].data.boundaryIdentifier || '')} onFocus={() => remember()} onChange={(event) => updateSelectedNode({ boundaryIdentifier: event.target.value }, false)} /></label>
+        </>}
+        <label>Shape<select aria-label="Component shape" value={String(selectedNodes[0].data.shape || 'rounded')} onChange={(event) => updateSelectedNode({ shape: event.target.value })}><option value="rectangle">Rectangle</option><option value="rounded">Rounded</option><option value="ellipse">Ellipse</option></select></label>
+        {([['opacity', 'Opacity', 0, 1, 0.1, 1], ['borderWidth', 'Border width', 0, 12, 0.5, 1], ['customWidth', 'Width', 32, 4000, 1, 82], ['customHeight', 'Height', 24, 4000, 1, 42]] as const).map(([key, label, min, max, step, fallback]) => <label key={key}>{label}<input aria-label={`Component ${label.toLowerCase()}`} type="number" min={min} max={max} step={step} value={Number(selectedNodes[0].data[key] ?? fallback)} onFocus={() => remember()} onChange={(event) => { if (event.target.value && event.target.validity.valid) updateSelectedNode({ [key]: Number(event.target.value) }, false) }} /></label>)}
         <label>Type<select aria-label="Component type" value={String(selectedNodes[0].data.kind || 'service')} onChange={(event) => updateSelectedNode({ kind: event.target.value as ArchitectureKind })}>
           {(['service','web','mobile','database','cache','queue','storage','external','actor','container','note','text','custom'] as ArchitectureKind[]).map((kind) => <option key={kind} value={kind}>{kind}</option>)}
         </select></label>
@@ -893,12 +963,17 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
       {propertiesOpen && selectedEdge && <aside className="canvas-properties" aria-label="Properties inspector">
         <header><div className="property-heading"><strong>Connection</strong><small>Edge</small></div><button className="property-close" onClick={() => setPropertiesOpen(false)} aria-label="Close properties"><X /></button></header>
         <label>Label<input aria-label="Connection property label" value={String(selectedEdge.label || '')} onFocus={() => remember()} onChange={(event) => updateSelectedEdge({ label: event.target.value }, false)} /></label>
-        <label>Routing<select aria-label="Connection property routing" value={String(selectedEdge.data?.routing || 'smoothstep')} onChange={(event) => updateSelectedEdge({ data: { ...selectedEdge.data, routing: event.target.value } })}><option value="straight">Straight</option><option value="default">Curved</option><option value="smoothstep">Stepped</option></select></label>
+        <label>Routing<select aria-label="Connection property routing" value={String(selectedEdge.data?.routing || 'smoothstep')} onChange={(event) => updateSelectedEdge({ data: { ...selectedEdge.data, routing: event.target.value } })}><option value="straight">Straight</option><option value="default">Curved</option><option value="smoothstep">Stepped</option><option value="orthogonal">Orthogonal</option></select></label>
         <label>Direction<select aria-label="Connection direction" value={selectedEdge.markerStart && selectedEdge.markerEnd ? 'both' : selectedEdge.markerStart ? 'start' : selectedEdge.markerEnd ? 'end' : 'none'} onChange={(event) => {
           const direction = event.target.value
           updateSelectedEdge({ markerStart: direction === 'start' || direction === 'both' ? { type: MarkerType.ArrowClosed } : undefined, markerEnd: direction === 'end' || direction === 'both' ? { type: MarkerType.ArrowClosed } : undefined })
         }}><option value="none">No arrows</option><option value="end">End</option><option value="start">Start</option><option value="both">Both</option></select></label>
-        <label>Line style<select aria-label="Connection line style" value={selectedEdge.style?.strokeDasharray ? 'dashed' : 'solid'} onChange={(event) => updateSelectedEdge({ style: { ...selectedEdge.style, strokeDasharray: event.target.value === 'dashed' ? '7 5' : undefined } })}><option value="solid">Solid</option><option value="dashed">Dashed</option></select></label>
+        <label>Line style<select aria-label="Connection line style" value={selectedEdge.style?.strokeDasharray === '2 4' ? 'dotted' : selectedEdge.style?.strokeDasharray ? 'dashed' : 'solid'} onChange={(event) => updateSelectedEdge({ style: { ...selectedEdge.style, strokeDasharray: event.target.value === 'dashed' ? '7 5' : event.target.value === 'dotted' ? '2 4' : undefined } })}><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select></label>
+        <label>Protocol<select aria-label="Connection protocol" value={String(selectedEdge.data?.protocol || '')} onChange={(event) => updateConnectionMetadata('protocol', event.target.value)}><option value="">Unspecified</option>{connectionProtocols.map((protocol) => <option key={protocol}>{protocol}</option>)}</select></label>
+        <label>Port or range<input key={`${selectedEdge.id}-${selectedEdge.data?.port}`} aria-label="Connection port" defaultValue={String(selectedEdge.data?.port || '')} onBlur={(event) => updateConnectionMetadata('port', event.target.value)} placeholder="443 or 8000-8100" /></label>
+        {(['async', 'encrypted'] as const).map((key) => <label key={key}>{key}<select aria-label={`Connection ${key}`} value={selectedEdge.data?.[key] === undefined ? '' : String(selectedEdge.data[key])} onChange={(event) => updateConnectionMetadata(key, event.target.value)}><option value="">Unspecified</option><option value="true">Yes</option><option value="false">No</option></select></label>)}
+        <label>Description<textarea key={`${selectedEdge.id}-description`} aria-label="Connection description" defaultValue={String(selectedEdge.data?.description || '')} maxLength={2000} onBlur={(event) => updateConnectionMetadata('description', event.target.value)} /></label>
+        {(['markerStart', 'markerEnd'] as const).map((key) => <label key={key}>{key === 'markerStart' ? 'Start marker' : 'End marker'}<select aria-label={key === 'markerStart' ? 'Start marker' : 'End marker'} value={!selectedEdge[key] ? 'none' : typeof selectedEdge[key] === 'object' && selectedEdge[key].type === MarkerType.Arrow ? 'arrow' : 'closed'} onChange={(event) => updateSelectedEdge({ [key]: event.target.value === 'none' ? undefined : { type: event.target.value === 'arrow' ? MarkerType.Arrow : MarkerType.ArrowClosed } })}><option value="none">None</option><option value="arrow">Open arrow</option><option value="closed">Closed arrow</option></select></label>)}
         <label>Color<input type="color" aria-label="Connection property color" value={String(selectedEdge.style?.stroke || '#68708a')} onFocus={() => remember()} onChange={(event) => updateSelectedEdge({ style: { ...selectedEdge.style, stroke: event.target.value } }, false)} /></label>
         <div className="property-actions"><button onClick={duplicateSelectedEdge}><Copy />Duplicate</button><button className="danger" onClick={deleteSelection}><Trash2 />Delete</button></div>
       </aside>}
@@ -957,7 +1032,7 @@ function ConnectionToolbar({ edge, update, remember, onDelete }: { edge: Edge; u
   const editingLabel = useRef(false)
   return <div className="connection-toolbar" role="toolbar" aria-label="Connection formatting">
     <label className="connection-color" title="Line color" aria-label="Line color"><span style={{ background: color }} /><input type="color" value={color} onChange={(event) => update({ style: { ...edge.style, stroke: event.target.value } })} /></label>
-    <label className="connection-select" title="Connection routing"><Spline /><select aria-label="Connection routing" value={routing} onChange={(event) => update({ data: { ...edge.data, routing: event.target.value } })}><option value="straight">Straight</option><option value="default">Curved</option><option value="smoothstep">Stepped</option></select></label>
+    <label className="connection-select" title="Connection routing"><Spline /><select aria-label="Connection routing" value={routing} onChange={(event) => update({ data: { ...edge.data, routing: event.target.value } })}><option value="straight">Straight</option><option value="default">Curved</option><option value="smoothstep">Stepped</option><option value="orthogonal">Orthogonal</option></select></label>
     <label className="connection-select line-width" title="Line weight"><Minus /><select aria-label="Line weight" value={width} onChange={(event) => update({ style: { ...edge.style, strokeWidth: Number(event.target.value) } })}><option value="1">Thin</option><option value="2">Regular</option><option value="3">Bold</option><option value="5">Heavy</option></select></label>
     <span className="connection-divider" />
     <button className={edge.markerStart ? 'active' : ''} onClick={() => update({ markerStart: edge.markerStart ? undefined : { type: MarkerType.ArrowClosed } })} title="Toggle start arrow" aria-label="Toggle start arrow"><ArrowLeft /></button>

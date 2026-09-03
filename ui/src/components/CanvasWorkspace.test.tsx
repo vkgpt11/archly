@@ -109,6 +109,18 @@ describe('CanvasWorkspace', () => {
     expect([...container.querySelectorAll('.diagram-code-lines span')].map((line) => line.textContent)).toEqual(['1', '2', '3'])
   })
 
+  it('inserts reusable template examples with unique names and draws their instances', () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Insert template example' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Insert template example' }))
+    expect((screen.getByLabelText('Diagram code') as HTMLTextAreaElement).value).toContain('template ServiceStack2(')
+    fireEvent.click(screen.getByRole('button', { name: 'Draw diagram' }))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getAllByText('Orders API')).toHaveLength(2)
+    expect((screen.getByLabelText('Diagram code') as HTMLTextAreaElement).value).toContain('use ServiceStack2 servicestack2(')
+  })
+
   it('searches the shorthand reference and inserts a unique component declaration', () => {
     render(<Harness />)
     fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))

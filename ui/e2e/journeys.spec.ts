@@ -138,6 +138,90 @@ region east "AWS · us-east-1" {
   await expect(page.getByRole('textbox', { name: 'Diagram code' })).toHaveValue(source)
 })
 
+test('template instances render, persist across reopening, and preserve the canvas on invalid calls', async ({ page }) => {
+  await installStatefulApi(page)
+  await signIn(page)
+  await page.getByRole('button', { name: 'Open Existing architecture' }).click()
+  await page.getByRole('button', { name: 'Diagram as code' }).click()
+  const source = `# Reusable services
+template Stack(name="Orders") {
+  service api "\${name} API"
+  redis cache "\${name} cache"
+  api -> cache
+}
+use Stack orders()
+use Stack billing(name="Billing")`
+  const saved = page.waitForResponse((response) => response.request().method() === 'PUT' && response.url().includes('/api/projects/existing') && String(response.request().postDataJSON().canvasJson).includes('template Stack'))
+  await page.getByRole('textbox', { name: 'Diagram code' }).fill(source)
+  await page.getByRole('button', { name: 'Draw diagram' }).click()
+  await expect(page.getByText('Orders API', { exact: true })).toBeVisible()
+  await expect(page.getByText('Billing API', { exact: true })).toBeVisible()
+  expect((await saved).ok()).toBeTruthy()
+  await expect(page.getByText('Saved', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Back to projects' }).click()
+  await page.getByRole('button', { name: 'Open Existing architecture' }).click()
+  await page.getByRole('button', { name: 'Diagram as code' }).click()
+  await expect(page.getByRole('textbox', { name: 'Diagram code' })).toHaveValue(source)
+  await expect(page.getByText('Billing API', { exact: true })).toBeVisible()
+  await page.getByRole('textbox', { name: 'Diagram code' }).fill(`${source}\nuse Missing bad()`)
+  await page.getByRole('button', { name: 'Draw diagram' }).click()
+  await expect(page.getByRole('alert')).toContainText('unknown template')
+  await expect(page.getByText('Billing API', { exact: true })).toBeVisible()
+})
+
+test('advanced diagram features persist and export with explicit compatibility warnings', async ({ page }) => {
+  await installStatefulApi(page)
+  await signIn(page)
+  await page.getByRole('button', { name: 'Open Existing architecture' }).click()
+  await page.getByRole('button', { name: 'Diagram as code' }).click()
+  const source = `layout {
+direction: left
+horizontal-spacing: 100
+}
+account cloud "Production" {
+region east "East" {
+service api "Orders"
+redis cache "Cache"
+}
+}
+style api {
+fill: #ddeeff
+shape: rounded
+width: 180
+}
+connection request api.right -> cache.left : "Lookup"
+metadata-edge request {
+protocol: TCP
+port: 6379
+encrypted: true
+}
+style-edge request line=dotted routing=orthogonal`
+  await page.getByRole('textbox', { name: 'Diagram code' }).fill(source)
+  await page.getByRole('button', { name: 'Draw diagram' }).click()
+  await expect(page.getByText('Orders', { exact: true })).toBeVisible()
+  await expect(page.getByText('Saved', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Automatic layout', exact: true }).click()
+  await page.getByLabel('Layout direction').selectOption('down')
+  await page.getByRole('button', { name: 'Preview layout' }).click()
+  await expect(page.getByRole('img', { name: 'Layout preview' })).toBeVisible()
+  await page.getByRole('button', { name: 'Cancel layout' }).click()
+  await expect(page.getByRole('textbox', { name: 'Diagram code' })).toHaveValue(source)
+  await page.getByRole('button', { name: 'Back to projects' }).click()
+  await page.getByRole('button', { name: 'Open Existing architecture' }).click()
+  await page.getByRole('button', { name: 'Diagram as code' }).click()
+  await expect(page.getByRole('textbox', { name: 'Diagram code' })).toHaveValue(source)
+  await page.getByRole('button', { name: 'Export project', exact: true }).click()
+  for (const format of ['Mermaid', 'PlantUML', 'D2']) {
+    await page.getByRole('button', { name: format, exact: true }).click()
+    await expect(page.getByRole('note')).toContainText('embedded Archly metadata')
+    await expect(page.getByLabel('Exported diagram source')).toHaveValue(/archly-metadata:/)
+  }
+  await page.getByRole('button', { name: 'Architecture metadata', exact: true }).click()
+  const exported = JSON.parse(await page.getByLabel('Exported diagram source').inputValue())
+  expect(exported.nodes.find((node: { id: string }) => node.id === 'cloud').data.boundaryType).toBe('account')
+  expect(exported.edges[0].data).toMatchObject({ protocol: 'TCP', port: '6379', encrypted: true })
+})
+
 test('dashboard and editor have no serious or critical axe violations', async ({ page }) => {
   await installStatefulApi(page)
   await signIn(page)

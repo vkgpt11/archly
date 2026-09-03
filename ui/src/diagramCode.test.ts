@@ -80,7 +80,7 @@ style-edge api->db color=#ff5500 line=dashed routing=straight`)
     expect(result.edges[0]).toMatchObject({ data: { routing: 'straight' }, style: { stroke: '#ff5500', strokeDasharray: '7 5' } })
     const serialized = diagramToCode(result.nodes, result.edges)
     expect(serialized).toContain('style api fill=#112233 border=#445566 text=#ddeeff description="Handles orders"')
-    expect(serialized).toContain('style-edge api->db color=#ff5500 line=dashed routing=straight')
+    expect(serialized).toContain('style-edge "code-edge-0-api-db" color=#ff5500 line=dashed routing=straight')
   })
 
   it('reports invalid references without producing a partial diagram', () => {
