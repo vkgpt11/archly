@@ -39,6 +39,14 @@ npm run dev
 
 Open `http://localhost:5173`.
 
+### AI diagram generation
+
+Set `OPENAI_API_KEY` in the backend environment to enable **Generate** in the
+project editor. The browser sends the natural-language description to Archly's
+authenticated backend; the API key is never sent to the UI. You can override
+the default model with `OPENAI_MODEL` and the compatible Responses API endpoint
+with `OPENAI_BASE_URL`.
+
 ### Local authentication bypass
 
 For local debugging without Google, start the backend with `ARCHLY_AUTH_DEV_BYPASS=true` and the UI with `VITE_DEV_AUTH=true`. This exposes a **Continue as local developer** button and accepts only the fixed local token used by that button. Both flags default to `false` and must never be enabled in a deployed environment.

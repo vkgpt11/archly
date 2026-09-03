@@ -1,4 +1,4 @@
-import type { Project, ProjectPage, ShareLink, SharePermission, SharedProject } from './types'
+import type { CanvasData, Project, ProjectPage, ShareLink, SharePermission, SharedProject } from './types'
 import { authSessionId } from './authSession'
 
 export type AuthSession = { email: string; isAdmin: boolean }
@@ -23,12 +23,12 @@ export class ApiError extends Error {
 
 const requestTimeoutMs = 15_000
 
-async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = requestTimeoutMs): Promise<Response> {
   const controller = new AbortController()
-  const timer = window.setTimeout(() => controller.abort(), requestTimeoutMs)
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs)
   try { return await fetch(url, { credentials: 'include', ...init, signal: controller.signal }) }
   catch (error) {
-    if (controller.signal.aborted) throw new ApiError('The API did not respond within 15 seconds. Check the backend and try again.', 408)
+    if (controller.signal.aborted) throw new ApiError(`The API did not respond within ${Math.round(timeoutMs / 1000)} seconds. Check the backend and try again.`, 408)
     throw error
   } finally { window.clearTimeout(timer) }
 }
@@ -47,6 +47,18 @@ async function request<T>(token: string, path: string, init?: RequestInit): Prom
     throw new ApiError(body.message || `Request failed (${response.status})`, response.status)
   }
   return response.status === 204 ? (undefined as T) : response.json()
+}
+
+async function longRequest<T>(token: string, path: string, init?: RequestInit): Promise<T> {
+  const response = await fetchWithTimeout(`${baseUrl}${path}`, {
+    ...init,
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'Content-Type': 'application/json', ...init?.headers },
+  }, 60_000)
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}))
+    throw new ApiError(body.message || `Request failed (${response.status})`, response.status)
+  }
+  return response.json()
 }
 
 async function publicRequest<T>(path: string, init?: RequestInit): Promise<T> {
@@ -101,4 +113,8 @@ export const api = {
   adminTimeSeries: (token: string, metric: string, period: AdminPeriod) => request<AdminTimeSeries>(token, `/admin/metrics/timeseries?metric=${encodeURIComponent(metric)}&period=${period}`),
   adminUsers: (token: string, page = 0, size = 25) => request<AdminUserPage>(token, `/admin/users?page=${page}&size=${size}`),
   adminCsv: (token: string, period: AdminPeriod) => download(token, `/admin/metrics/export?period=${period}`),
+  generateDiagram: (token: string, prompt: string) =>
+    longRequest<{ canvas: CanvasData; summary: string }>(token, '/ai/diagrams/generate', {
+      method: 'POST', body: JSON.stringify({ prompt }),
+    }),
 }

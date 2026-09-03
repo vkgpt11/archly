@@ -22,6 +22,22 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .editor-header .view-switcher { grid-column: 2; }
 .editor-header-right { justify-content: flex-end; }
 .editor-header-right { grid-column: 3; }
+.generate-action { color: var(--primary); }
+.generate-action svg { color: #8b5cf6; }
+
+.generate-diagram-dialog { width: min(620px, calc(100vw - 32px)); max-height: min(720px, 90vh); overflow: auto; padding: 20px; border: 1px solid var(--border); border-radius: 16px; color: var(--text); background: var(--surface); box-shadow: 0 24px 70px rgba(0,0,0,.28); }
+.generate-diagram-dialog > header { display: flex; align-items: flex-start; justify-content: space-between; }
+.generate-diagram-dialog h2 { margin: 0 0 5px; }
+.generate-diagram-dialog header p { margin: 0; color: var(--muted); }
+.generate-diagram-dialog > header > div { display: flex; align-items: flex-start; gap: 12px; }
+.generate-diagram-dialog > header svg { width: 22px; color: #8b5cf6; }
+.generate-diagram-dialog > label { display: block; margin: 22px 0 8px; font-weight: 650; }
+.generate-diagram-dialog textarea { width: 100%; resize: vertical; min-height: 150px; padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; line-height: 1.5; }
+.generate-diagram-dialog textarea:focus { outline: 2px solid color-mix(in srgb, #8b5cf6 35%, transparent); border-color: #8b5cf6; }
+.generate-prompt-meta { display: flex; justify-content: space-between; gap: 16px; margin-top: 7px; color: var(--muted); font-size: 12px; }
+.dialog-error { color: #dc2626; margin: 12px 0 0; }
+.generate-diagram-dialog footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+.generate-diagram-dialog footer button { display: inline-flex; align-items: center; gap: 7px; }
 .theme-toggle { width: 36px; height: 36px; display: inline-grid; place-items: center; flex: 0 0 auto; padding: 0; border: 1px solid var(--border); border-radius: 10px; color: var(--text-soft); background: var(--surface); }
 .theme-toggle:hover { color: var(--accent); background: var(--accent-soft); }
 .theme-toggle svg { width: 17px; height: 17px; }
