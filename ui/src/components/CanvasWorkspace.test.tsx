@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import CanvasWorkspace from './CanvasWorkspace'
 import { alignCanvasNodes, applyGroupAwareNodeChanges, arrangeCanvasNodes, assignNodeToContainingContainer, distributeCanvasNodes, moveSelectedCanvasNodes, reorderSelectedCanvasNodes, selectPersistentGroup } from './canvasInteractions'
@@ -59,6 +59,18 @@ function GroupHarness() {
   </div>
 }
 
+function BidirectionalHarness() {
+  const [nodes, setNodes] = useState<Node[]>([
+    { id: 'api', type: 'architecture', position: { x: 10, y: 20 }, selected: true, data: { label: 'API', kind: 'service' } },
+  ])
+  const [edges, setEdges] = useState<Edge[]>([])
+  const [diagramCode, setDiagramCode] = useState('# original formatting\nservice api "API"\nposition api x=10 y=20')
+  return <div style={{ width: 1000, height: 700 }}>
+    <CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} diagramCode={diagramCode} onDiagramCodeChange={setDiagramCode} />
+    <output data-testid="diagram-source">{diagramCode}</output>
+  </div>
+}
+
 describe('CanvasWorkspace', () => {
   it('draws a diagram from code and keeps invalid code from replacing the canvas', () => {
     const { container } = render(<Harness />)
@@ -75,11 +87,38 @@ describe('CanvasWorkspace', () => {
     expect(screen.getByText('API')).toBeInTheDocument()
   })
 
+  it('synchronizes canvas edits to code and preserves source formatting after a code redraw', async () => {
+    render(<BidirectionalHarness />)
+    fireEvent.change(screen.getByLabelText('Component name'), { target: { value: 'Orders API' } })
+    await waitFor(() => expect(screen.getByTestId('diagram-source')).toHaveTextContent('service api "Orders API"'))
+    expect(screen.getByTestId('diagram-source')).toHaveTextContent('position api x=10 y=20')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))
+    const exactSource = '# keep this comment\n\nservice api "Billing API"\nposition api x=44 y=55'
+    fireEvent.change(screen.getByLabelText('Diagram code'), { target: { value: exactSource } })
+    fireEvent.click(screen.getByRole('button', { name: 'Draw diagram' }))
+    await waitFor(() => expect(screen.getByText('Billing API')).toBeInTheDocument())
+    expect(screen.getByTestId('diagram-source').textContent).toBe(exactSource)
+    expect(screen.getByLabelText('Diagram code')).toHaveValue(exactSource)
+  })
+
   it('shows a line number for every diagram-code line', () => {
     const { container } = render(<Harness />)
     fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))
     fireEvent.change(screen.getByLabelText('Diagram code'), { target: { value: 'direction right\n\nservice api "API"' } })
     expect([...container.querySelectorAll('.diagram-code-lines span')].map((line) => line.textContent)).toEqual(['1', '2', '3'])
+  })
+
+  it('inserts reusable template examples with unique names and draws their instances', () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Insert template example' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Insert template example' }))
+    expect((screen.getByLabelText('Diagram code') as HTMLTextAreaElement).value).toContain('template ServiceStack2(')
+    fireEvent.click(screen.getByRole('button', { name: 'Draw diagram' }))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getAllByText('Orders API')).toHaveLength(2)
+    expect((screen.getByLabelText('Diagram code') as HTMLTextAreaElement).value).toContain('use ServiceStack2 servicestack2(')
   })
 
   it('searches the shorthand reference and inserts a unique component declaration', () => {

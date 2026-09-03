@@ -68,7 +68,7 @@ function durableNode(node: Node): Node {
   const kind = String(node.data?.kind || 'service') as ArchitectureKind
   if (node.type !== 'architecture' || kind === 'container') return durable
   const size = getComponentSize(String(node.data?.label || ''), kind)
-  return { ...durable, style: { ...node.style, ...size } }
+  return { ...durable, style: { ...node.style, width: Number(node.data.customWidth || size.width), height: Number(node.data.customHeight || size.height) } }
 }
 
 function durableEdge(edge: Edge): Edge {

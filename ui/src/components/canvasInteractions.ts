@@ -1,4 +1,5 @@
 import { applyNodeChanges, type Edge, type Node, type NodeChange } from '@xyflow/react'
+import { fitDiagramBoundaries } from '../diagramLayout'
 
 export type Alignment = 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom'
 
@@ -50,7 +51,8 @@ export function applyGroupAwareNodeChanges(changes: NodeChange[], nodes: Node[])
       changedIds.add(child.id)
     }
   }
-  return applyNodeChanges(expanded, nodes)
+  const next = applyNodeChanges(expanded, nodes)
+  return changes.some((change) => change.type === 'position') && nodes.some((node) => node.data.boundaryType) ? fitDiagramBoundaries(next) : next
 }
 
 function nodeSize(node: Node) {
