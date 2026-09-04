@@ -9,7 +9,7 @@ import {
   AlignHorizontalDistributeCenter, AlignStartHorizontal, AlignStartVertical, AlignVerticalDistributeCenter, AppWindow, Box, Boxes,
   Activity, ArrowLeft, ArrowRight, Bell, BellRing, Bot, BrainCircuit, Braces, ChevronDown, CircuitBoard, Code2,
   Cloud, Cog, Container, Copy, Cpu, Database, DatabaseZap, Expand, ExternalLink, FileCode2, FileText, Fingerprint,
-  Focus, Gauge, GitBranch, Globe2, Grid3X3, Hand, Group, Library, ListTree, LocateFixed, Lock, Magnet, MessageSquareText,
+  Focus, Gauge, GitBranch, Globe2, Grid3X3, Hand, Group, Image, Library, ListTree, LocateFixed, Lock, Magnet, MessageSquareText, MoreHorizontal,
   Mail, Minus, MousePointer2, Network, Plus, Redo2, ScrollText, Search, Server, ShieldCheck, Shuffle,
   ScanSearch, Shapes, Smartphone, Sparkles, Spline, Trash2, Undo2, Unlock, UserCheck, UserRound, Warehouse,
   Waves, Waypoints, Webhook, Workflow, X, Zap, ZoomIn, ZoomOut, Clock3, BringToFront, SendToBack,
@@ -72,7 +72,7 @@ import {
 } from './canvasSizing'
 import { clearNodeSelection, selectOnlyEdge } from './canvasSelection'
 import {
-  alignCanvasNodes, applyGroupAwareNodeChanges, arrangeCanvasNodes, assignNodeToContainingContainer,
+  alignCanvasNodes, applyGroupAwareNodeChanges, arrangeCanvasNodes, assignNodeToContainingContainer, equalizeSelectedCanvasNodes,
   distributeCanvasNodes, groupSelectedNodes, moveSelectedCanvasNodes, reorderSelectedCanvasNodes,
   selectPersistentGroup, ungroupSelectedNodes, type Alignment,
 } from './canvasInteractions'
@@ -106,6 +106,11 @@ type ArchitectureNodeData = {
   boundaryType?: string
   boundaryIdentifier?: string
   provider?: string
+  imageSrc?: string
+  alt?: string
+  collapsed?: boolean
+  manualSize?: boolean
+  hiddenCount?: number
 }
 
 type Snapshot = { nodes: Node[]; edges: Edge[] }
@@ -126,19 +131,20 @@ type Props = {
   onViewportChange?: (viewport: Viewport) => void
   diagramCode?: string
   onDiagramCodeChange?: (source: string) => void
+  userScope?: string
 }
 
 
-const recentComponentsKey = 'archly-recent-components'
+const recentComponentsKey = (scope = 'local') => `archly-recent-components:${scope.toLowerCase()}`
 const componentDefinitionKey = (item: { kind: ArchitectureKind; iconId?: string }) => `${item.kind}:${item.iconId || 'default'}`
-function loadRecentComponents(): string[] {
-  try { return JSON.parse(localStorage.getItem(recentComponentsKey) || '[]') as string[] } catch { return [] }
+function loadRecentComponents(scope?: string): string[] {
+  try { return JSON.parse(localStorage.getItem(recentComponentsKey(scope)) || '[]') as string[] } catch { return [] }
 }
 
 const iconByKind = {
   service: Server, web: AppWindow, mobile: Smartphone, database: Database, cache: Braces,
   queue: Workflow, storage: Cloud, external: ExternalLink, actor: UserRound, container: Boxes,
-  note: MessageSquareText, text: FileText, custom: Shapes,
+  note: MessageSquareText, text: FileText, image: Image, custom: Shapes,
 }
 
 type CanvasIcon = ComponentType<{ className?: string; color?: string; size?: string | number; style?: CSSProperties }>
@@ -224,22 +230,22 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
   const kind = data.kind || 'service'
   const Icon = (data.iconId && iconById[data.iconId]) || iconByKind[kind]
   const label = data.label || ''
-  const iconFirst = kind !== 'text' && kind !== 'note' && kind !== 'container'
+  const iconFirst = kind !== 'text' && kind !== 'note' && kind !== 'container' && kind !== 'image'
 
   useEffect(() => {
-    if (kind === 'container') return
+    if (kind === 'container' || data.manualSize) return
     const current = getNode(id)
     const automatic = getComponentSize(label, kind)
     const size = { width: data.customWidth || automatic.width, height: data.customHeight || automatic.height }
     if (current?.width === size.width && current?.height === size.height) return
     updateNode(id, { ...size, style: { ...current?.style, ...size } })
-  }, [getNode, id, kind, label, updateNode, data.customWidth, data.customHeight])
+  }, [data.customHeight, data.customWidth, data.manualSize, getNode, id, kind, label, updateNode])
 
   function updateContent(nextLabel: string) {
     const current = getNode(id)
     const automatic = getComponentSize(nextLabel, kind)
-    const nextSize = kind === 'container' ? {} : { width: data.customWidth || automatic.width, height: data.customHeight || automatic.height }
-    const nextStyle = kind === 'container' ? current?.style : { ...current?.style, ...nextSize }
+    const nextSize = kind === 'container' || data.manualSize ? {} : { width: data.customWidth || automatic.width, height: data.customHeight || automatic.height }
+    const nextStyle = kind === 'container' || data.manualSize ? current?.style : { ...current?.style, ...nextSize }
     updateNode(id, { ...nextSize, data: { ...data, label: nextLabel }, style: nextStyle })
   }
 
@@ -268,7 +274,7 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
         history.openProperties()
       }}
     >
-      {kind !== 'text' && <span className="component-kind-icon" aria-hidden="true" style={{ color: data.iconId ? iconColorById[data.iconId] : undefined }}><Icon /></span>}
+      {kind === 'image' && data.imageSrc ? <img className="canvas-image" src={data.imageSrc} alt={data.alt || label || 'Canvas image'} /> : kind !== 'text' && <span className="component-kind-icon" aria-hidden="true" style={{ color: data.iconId ? iconColorById[data.iconId] : undefined }}><Icon /></span>}
       <button
         className="component-lock nodrag nowheel"
         onPointerDown={(event) => event.stopPropagation()}
@@ -277,13 +283,15 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
         aria-label={data.locked ? 'Unlock component' : 'Lock component'}
       >{data.locked ? <Lock /> : <Unlock />}</button>
       <div className="architecture-node-copy">
-        {selected ? <textarea className="nodrag nowheel" aria-label="Component name" value={label}
+        {kind === 'container' && <button className="container-collapse nodrag nowheel" aria-label={data.collapsed ? 'Expand container' : 'Collapse container'} onClick={(event) => { event.stopPropagation(); history.remember(); updateNode(id, { data: { ...data, collapsed: !data.collapsed } }) }}><ChevronDown /></button>}
+        {selected && kind !== 'image' ? <textarea className="nodrag nowheel" aria-label="Component name" value={label}
           onFocus={() => { if (!editing.current) history.remember(); editing.current = true }}
           onChange={(event) => updateContent(iconFirst ? event.target.value.replace(/\s*[\r\n]+\s*/g, ' ') : event.target.value)}
           onBlur={() => { updateContent(label.trim() || 'Untitled component'); editing.current = false }}
-          rows={Math.min(2, Math.max(1, Math.round((getComponentSize(label, kind).height - 42) / 12) + 1))} /> : <strong>{truncateCanvasText(data.label || 'Untitled component', COMPONENT_TITLE_LIMIT)}</strong>}
+          rows={Math.min(2, Math.max(1, Math.round((getComponentSize(label, kind).height - 42) / 12) + 1))} /> : <strong>{truncateCanvasText(data.label || (kind === 'image' ? data.alt : '') || 'Untitled component', COMPONENT_TITLE_LIMIT)}</strong>}
+        {kind === 'container' && data.collapsed && <small>{String(data.hiddenCount || 0)} hidden</small>}
       </div>
-      {kind !== 'text' && kind !== 'note' && kind !== 'container' && (
+      {kind !== 'text' && kind !== 'note' && kind !== 'container' && kind !== 'image' && (
         <>
           <BidirectionalHandle position={Position.Left} id="left" />
           <BidirectionalHandle position={Position.Right} id="right" />
@@ -339,7 +347,7 @@ function EditableConnectionEdge(props: EdgeProps<Edge>) {
 
 const NODE_TYPES = { architecture: ArchitectureNode }
 const EDGE_TYPES = { editable: EditableConnectionEdge }
-const supportedKindNames = new Set(['service', 'web', 'mobile', 'database', 'cache', 'queue', 'storage', 'external', 'actor', 'container', 'note', 'text', 'custom'])
+const supportedKindNames = new Set(['service', 'web', 'mobile', 'database', 'cache', 'queue', 'storage', 'external', 'actor', 'container', 'note', 'text', 'image', 'custom'])
 
 function normalizedNode(node: Node): Node {
   if (node.type === 'architecture') return node
@@ -351,11 +359,13 @@ function normalizedNode(node: Node): Node {
   }
 }
 
-function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onViewportChange, diagramCode: initialDiagramCode = '', onDiagramCodeChange }: Props) {
+function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onViewportChange, diagramCode: initialDiagramCode = '', onDiagramCodeChange, userScope }: Props) {
   const flow = useReactFlow()
   const [tool, setTool] = useState<CanvasTool>('select')
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [propertiesOpen, setPropertiesOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [guides, setGuides] = useState<{ x?: number; y?: number }>({})
   const [codeOpen, setCodeOpen] = useState(false)
   const [layoutOpen, setLayoutOpen] = useState(false)
   const [diagramCode, setDiagramCode] = useState(initialDiagramCode)
@@ -364,7 +374,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
   const [livePreview, setLivePreview] = useState(false)
   const [codeReferenceOpen, setCodeReferenceOpen] = useState(false)
   const [codeReferenceSearch, setCodeReferenceSearch] = useState('')
-  const [recentComponents, setRecentComponents] = useState(loadRecentComponents)
+  const [recentComponents, setRecentComponents] = useState(() => loadRecentComponents(userScope))
   const [minimapVisible, setMinimapVisible] = useState(true)
   const [search, setSearch] = useState('')
   const [componentCategory, setComponentCategory] = useState('All')
@@ -413,7 +423,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
   const selectedGroups = useMemo(() => new Set(selectedNodes.map((node) => node.data?.groupId).filter(Boolean)), [selectedNodes])
 
   useEffect(() => {
-    if (selectedNodes.length + selectedEdges.length !== 1) setPropertiesOpen(false)
+    if (!selectedNodes.length && !selectedEdges.length) setPropertiesOpen(false)
   }, [selectedEdges.length, selectedNodes.length])
 
   function remember(snapshot: Snapshot = { nodes: nodesRef.current, edges: edgesRef.current }) {
@@ -467,10 +477,26 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
     const recentKey = componentDefinitionKey({ kind, iconId })
     setRecentComponents((current) => {
       const next = [recentKey, ...current.filter((item) => item !== recentKey)].slice(0, 8)
-      localStorage.setItem(recentComponentsKey, JSON.stringify(next))
+      localStorage.setItem(recentComponentsKey(userScope), JSON.stringify(next))
       return next
     })
     setLibraryOpen(false)
+  }
+
+  function addImage(file: File) {
+    if (!file.type.match(/^image\/(png|jpeg|webp)$/) || file.size > 5 * 1024 * 1024) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const size = getComponentSize(file.name, 'image')
+      const center = flow.screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
+      remember()
+      setNodes((current) => [...current.map((node) => ({ ...node, selected: false })), {
+        id: crypto.randomUUID(), type: 'architecture', position: { x: center.x - size.width / 2, y: center.y - size.height / 2 },
+        data: { kind: 'image', label: file.name, alt: file.name, imageSrc: String(reader.result), manualSize: true }, style: size, selected: true,
+      }])
+      setMoreOpen(false)
+    }
+    reader.readAsDataURL(file)
   }
 
   function updateSelectedEdge(patch: Partial<Edge>, record = true) {
@@ -687,6 +713,18 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
     setNodes((current) => distributeCanvasNodes(current, direction))
   }
 
+  const equalize = (dimension: 'width' | 'height') => {
+    if (selectedNodes.length < 2) return
+    remember()
+    setNodes((current) => equalizeSelectedCanvasNodes(current, dimension))
+  }
+
+  const updateSelectedPosition = (axis: 'x' | 'y', value: number) => {
+    if (selectedNodes.length !== 1 || !Number.isFinite(value)) return
+    remember()
+    setNodes((current) => current.map((node) => node.id === selectedNodes[0].id ? { ...node, position: { ...node.position, [axis]: value } } : node))
+  }
+
   const reorderSelection = (direction: 'front' | 'back') => {
     if (!selectedNodes.length) return
     remember()
@@ -709,7 +747,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
       const data = { ...node.data, ...patch, ...('boundaryType' in patch ? { region: patch.boundaryType === 'region' } : {}) } as ArchitectureNodeData
       const kind = data.kind || 'service'
       const automatic = kind === 'container' ? node.style : getComponentSize(data.label || 'Untitled component', kind)
-      const size = { ...automatic, ...(data.customWidth ? { width: data.customWidth } : {}), ...(data.customHeight ? { height: data.customHeight } : {}) }
+      const size = kind === 'container' || data.manualSize ? node.style : { ...automatic, ...(data.customWidth ? { width: data.customWidth } : {}), ...(data.customHeight ? { height: data.customHeight } : {}) }
       const wasContainer = node.data?.kind === 'container'
       return { ...node, data, style: { ...node.style, ...size }, zIndex: kind === 'container' ? -1 : wasContainer ? 0 : node.zIndex }
     })
@@ -796,12 +834,26 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
     ><DisplayIcon style={{ color: item.iconId ? iconColorById[item.iconId] : undefined }} /><strong>{item.label}</strong></button>
   })}</div>
 
+  const renderedNodes = useMemo(() => nodes.map((node) => {
+    let parentId = node.data?.containerId
+    let hidden = false
+    while (parentId) {
+      const parent = nodes.find((candidate) => candidate.id === parentId)
+      if (!parent) break
+      if (parent.data?.collapsed) { hidden = true; break }
+      parentId = parent.data?.containerId
+    }
+    if (node.data?.kind !== 'container') return { ...node, hidden }
+    const hiddenCount = nodes.filter((candidate) => candidate.data?.containerId === node.id).length
+    return { ...node, hidden, data: { ...node.data, hiddenCount }, style: node.data?.collapsed ? { ...node.style, height: 64 } : node.style }
+  }), [nodes])
+
   return (
     <div className={`canvas-workspace${tool === 'connect' ? ' connect-mode' : ''}`}>
       {mutationError && <p role="alert" className="diagram-code-error">{mutationError}</p>}
       <CanvasHistoryContext.Provider value={historyApi}>
       <ReactFlow
-        nodes={nodes}
+        nodes={renderedNodes}
         edges={edges}
         nodeTypes={NODE_TYPES}
         edgeTypes={EDGE_TYPES}
@@ -814,9 +866,24 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
           selectGroup(node)
           dragSnapshot.current = structuredClone({ nodes: nodesRef.current, edges: edgesRef.current })
         }}
+        onNodeDrag={(_, node) => {
+          const width = Number(node.measured?.width || node.style?.width || 0)
+          const height = Number(node.measured?.height || node.style?.height || 0)
+          const xs = [node.position.x, node.position.x + width / 2, node.position.x + width]
+          const ys = [node.position.y, node.position.y + height / 2, node.position.y + height]
+          let xGuide: number | undefined; let yGuide: number | undefined
+          for (const other of nodesRef.current.filter((candidate) => candidate.id !== node.id && !candidate.hidden)) {
+            const ow = Number(other.measured?.width || other.style?.width || 0)
+            const oh = Number(other.measured?.height || other.style?.height || 0)
+            xGuide ??= [other.position.x, other.position.x + ow / 2, other.position.x + ow].find((value) => xs.some((candidate) => Math.abs(candidate - value) <= 5))
+            yGuide ??= [other.position.y, other.position.y + oh / 2, other.position.y + oh].find((value) => ys.some((candidate) => Math.abs(candidate - value) <= 5))
+          }
+          setGuides({ x: xGuide, y: yGuide })
+        }}
         onNodeDragStop={(_, node) => {
           if (dragSnapshot.current) remember(dragSnapshot.current)
           dragSnapshot.current = null
+          setGuides({})
           setNodes((current) => {
             const assigned = assignNodeToContainingContainer(current, node.id).map((item) => ({ ...item, data: { ...item.data } }))
             try { validateBoundaries(assigned); return fitDiagramBoundaries(assigned) } catch { return fitDiagramBoundaries(current) }
@@ -849,6 +916,8 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
         {gridVisible && <Background variant={BackgroundVariant.Dots} gap={20} size={1.2} />}
         {minimapVisible && <MiniMap pannable zoomable />}
       </ReactFlow>
+      {guides.x !== undefined && <div className="alignment-guide vertical" style={{ left: guides.x }} aria-hidden="true" />}
+      {guides.y !== undefined && <div className="alignment-guide horizontal" style={{ top: guides.y }} aria-hidden="true" />}
       </CanvasHistoryContext.Provider>
 
       <div className="canvas-toolbox" role="toolbar" aria-label="Canvas tools">
@@ -856,13 +925,11 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
         <button className={tool === 'pan' ? 'active' : ''} aria-pressed={tool === 'pan'} onClick={() => setTool('pan')} title="Pan" aria-label="Pan"><Hand /></button>
         <span />
         <button className={libraryOpen ? 'active' : ''} aria-pressed={libraryOpen} onClick={() => setLibraryOpen((open) => !open)} title="Add component" aria-label="Add component"><Plus /></button>
-        <button onClick={() => addComponent('text')} title="Add text" aria-label="Add text"><FileText /></button>
-        <button onClick={() => addComponent('note')} title="Add note" aria-label="Add note"><MessageSquareText /></button>
         <button className={tool === 'connect' ? 'active' : ''} aria-pressed={tool === 'connect'} onClick={() => setTool('connect')} title="Connect components" aria-label="Connect components"><Network /></button>
-        <button onClick={() => addComponent('container')} title="Add container" aria-label="Add container"><Box /></button>
+        <button className={moreOpen ? 'active' : ''} onClick={() => setMoreOpen((open) => !open)} title="More creation actions" aria-label="More creation actions"><MoreHorizontal /></button>
         <button className={codeOpen ? 'active' : ''} aria-pressed={codeOpen} onClick={openCodeEditor} title="Diagram as code" aria-label="Diagram as code"><Code2 /></button>
         <span />
-        <button className={propertiesOpen ? 'active' : ''} aria-pressed={propertiesOpen} disabled={selectedNodes.length + selectedEdges.length !== 1} onClick={() => setPropertiesOpen((open) => !open)} title="Properties" aria-label="Properties"><Cog /></button>
+        <button className={propertiesOpen ? 'active' : ''} aria-pressed={propertiesOpen} disabled={!selectedNodes.length && !selectedEdges.length} onClick={() => setPropertiesOpen((open) => !open)} title="Properties" aria-label="Properties"><Cog /></button>
         <button onClick={deleteSelection} disabled={!selectedNodes.length && !selectedEdges.length} title="Delete selected" aria-label="Delete selected"><Trash2 /></button>
       </div>
 
@@ -936,6 +1003,10 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
         <header><div className="property-heading"><strong>Component</strong><small>{String(selectedNodes[0].data.kind || 'service')}</small></div><button className="property-close" onClick={() => setPropertiesOpen(false)} aria-label="Close properties"><X /></button></header>
         <label>Title<input aria-label="Component property title" value={String(selectedNodes[0].data.label || '')} onFocus={() => remember()} onChange={(event) => updateSelectedNode({ label: event.target.value }, false)} /></label>
         <label>Description<textarea aria-label="Component description" value={String(selectedNodes[0].data.description || '')} onFocus={() => remember()} onChange={(event) => updateSelectedNode({ description: event.target.value }, false)} rows={2} /></label>
+        <div className="component-position-fields">
+          <label>X<input type="number" aria-label="Component X position" value={Math.round(selectedNodes[0].position.x)} onChange={(event) => updateSelectedPosition('x', Number(event.target.value))} /></label>
+          <label>Y<input type="number" aria-label="Component Y position" value={Math.round(selectedNodes[0].position.y)} onChange={(event) => updateSelectedPosition('y', Number(event.target.value))} /></label>
+        </div>
         {selectedNodes[0].data.kind === 'container' && <>
           <label>Boundary type<select aria-label="Boundary type" value={String(selectedNodes[0].data.boundaryType || '')} onChange={(event) => updateSelectedNode({ boundaryType: event.target.value || undefined })}><option value="">Generic container</option>{boundaryTypes.map((type) => <option key={type}>{type}</option>)}</select></label>
           <label>Provider<select aria-label="Boundary provider" value={String(selectedNodes[0].data.provider || '')} onChange={(event) => updateSelectedNode({ provider: event.target.value || undefined })}><option value="">Inherit</option>{['aws', 'azure', 'gcp', 'kubernetes'].map((provider) => <option key={provider}>{provider}</option>)}</select></label>
@@ -944,11 +1015,13 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
         <label>Shape<select aria-label="Component shape" value={String(selectedNodes[0].data.shape || 'rounded')} onChange={(event) => updateSelectedNode({ shape: event.target.value })}><option value="rectangle">Rectangle</option><option value="rounded">Rounded</option><option value="ellipse">Ellipse</option></select></label>
         {([['opacity', 'Opacity', 0, 1, 0.1, 1], ['borderWidth', 'Border width', 0, 12, 0.5, 1], ['customWidth', 'Width', 32, 4000, 1, 82], ['customHeight', 'Height', 24, 4000, 1, 42]] as const).map(([key, label, min, max, step, fallback]) => <label key={key}>{label}<input aria-label={`Component ${label.toLowerCase()}`} type="number" min={min} max={max} step={step} value={Number(selectedNodes[0].data[key] ?? fallback)} onFocus={() => remember()} onChange={(event) => { if (event.target.value && event.target.validity.valid) updateSelectedNode({ [key]: Number(event.target.value) }, false) }} /></label>)}
         <label>Type<select aria-label="Component type" value={String(selectedNodes[0].data.kind || 'service')} onChange={(event) => updateSelectedNode({ kind: event.target.value as ArchitectureKind })}>
-          {(['service','web','mobile','database','cache','queue','storage','external','actor','container','note','text','custom'] as ArchitectureKind[]).map((kind) => <option key={kind} value={kind}>{kind}</option>)}
+          {(['service','web','mobile','database','cache','queue','storage','external','actor','container','note','text','image','custom'] as ArchitectureKind[]).map((kind) => <option key={kind} value={kind}>{kind}</option>)}
         </select></label>
-        <label>Icon<select aria-label="Component icon" value={String(selectedNodes[0].data.iconId || '')} onChange={(event) => changeSelectedIcon(event.target.value)}>
+        {selectedNodes[0].data.kind !== 'image' && <label>Icon<select aria-label="Component icon" value={String(selectedNodes[0].data.iconId || '')} onChange={(event) => changeSelectedIcon(event.target.value)}>
           <option value="">Default icon</option>{componentDefinitions.filter((item) => item.iconId).map((item) => <option key={item.iconId} value={item.iconId}>{item.label}</option>)}
-        </select></label>
+        </select></label>}
+        {selectedNodes[0].data.kind === 'image' && <label>Alternative text<input aria-label="Image alternative text" value={String(selectedNodes[0].data.alt || '')} onFocus={() => remember()} onChange={(event) => updateSelectedNode({ alt: event.target.value }, false)} /></label>}
+        {selectedNodes[0].data.kind === 'container' && <button onClick={() => updateSelectedNode({ collapsed: !selectedNodes[0].data.collapsed })}>{selectedNodes[0].data.collapsed ? 'Expand container' : 'Collapse container'}</button>}
         <div className="component-color-fields">
           <label>Fill<input type="color" aria-label="Component fill color" value={String(selectedNodes[0].data.fill || '#ffffff')} onFocus={() => remember()} onChange={(event) => updateSelectedNode({ fill: event.target.value }, false)} /></label>
           <label>Border<input type="color" aria-label="Component border color" value={String(selectedNodes[0].data.border || '#e4e4eb')} onFocus={() => remember()} onChange={(event) => updateSelectedNode({ border: event.target.value }, false)} /></label>
@@ -959,6 +1032,14 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
           <button onClick={() => setSelectedLock(!selectedNodes[0].data?.locked)}>{selectedNodes[0].data?.locked ? <Unlock /> : <Lock />}{selectedNodes[0].data?.locked ? 'Unlock' : 'Lock'}</button>
           <button className="danger" onClick={deleteSelection}><Trash2 />Delete</button>
         </div>
+      </aside>}
+      {propertiesOpen && selectedNodes.length > 1 && <aside className="canvas-properties" aria-label="Properties inspector">
+        <header><div className="property-heading"><strong>Multiple components</strong><small>{selectedNodes.length} selected</small></div><button className="property-close" onClick={() => setPropertiesOpen(false)} aria-label="Close properties"><X /></button></header>
+        <div className="property-actions multi"><button onClick={() => equalize('width')}>Equal width</button><button onClick={() => equalize('height')}>Equal height</button></div>
+        <div className="component-color-fields">
+          <label>Fill<input type="color" aria-label="Selected components fill color" defaultValue="#ffffff" onChange={(event) => { remember(); const ids = new Set(selectedNodes.map((node) => node.id)); setNodes((current) => current.map((node) => ids.has(node.id) ? { ...node, data: { ...node.data, fill: event.target.value } } : node)) }} /></label>
+        </div>
+        <div className="property-actions"><button onClick={duplicateSelection}><Copy />Duplicate</button><button onClick={() => setSelectedLock(!selectedNodes.every((node) => node.data?.locked))}><Lock />Lock</button><button className="danger" onClick={deleteSelection}><Trash2 />Delete</button></div>
       </aside>}
       {propertiesOpen && selectedEdge && <aside className="canvas-properties" aria-label="Properties inspector">
         <header><div className="property-heading"><strong>Connection</strong><small>Edge</small></div><button className="property-close" onClick={() => setPropertiesOpen(false)} aria-label="Close properties"><X /></button></header>
@@ -990,9 +1071,16 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
           <button onClick={() => align('bottom')} title="Align bottom" aria-label="Align bottom"><AlignEndHorizontal /></button>
         </>}
         {selectedNodes.length > 1 && <><button onClick={() => arrange('horizontal')} title="Horizontal connection-aware layout" aria-label="Horizontal layout"><ArrowRight /></button><button onClick={() => arrange('vertical')} title="Vertical connection-aware layout" aria-label="Vertical layout"><Workflow /></button></>}
+        {selectedNodes.length > 1 && <><button onClick={() => equalize('width')} title="Make equal width" aria-label="Make equal width">W</button><button onClick={() => equalize('height')} title="Make equal height" aria-label="Make equal height">H</button></>}
         {selectedNodes.length > 2 && <><button onClick={() => distribute('horizontal')} title="Distribute horizontally" aria-label="Distribute horizontally"><AlignHorizontalDistributeCenter /></button><button onClick={() => distribute('vertical')} title="Distribute vertically" aria-label="Distribute vertically"><AlignVerticalDistributeCenter /></button></>}
         <i aria-hidden="true">{historyVersion}</i>
       </div>
+      {moreOpen && <div className="canvas-more-menu" role="menu" aria-label="More creation actions">
+        <button role="menuitem" onClick={() => { addComponent('text'); setMoreOpen(false) }}><FileText />Text</button>
+        <button role="menuitem" onClick={() => { addComponent('note'); setMoreOpen(false) }}><MessageSquareText />Note</button>
+        <button role="menuitem" onClick={() => { addComponent('container'); setMoreOpen(false) }}><Box />Container</button>
+        <label><Image />Image<input aria-label="Upload canvas image" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) addImage(file) }} /></label>
+      </div>}
 
       {selectedNodes.length > 0 && <div className="selection-toolbar" role="toolbar" aria-label="Selection actions">
         <button onClick={duplicateSelection} title="Duplicate selected" aria-label="Duplicate selected"><Copy /></button>

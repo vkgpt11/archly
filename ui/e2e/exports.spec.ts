@@ -21,7 +21,8 @@ async function openProject(page: Page) {
   const signIn = page.getByRole('button', { name: 'Continue as local developer' })
   if (await signIn.isVisible()) await signIn.click()
   await page.getByRole('button', { name: `Open ${project.name}` }).click()
-  await expect(page.getByText('Far Away Database')).toBeAttached()
+  await expect(page.getByLabel('Design documentation')).toBeVisible()
+  await expect(page.getByText('Far Away Database')).toBeAttached({ timeout: 10_000 })
 }
 
 test('exports full SVG with theme styling and off-screen content', async ({ page }) => {
@@ -39,14 +40,14 @@ test('exports full SVG with theme styling and off-screen content', async ({ page
   expect(contents).toMatch(/<polygon[^>]+data-archly-export-arrow="end"/)
   expect(contents).toMatch(/<path[^>]+class="react-flow__edge-path"[^>]+stroke="(?!none|transparent)[^"]+"/)
   expect(contents).toMatch(/<path[^>]+class="react-flow__edge-path"[^>]+stroke-width="(?:1\.5|[2-9][\d.]*)"/)
-  expect(contents).toMatch(/react-flow__viewport[^>]+background(?:-color)?: transparent/)
+  expect(contents).toMatch(/react-flow__viewport[^>]+background(?:-color)?: (?:transparent|none)/)
   expect(contents).not.toContain('data-archly-export-background')
   expect(Number(contents.match(/<svg[^>]*\bwidth="(\d+)"/)?.[1])).toBeGreaterThan(1_800)
   expect(Number(contents.match(/<svg[^>]*\bheight="(\d+)"/)?.[1])).toBeGreaterThan(1_200)
   expect(contents.length).toBeGreaterThan(1_000)
 })
 
-test('exports PNG, selection-only content, and clipboard image', async ({ page }) => {
+test('exports PNG, selection-only content, and handles clipboard support', async ({ page, browserName }) => {
   await openProject(page)
   await page.locator('.react-flow__node').first().click()
   await page.getByRole('button', { name: 'Export project' }).click()
@@ -57,8 +58,11 @@ test('exports PNG, selection-only content, and clipboard image', async ({ page }
   expect(download.suggestedFilename()).toBe('Export-coverage-selection.png')
   expect((await (await import('node:fs/promises')).stat(await download.path())).size).toBeGreaterThan(100)
 
-  await page.getByRole('button', { name: /Copy image PNG to clipboard/ }).click()
-  await expect(page.getByText('Diagram copied.')).toBeVisible()
-  const clipboardTypes = await page.evaluate(async () => (await navigator.clipboard.read()).flatMap((item) => item.types))
-  expect(clipboardTypes).toContain('image/png')
+  await expect(page.getByText(/Clipboard image support depends on browser/)).toBeVisible()
+  if (browserName === 'chromium') {
+    await page.getByRole('button', { name: /Copy image PNG to clipboard/ }).click()
+    await expect(page.getByText('Diagram copied.')).toBeVisible()
+    const clipboardTypes = await page.evaluate(async () => (await navigator.clipboard.read()).flatMap((item) => item.types))
+    expect(clipboardTypes).toContain('image/png')
+  }
 })

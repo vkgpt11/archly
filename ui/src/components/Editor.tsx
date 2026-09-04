@@ -31,7 +31,7 @@ const SaveConflictDialog = lazy(() => import('./SaveConflictDialog'))
 const GenerateDiagramDialog = lazy(() => import('./GenerateDiagramDialog'))
 
 type View = 'canvas' | 'document' | 'split'
-type Props = { token?: string; shareToken?: string; initialProject: Project; onBack?: (project: Project) => void }
+type Props = { token?: string; shareToken?: string; initialProject: Project; onBack?: (project: Project) => void; userScope?: string }
 type SaveState = 'saved' | 'saving' | 'error' | 'offline' | 'conflict'
 type SaveConflict = { local: ProjectDraft; server: Project }
 
@@ -113,7 +113,7 @@ function readScreenshot(file: File): Promise<string> {
   })
 }
 
-export default function Editor({ token = '', shareToken, initialProject, onBack }: Props) {
+export default function Editor({ token = '', shareToken, initialProject, onBack, userScope }: Props) {
   const tabId = useRef(currentTabId()).current
   const [recovery] = useState(() => {
     const draft = loadDraft(initialProject.id, tabId)
@@ -541,7 +541,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
         )}
         {showCanvas && (
           <section className="canvas-panel" style={view === 'split' ? { flexBasis: `${100 - documentWidth}%` } : undefined}>
-            <Suspense fallback={<p className="muted">Loading canvas…</p>}><CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} viewport={viewport} onViewportChange={setViewport} diagramCode={diagramCode} onDiagramCodeChange={setDiagramCode} /></Suspense>
+            <Suspense fallback={<p className="muted">Loading canvas…</p>}><CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} viewport={viewport} onViewportChange={setViewport} diagramCode={diagramCode} onDiagramCodeChange={setDiagramCode} userScope={userScope} /></Suspense>
           </section>
         )}
       </div>

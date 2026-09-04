@@ -94,6 +94,18 @@ export function reorderSelectedCanvasNodes(nodes: Node[], direction: 'front' | '
   return nodes.map((node) => node.selected ? { ...node, zIndex } : node)
 }
 
+export function equalizeSelectedCanvasNodes(nodes: Node[], dimension: 'width' | 'height'): Node[] {
+  const selected = nodes.filter((node) => node.selected && !node.data?.locked)
+  if (selected.length < 2) return nodes
+  const value = Math.max(...selected.map((node) => Number(node.measured?.[dimension] || node[dimension] || node.style?.[dimension] || 0)))
+  return nodes.map((node) => !selected.some((selectedNode) => selectedNode.id === node.id) ? node : {
+    ...node,
+    [dimension]: value,
+    style: { ...node.style, [dimension]: value },
+    data: { ...node.data, manualSize: true },
+  })
+}
+
 export function alignCanvasNodes(nodes: Node[], alignment: Alignment): Node[] {
   const selected = nodes.filter((node) => node.selected)
   if (selected.length < 2) return nodes

@@ -82,6 +82,8 @@ export const api = {
   restoreSession: () => request<AuthSession>('', '/auth/session', { headers: { 'X-Archly-Session': authSessionId() } }),
   logout: () => request<void>('', '/auth/logout', { method: 'POST' }),
   listProjects: (token: string, page = 0, size = 24) => request<ProjectPage | Project[]>(token, `/projects?page=${page}&size=${size}`),
+  listProjectFolders: (token: string) => request<{ name: string }[]>(token, '/project-folders'),
+  createProjectFolder: (token: string, name: string) => request<{ name: string }>(token, '/project-folders', { method: 'POST', body: JSON.stringify({ name }) }),
   createProject: (token: string, name: string) =>
     request<Project>(token, '/projects', { method: 'POST', body: JSON.stringify({ name }) }),
   getProject: (token: string, id: string) => request<Project>(token, `/projects/${id}`),

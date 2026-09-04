@@ -21,12 +21,12 @@ public class UserSession {
 
     protected UserSession() {}
 
-    UserSession(ArchlyUser user, String sessionHash, Instant now) {
+    UserSession(ArchlyUser user, String sessionHash, Instant now, int retentionDays) {
         this.id = UUID.randomUUID();
         this.user = user;
         this.sessionHash = sessionHash;
         this.establishedAt = now;
         this.lastSeenAt = now;
-        this.expiresAt = now.plusSeconds(90L * 24 * 60 * 60);
+        this.expiresAt = now.plusSeconds((long) retentionDays * 24 * 60 * 60);
     }
 }

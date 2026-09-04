@@ -4,7 +4,7 @@ import type { Project } from '../types'
 import { ApiError } from '../api'
 import Dashboard from './Dashboard'
 
-const mocks = vi.hoisted(() => ({ listProjects: vi.fn(), getProject: vi.fn(), createProject: vi.fn(), saveProject: vi.fn(), duplicateProject: vi.fn(), deleteProject: vi.fn(), organizeProject: vi.fn() }))
+const mocks = vi.hoisted(() => ({ listProjects: vi.fn(), listProjectFolders: vi.fn(), createProjectFolder: vi.fn(), getProject: vi.fn(), createProject: vi.fn(), saveProject: vi.fn(), duplicateProject: vi.fn(), deleteProject: vi.fn(), organizeProject: vi.fn() }))
 vi.mock('../api', async (importOriginal) => {
   const original = await importOriginal<typeof import('../api')>()
   return { ...original, api: mocks }
@@ -15,10 +15,12 @@ vi.mock('../admin/AdminDashboard', () => ({ default: () => <div>Administration d
 const project: Project = { id: 'one', name: 'Payments', canvasJson: '{"nodes":[],"edges":[]}', markdown: '<p>Design</p>', revision: 0, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }
 
 describe('Dashboard project actions', () => {
-  afterEach(() => { cleanup(); window.location.hash = '' })
+  afterEach(() => { cleanup(); vi.restoreAllMocks(); window.location.hash = '' })
   beforeEach(() => {
     Object.values(mocks).forEach((mock) => mock.mockReset())
     mocks.listProjects.mockResolvedValue({ items: [project], page: 0, size: 100, totalItems: 1, totalPages: 1 })
+    mocks.listProjectFolders.mockResolvedValue([])
+    mocks.createProjectFolder.mockImplementation((_token: string, name: string) => Promise.resolve({ name }))
     mocks.getProject.mockResolvedValue(project)
     mocks.deleteProject.mockResolvedValue(undefined)
   })
@@ -40,11 +42,21 @@ describe('Dashboard project actions', () => {
     expect(mocks.duplicateProject).toHaveBeenCalledWith('token', 'one')
   })
 
+  it('creates and displays an empty persistent folder', async () => {
+    vi.spyOn(window, 'prompt').mockReturnValue('Production')
+    mocks.createProjectFolder.mockResolvedValue({ name: 'Production' })
+    render(<Dashboard token="token" onSignOut={() => {}} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'New folder' }))
+    expect(await screen.findByRole('option', { name: 'Production' })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Project folder' })).toHaveValue('Production')
+    expect(mocks.createProjectFolder).toHaveBeenCalledWith('token', 'Production')
+  })
+
   it('creates independent editable content from a selected template', async () => {
     mocks.createProject.mockResolvedValue({ ...project, id: 'new', name: 'Kubernetes deployment' })
     mocks.saveProject.mockImplementation((_token: string, value: Project) => Promise.resolve({ ...value, revision: 1 }))
     render(<Dashboard token="token" onSignOut={() => {}} />)
-    fireEvent.click(await screen.findByRole('button', { name: '+ New project' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'New project' }))
     fireEvent.click(screen.getByRole('button', { name: /Kubernetes deployment/ }))
     expect(await screen.findByText('Project editor')).toBeInTheDocument()
     const saved = mocks.saveProject.mock.calls[0][1] as Project
