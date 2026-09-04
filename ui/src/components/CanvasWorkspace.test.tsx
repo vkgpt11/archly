@@ -59,6 +59,17 @@ function GroupHarness() {
   </div>
 }
 
+function VariantHarness() {
+  const [nodes, setNodes] = useState<Node[]>([])
+  const [edges, setEdges] = useState<Edge[]>([])
+  const [source, setSource] = useState('')
+  const [activeVariant, setActiveVariant] = useState('')
+  return <div style={{ width: 1000, height: 700 }}>
+    <CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} diagramCode={source} onDiagramCodeChange={setSource} activeVariant={activeVariant} onActiveVariantChange={setActiveVariant} />
+    <output data-testid="variant-state">{JSON.stringify({ source, activeVariant, labels: nodes.map((node) => node.data.label) })}</output>
+  </div>
+}
+
 function BidirectionalHarness() {
   const [nodes, setNodes] = useState<Node[]>([
     { id: 'api', type: 'architecture', position: { x: 10, y: 20 }, selected: true, data: { label: 'API', kind: 'service' } },
@@ -72,6 +83,23 @@ function BidirectionalHarness() {
 }
 
 describe('CanvasWorkspace', () => {
+  it('selects environment variants, identifies the active environment, and preserves the last valid canvas', async () => {
+    render(<VariantHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))
+    const source = `service api "Base API"\nvariant production {\noverride api label="Production API"\n}\nvariant broken {\noverride missing label=Nope\n}`
+    fireEvent.change(screen.getByRole('textbox', { name: 'Diagram code' }), { target: { value: source } })
+    fireEvent.click(screen.getByRole('button', { name: 'Draw diagram' }))
+    expect(screen.getByLabelText('Active environment')).toHaveTextContent('Base')
+    fireEvent.change(screen.getByLabelText('Diagram environment'), { target: { value: 'production' } })
+    expect(screen.getByLabelText('Active environment')).toHaveTextContent('production')
+    expect(screen.getByText('Production API', { exact: true })).toBeInTheDocument()
+    expect(screen.getByTestId('variant-state')).toHaveTextContent('"activeVariant":"production"')
+    fireEvent.change(screen.getByLabelText('Diagram environment'), { target: { value: 'broken' } })
+    expect(screen.getByRole('alert')).toHaveTextContent('Line 6: unknown component “missing” in variant “broken”')
+    expect(screen.getByText('Production API', { exact: true })).toBeInTheDocument()
+    expect(screen.getByLabelText('Active environment')).toHaveTextContent('production')
+    expect(JSON.parse(screen.getByTestId('variant-state').textContent || '{}').source).toBe(source)
+  })
   it('draws a diagram from code and keeps invalid code from replacing the canvas', () => {
     const { container } = render(<Harness />)
     fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))

@@ -1,6 +1,6 @@
 import type { Edge, Node, Viewport } from '@xyflow/react'
 
-export type CanvasData = { schemaVersion?: 1; nodes: Node[]; edges: Edge[]; viewport?: Viewport; diagramCode?: string }
+export type CanvasData = { schemaVersion?: 1; nodes: Node[]; edges: Edge[]; viewport?: Viewport; diagramCode?: string; activeVariant?: string }
 
 export type Project = {
   id: string

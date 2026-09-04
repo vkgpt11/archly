@@ -4,23 +4,23 @@ import type { Edge, Node, Viewport } from '@xyflow/react'
 import type { Project } from '../types'
 import { buildInterchange, type InterchangeFormat, type InterchangeResult } from '../diagramInterchange'
 
-type Props = { project: Project; nodes: Node[]; edges: Edge[]; viewport: Viewport; onClose: () => void }
+type Props = { project: Project; nodes: Node[]; edges: Edge[]; viewport: Viewport; activeVariant?: string; onClose: () => void }
 type ExportChoice = 'png' | 'svg' | 'markdown' | 'source' | 'clipboard'
 
-export default function ProjectExportDialog({ project, nodes, edges, viewport, onClose }: Props) {
+export default function ProjectExportDialog({ project, nodes, edges, viewport, activeVariant, onClose }: Props) {
   const [selectionOnly, setSelectionOnly] = useState(false)
   const [message, setMessage] = useState('')
   const [preview, setPreview] = useState<InterchangeResult | null>(null)
   function prepare(format: InterchangeFormat) {
-    try { setPreview(buildInterchange(format, nodes, edges, selectionOnly)); setMessage('') } catch (error) { setMessage((error as Error).message) }
+    try { setPreview(buildInterchange(format, nodes, edges, selectionOnly, activeVariant)); setMessage('') } catch (error) { setMessage((error as Error).message) }
   }
 
   async function runExport(format: ExportChoice) {
     setMessage('')
     try {
       const exports = await import('../diagramExport')
-      if (format === 'clipboard') await exports.copyDiagramToClipboard({ ...project, canvasJson: JSON.stringify({ nodes, edges, viewport }) }, selectionOnly)
-      else await exports.exportProject({ ...project, canvasJson: JSON.stringify({ nodes, edges, viewport }) }, format, selectionOnly)
+      if (format === 'clipboard') await exports.copyDiagramToClipboard({ ...project, canvasJson: JSON.stringify({ nodes, edges, viewport, activeVariant }) }, selectionOnly)
+      else await exports.exportProject({ ...project, canvasJson: JSON.stringify({ nodes, edges, viewport, activeVariant }) }, format, selectionOnly)
       setMessage(format === 'clipboard' ? 'Diagram copied.' : 'Export created.')
     } catch (error) { setMessage((error as Error).message) }
   }

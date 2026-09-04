@@ -99,6 +99,52 @@ expanded component declarations; it does not retain linked template instances.
 Selection-to-template extraction and a managed template library are not yet
 available.
 
+### Environment variants
+
+Define a base architecture once, then add named environment blocks:
+
+```text
+service api "Base API"
+database db "Primary database"
+connection query api -> db : "Query"
+
+variant development {
+  override api label="Development API" icon=redis fill=#ddeeff replica-count=2
+  override-edge query protocol=HTTP port=8080 encrypted=false direction=bidirectional
+  add cache local "Local cache"
+  add connection warm api -> local : "Warm cache"
+}
+
+variant production {
+  override api label="Production API" icon=aws-lambda replica-count=6
+  override-edge query protocol=HTTPS port=443 encrypted=true
+  remove db
+  add aws-rds replica "Read replica"
+  add connection production-query api -> replica : "Query"
+}
+```
+
+Use the **Environment** selector in the diagram-code editor. The current choice
+is displayed on the canvas as `Environment: NAME`; Base applies no variant.
+The source and active environment are saved with the project and restored when
+it is reopened. Text metadata exports set their `environment` field to the
+active name.
+
+Variant statements are `override COMPONENT key=value…`, `override-edge EDGE
+key=value…`, `remove COMPONENT`, `remove-edge EDGE`, and `add DECLARATION`.
+Removing a boundary also removes descendants and their connections. Named edge
+IDs are required to override or remove a connection. A boundary addition starts
+with `add`; declarations inside that boundary use ordinary syntax. Variant names
+and referenced component/connection IDs are stable identifiers.
+
+Component overrides accept kind, label, icon, replica-count, and every supported
+node style property. Replica count is an integer from 1–10,000. Connection
+overrides accept label, protocol, port, async, encrypted, direction, description,
+and every supported edge style property. Values containing spaces must be
+quoted. Invalid active overrides report both their exact source line and variant
+name without changing the active environment or last valid canvas. Inactive
+variant declarations remain isolated from the base diagram.
+
 ### Rendering
 
 ### Advanced styling, layout, boundaries and connections
@@ -192,8 +238,8 @@ Importing destination syntax into Archly is not implemented.
 Metadata schema version 1 contains `format`, `version`, `schemaVersion`, `view`,
 `environment`, `provenance`, `validation`, `nodes`, and `edges`. Node data retains
 boundary semantics; edge data retains protocol/security metadata. `view` is
-currently architecture, environment is null (variants are not implemented),
-and validation status is `not-run` rather than an invented policy result.
+currently architecture, environment is the active variant or null for Base, and
+validation status is `not-run` rather than an invented policy result.
 Output is UTF-8, LF, deterministic and sorted by stable IDs. Selection export
 includes endpoints of selected connections and removes parents outside scope.
 

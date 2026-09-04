@@ -51,6 +51,13 @@ deployment claim.
 
 ## 3. Environment variants
 
+Implementation status: **Done — Must requirements ENV-001–006**. Named variants
+support component and connection overrides, replica counts, explicit additions
+and removals, an accessible selector and canvas badge, persistence of the source
+and active variant, environment-aware metadata exports, and line/variant-specific
+diagnostics that preserve the last valid rendering. Visual comparison (ENV-007)
+remains coupled to the unimplemented version-comparison capability in Section 12.
+
 | ID | Priority | Requirement |
 | --- | --- | --- |
 | V3-DAC-ENV-001 | Must | A source file can define a base architecture and named variants such as development, staging, and production. |
@@ -243,7 +250,7 @@ PlantUML 1.2026.7 syntax checker, and D2 0.8.2 SVG compiler accepted a generated
 fixture covering nested boundaries, custom fill, Unicode/escaped labels,
 parallel connections and directed/bidirectional/undirected connections.
 
-Verification for this five-feature batch: **171 unit/component tests passed;
+Verification for the preceding five-feature batch: **171 unit/component tests passed;
 10 Playwright journeys passed; lint and production build passed**. Browser
 coverage includes preview/cancel, saved source reopening, metadata exports,
 SVG/PNG, and the existing 300-node/500-edge performance fixture. This is local

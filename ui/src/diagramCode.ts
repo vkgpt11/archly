@@ -7,6 +7,7 @@ import { edgeStyleOptions, edgeStylePatch, nodeStyleData, nodeStyleOptions, read
 import { defaultLayout, fitDiagramBoundaries, layoutDiagram, readLayout, type LayoutOptions } from './diagramLayout'
 import { boundaryTypes, validateBoundaries } from './diagramBoundaries'
 import { connectionMetadata, metadataOptions } from './diagramConnections'
+import { applyDiagramVariant, compileVariantSource } from './diagramVariants'
 
 const supportedKinds = new Set<ArchitectureKind>([
   'service', 'web', 'mobile', 'database', 'cache', 'queue', 'storage', 'external',
@@ -23,7 +24,7 @@ const technologyTypes: Record<string, { kind: ArchitectureKind; label: string; i
   postgres: { kind: 'database', label: 'PostgreSQL', iconId: 'postgresql' },
 }
 
-export type DiagramCodeResult = { nodes: Node[]; edges: Edge[]; direction: LayoutOptions['direction'] }
+export type DiagramCodeResult = { nodes: Node[]; edges: Edge[]; direction: LayoutOptions['direction']; variants: string[]; activeVariant?: string }
 type Port = 'left' | 'right' | 'top' | 'bottom'
 type Definition = { kind: ArchitectureKind; label: string; iconId?: string; containerId?: string; region?: boolean; depth: number; fill?: string; border?: string; textColor?: string; description?: string; appearance?: Record<string, unknown> }
 
@@ -34,16 +35,21 @@ function unquote(value: string) {
     : trimmed
 }
 
-export function parseDiagramCode(source: string): DiagramCodeResult {
-  const expanded = expandDiagramBlocks(expandDiagramTemplates(source))
+export function parseDiagramCode(source: string, activeVariant?: string): DiagramCodeResult {
+  const compiled = compileVariantSource(source, activeVariant)
+  const expanded = expandDiagramBlocks(expandDiagramTemplates(compiled.effectiveSource))
   try {
-    return parseExpandedDiagramCode(expanded.map((line) => line.text).join('\n'))
+    const result = parseExpandedDiagramCode(expanded.map((line) => line.text).join('\n'))
+    const variant = compiled.variants.find((item) => item.name === activeVariant)
+    const applied = applyDiagramVariant(result.nodes, result.edges, variant)
+    return { ...result, ...applied, nodes: fitDiagramBoundaries(applied.nodes), variants: compiled.variants.map((item) => item.name), ...(activeVariant ? { activeVariant } : {}) }
   } catch (error) {
     if (!(error instanceof Error)) throw error
     const match = error.message.match(/^Line (\d+): (.*)$/)
     const origin = match ? expanded[Number(match[1]) - 1] : undefined
     if (!origin) throw error
-    throw new Error(`Line ${origin.line}: ${match![2]}${origin.calls.length ? ` (via ${origin.calls.join(' -> ')})` : ''}`)
+    const sourceVariant = compiled.variants.find((item) => item.additionLines.includes(origin.line))
+    throw new Error(`Line ${origin.line}: ${match![2]}${sourceVariant && !match![2].includes(' in variant ') ? ` in variant “${sourceVariant.name}”` : ''}${origin.calls.length ? ` (via ${origin.calls.join(' -> ')})` : ''}`)
   }
 }
 
@@ -261,7 +267,7 @@ function parseExpandedDiagramCode(source: string): DiagramCodeResult {
   })
   for (const directive of edgeStyles) if (!edges.some((edge) => directive.id ? edge.id === directive.id : edge.source === directive.source && edge.target === directive.target)) throw new Error(`Line ${directive.line}: unknown connection “${directive.id || `${directive.source} -> ${directive.target}`}”`)
   for (const directive of metadata) if (!usedEdgeIds.has(directive.id)) throw new Error(`Line ${directive.line}: unknown connection “${directive.id}”`)
-  return { nodes, edges, direction }
+  return { nodes, edges, direction, variants: [] }
 }
 
 export function diagramToCode(nodes: Node[], edges: Edge[]): string {

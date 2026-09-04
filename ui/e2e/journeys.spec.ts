@@ -222,6 +222,47 @@ style-edge request line=dotted routing=orthogonal`
   expect(exported.edges[0].data).toMatchObject({ protocol: 'TCP', port: '6379', encrypted: true })
 })
 
+test('environment variants switch safely, persist the active environment, and reach exports', async ({ page }) => {
+  await installStatefulApi(page)
+  await signIn(page)
+  await page.getByRole('button', { name: 'Open Existing architecture' }).click()
+  await page.getByRole('button', { name: 'Diagram as code' }).click()
+  const source = `service api "Base API"
+database db "Database"
+connection query api -> db
+variant development {
+  override api label="Development API" replica-count=2 fill=#ddeeff
+  override-edge query protocol=HTTP port=8080 encrypted=false
+  add cache local "Local cache"
+}
+variant production {
+  override api label="Production API" icon=aws-lambda replica-count=6
+  override-edge query protocol=HTTPS port=443 encrypted=true
+}
+variant broken {
+  override missing label="Missing"
+}`
+  await page.getByRole('textbox', { name: 'Diagram code' }).fill(source)
+  await page.getByRole('button', { name: 'Draw diagram' }).click()
+  await expect(page.getByText('Base API', { exact: true })).toBeVisible()
+  const saved = page.waitForResponse((response) => response.request().method() === 'PUT' && response.url().includes('/api/projects/existing') && String(response.request().postDataJSON().canvasJson).includes('"activeVariant":"production"'))
+  await page.getByLabel('Diagram environment').selectOption('production')
+  await expect(page.getByLabel('Active environment')).toHaveText('Environment: production')
+  await expect(page.getByText('Production API', { exact: true })).toBeVisible()
+  expect((await saved).ok()).toBeTruthy()
+  await page.getByLabel('Diagram environment').selectOption('broken')
+  await expect(page.getByRole('alert')).toContainText('variant “broken”')
+  await expect(page.getByText('Production API', { exact: true })).toBeVisible()
+  await expect(page.getByLabel('Active environment')).toHaveText('Environment: production')
+  await page.getByRole('button', { name: 'Back to projects' }).click()
+  await page.getByRole('button', { name: 'Open Existing architecture' }).click()
+  await expect(page.getByLabel('Active environment')).toHaveText('Environment: production')
+  await expect(page.getByText('Production API', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Export project', exact: true }).click()
+  await page.getByRole('button', { name: 'Architecture metadata', exact: true }).click()
+  expect(JSON.parse(await page.getByLabel('Exported diagram source').inputValue()).environment).toBe('production')
+})
+
 test('dashboard and editor have no serious or critical axe violations', async ({ page }) => {
   await installStatefulApi(page)
   await signIn(page)
