@@ -30,6 +30,6 @@ public class DiagramGenerationController {
     @Operation(summary = "Generate an architecture diagram")
     GenerateDiagramResponse generate(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody GenerateDiagramRequest request) {
         rateLimiter.check(jwt.getClaimAsString("email"));
-        return service.generate(request.prompt());
+        return service.generate(jwt.getSubject(), request.prompt());
     }
 }

@@ -30,33 +30,27 @@ public class DiagramGenerationService {
 
     private final RestClient client;
     private final ObjectMapper mapper;
-    private final String apiKey;
-    private final String model;
+    private final UserLlmSettingsService settings;
 
     public DiagramGenerationService(
         RestClient.Builder builder,
         ObjectMapper mapper,
         @Value("${archly.ai.base-url:https://api.openai.com/v1}") String baseUrl,
-        @Value("${archly.ai.api-key:}") String apiKey,
-        @Value("${archly.ai.model:gpt-4.1-mini}") String model
+        UserLlmSettingsService settings
     ) {
         this.client = builder.baseUrl(baseUrl).build();
         this.mapper = mapper;
-        this.apiKey = apiKey;
-        this.model = model;
+        this.settings = settings;
     }
 
-    public GenerateDiagramResponse generate(String prompt) {
-        if (apiKey.isBlank()) {
-            throw new ResponseStatusException(SERVICE_UNAVAILABLE,
-                "AI diagram generation is not configured. Set OPENAI_API_KEY on the backend.");
-        }
+    public GenerateDiagramResponse generate(String userSubject, String prompt) {
+        UserLlmSettingsService.Configuration configuration = settings.requireConfiguration(userSubject);
         JsonNode response;
         try {
             response = client.post().uri("/responses")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + configuration.apiKey())
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(requestBody(prompt))
+                .body(requestBody(configuration.model(), prompt))
                 .retrieve()
                 .body(JsonNode.class);
         } catch (RestClientException exception) {
@@ -71,7 +65,7 @@ public class DiagramGenerationService {
         }
     }
 
-    ObjectNode requestBody(String prompt) {
+    ObjectNode requestBody(String model, String prompt) {
         ObjectNode root = mapper.createObjectNode();
         root.put("model", model);
         root.put("store", false);

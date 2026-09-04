@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { ApiError, api } from '../api'
 import type { Project, ProjectPage, ProjectSummary } from '../types'
-import ThemeToggle from './ThemeToggle'
+import UserMenu from './UserMenu'
+import type { AuthSession } from '../api'
 import { architectureTemplates, templateCanvas, type ArchitectureTemplate } from '../architectureTemplates'
 
 const Editor = lazy(() => import('./Editor'))
@@ -10,9 +11,9 @@ const normalizeProjectPage = (response: ProjectPage | ProjectSummary[]): Project
   ? { items: response, page: 0, size: response.length, totalItems: response.length, totalPages: 1 }
   : response
 
-type Props = { token: string; isAdmin?: boolean; onSignOut: () => void }
+type Props = { token: string; isAdmin?: boolean; user?: AuthSession; onSignOut: () => void }
 
-export default function Dashboard({ token, isAdmin = false, onSignOut }: Props) {
+export default function Dashboard({ token, isAdmin = false, user = { email: 'developer@gmail.com', isAdmin }, onSignOut }: Props) {
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [selected, setSelected] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
@@ -138,9 +139,7 @@ export default function Dashboard({ token, isAdmin = false, onSignOut }: Props) 
     <main className="dashboard-shell">
       <header className="topbar">
         <a className="brand" href="#" aria-label="Archly home"><span>A</span> Archly</a>
-        {isAdmin && <button className="text-button" onClick={() => { window.location.hash = '#/admin'; setAdminOpen(true) }}>Administration</button>}
-        <ThemeToggle />
-        <button className="text-button" onClick={onSignOut}>Sign out</button>
+        <UserMenu token={token} user={user} onSignOut={onSignOut} onSwitchMode={isAdmin ? () => { window.location.hash = '#/admin'; setAdminOpen(true) } : undefined} />
       </header>
       <section className="dashboard-content">
         <div className="dashboard-heading">

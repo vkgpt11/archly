@@ -6,11 +6,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
+import static org.mockito.Mockito.mock;
 
 class DiagramGenerationServiceTest {
     private final ObjectMapper mapper = new ObjectMapper();
     private final DiagramGenerationService service = new DiagramGenerationService(
-        RestClient.builder(), mapper, "https://example.invalid/v1", "test-key", "test-model"
+        RestClient.builder(), mapper, "https://example.invalid/v1", mock(UserLlmSettingsService.class)
     );
 
     @Test
@@ -44,7 +45,7 @@ class DiagramGenerationServiceTest {
 
     @Test
     void suppliesStrictStructuredOutputSchemaToProvider() {
-        JsonNode body = service.requestBody("Build a payment platform");
+        JsonNode body = service.requestBody("test-model", "Build a payment platform");
 
         assertThat(body.path("model").asText()).isEqualTo("test-model");
         assertThat(body.path("store").asBoolean()).isFalse();

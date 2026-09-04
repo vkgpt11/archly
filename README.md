@@ -41,11 +41,11 @@ Open `http://localhost:5173`.
 
 ### AI diagram generation
 
-Set `OPENAI_API_KEY` in the backend environment to enable **Generate** in the
-project editor. The browser sends the natural-language description to Archly's
-authenticated backend; the API key is never sent to the UI. You can override
-the default model with `OPENAI_MODEL` and the compatible Responses API endpoint
-with `OPENAI_BASE_URL`.
+Set `ARCHLY_AI_ENCRYPTION_KEY` to a base64-encoded 32-byte key on the backend.
+Users can then save their own OpenAI model and API key under **Profile →
+Settings → AI provider**. Personal API keys are encrypted at rest and are never
+returned to the browser. The compatible Responses API endpoint can be
+overridden globally with `OPENAI_BASE_URL`.
 
 ### Local authentication bypass
 

@@ -1,7 +1,7 @@
 import type { CanvasData, Project, ProjectPage, ShareLink, SharePermission, SharedProject } from './types'
 import { authSessionId } from './authSession'
 
-export type AuthSession = { email: string; isAdmin: boolean }
+export type AuthSession = { email: string; name?: string | null; picture?: string | null; isAdmin: boolean }
 export type AdminPeriod = '24h' | '7d' | '30d' | '90d'
 export type AdminSummary = {
   period: AdminPeriod; timezone: 'UTC'; start: string; end: string
@@ -11,6 +11,7 @@ export type AdminSummary = {
 }
 export type AdminTimeSeries = { metric: string; timezone: 'UTC'; buckets: { date: string; value: number }[] }
 export type AdminUserPage = { items: { id: string; maskedEmail: string; firstLoginAt: string; lastLoginAt: string; projectCount: number }[]; page: number; size: number; totalItems: number; totalPages: number }
+export type LlmSettings = { provider: 'OPENAI'; model: string; hasApiKey: boolean; credentialStorageAvailable: boolean }
 
 const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
 
@@ -117,4 +118,8 @@ export const api = {
     longRequest<{ canvas: CanvasData; summary: string }>(token, '/ai/diagrams/generate', {
       method: 'POST', body: JSON.stringify({ prompt }),
     }),
+  getLlmSettings: (token: string) => request<LlmSettings>(token, '/profile/llm'),
+  saveLlmSettings: (token: string, provider: 'OPENAI', model: string, apiKey?: string) =>
+    request<LlmSettings>(token, '/profile/llm', { method: 'PUT', body: JSON.stringify({ provider, model, apiKey: apiKey || null }) }),
+  deleteLlmSettings: (token: string) => request<void>(token, '/profile/llm', { method: 'DELETE' }),
 }
