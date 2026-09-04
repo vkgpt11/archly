@@ -381,8 +381,8 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .diagram-code-panel header div { display: flex; flex-direction: column; gap: 2px; }
 .diagram-code-panel header span, .diagram-code-help { color: var(--muted); font-size: 12px; }
 .diagram-code-panel header button { border: 0; background: transparent; color: inherit; }
-.diagram-code-input { display: grid; grid-template-columns: 42px minmax(0, 1fr); min-height: 320px; overflow: hidden; border: 1px solid var(--border); border-radius: 9px; background: var(--background); }
-.diagram-code-lines { height: 320px; overflow: hidden; padding: 12px 8px; border-right: 1px solid var(--border); color: var(--muted); background: var(--surface-muted); font: 13px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; text-align: right; user-select: none; }
+.diagram-code-input { display: grid; grid-template-columns: 42px minmax(0, 1fr); min-height: 370px; border: 1px solid var(--border); border-radius: 9px; background: var(--background); }
+.diagram-code-lines { height: 370px; overflow: hidden; padding: 12px 8px; border-right: 1px solid var(--border); color: var(--muted); background: var(--surface-muted); font: 13px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; text-align: right; user-select: none; }
 .diagram-code-lines span { display: block; }
 .diagram-code-lines span.error { margin-inline: -8px; padding-inline: 8px; color: #fff; background: #dc2626; font-weight: 700; }
 .diagram-live-preview { display: flex; align-items: center; gap: 7px; width: fit-content; color: var(--text-soft); font-size: 12px; }
@@ -394,11 +394,26 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .diagram-code-reference > div { display: grid; gap: 3px; overflow: auto; }
 .diagram-code-reference > div button { display: grid; grid-template-columns: minmax(120px, .8fr) 1fr; gap: 8px; padding: 6px 7px; border: 0; border-radius: 6px; background: transparent; color: inherit; text-align: left; }
 .diagram-code-reference > div button:hover { background: var(--surface); }.diagram-code-reference > div code { color: var(--accent); font-size: 11px; }.diagram-code-reference > div span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
-.diagram-code-panel textarea {
-  min-width: 0; min-height: 320px; resize: vertical; padding: 12px; border: 0; border-radius: 0;
-  background: var(--background); color: inherit; font: 13px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace;
-}
+.diagram-code-panel textarea { min-width: 0; min-height: 280px; resize: vertical; padding: 12px; border: 0; border-radius: 0; background: var(--background); color: inherit; font: 13px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; }
 .diagram-code-panel textarea:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+.diagram-code-intelligence { position: relative; min-width: 0; }
+.diagram-code-editor-layer { position: relative; height: 280px; overflow: hidden; }
+.diagram-code-editor-layer textarea, .diagram-code-highlight { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; overflow: auto; white-space: pre; tab-size: 2; font: 13px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.diagram-code-editor-layer textarea { z-index: 2; min-height: 0; resize: none; background: transparent; color: transparent; caret-color: var(--text); -webkit-text-fill-color: transparent; }
+.diagram-code-editor-layer textarea::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); }
+.diagram-code-highlight { z-index: 1; padding: 12px; border: 0; color: var(--text); pointer-events: none; }
+.syntax-keyword { color: #8b5cf6; font-weight: 650; }.syntax-identifier { color: #2563eb; }.syntax-string { color: #15803d; }.syntax-number { color: #b45309; }.syntax-comment { color: var(--muted); font-style: italic; }.syntax-property { color: #0369a1; }.syntax-operator { color: var(--text); }.syntax-invalid { color: #fff; background: #dc2626; text-decoration: wavy underline; }
+.diagram-code-ide-toolbar { display: flex; flex-wrap: wrap; gap: 3px; padding: 5px; border-top: 1px solid var(--border); background: var(--surface-muted); }
+.diagram-code-ide-toolbar button, .diagram-references button { padding: 4px 6px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: inherit; font-size: 10px; }
+.diagram-symbol-information { display: flex; flex-direction: column; gap: 1px; padding: 5px 7px; border-top: 1px solid var(--border); font-size: 10px; }.diagram-symbol-information span { color: var(--muted); }
+.diagram-completions { position: absolute; z-index: 5; top: 42px; left: 12px; width: min(260px, calc(100% - 24px)); max-height: 210px; overflow: auto; padding: 4px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); box-shadow: 0 10px 25px rgb(15 23 42 / 20%); }
+.diagram-completions button { display: block; width: 100%; padding: 5px 7px; border: 0; background: transparent; color: inherit; text-align: left; font: 11px ui-monospace, monospace; }.diagram-completions button:hover, .diagram-completions button:focus { background: var(--surface-muted); }
+.diagram-references { display: flex; flex-wrap: wrap; gap: 3px; padding: 5px; border-top: 1px solid var(--border); }
+.diagram-rename, .diagram-command-palette { position: absolute; z-index: 6; top: 44px; left: 12px; right: 12px; display: grid; gap: 6px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); box-shadow: 0 12px 28px rgb(15 23 42 / 22%); }
+.diagram-rename label { display: grid; gap: 4px; font-size: 11px; }.diagram-rename input { padding: 6px; border: 1px solid var(--border); border-radius: 5px; background: var(--background); color: inherit; }
+.diagram-command-palette button, .diagram-rename button, .diagram-quick-fix { padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-muted); color: inherit; text-align: left; }
+.diagram-quick-fix { margin: 5px; color: #92400e; }.diagram-ide-status { margin: 3px 6px 6px; color: var(--muted); font-size: 10px; }
+[data-theme='dark'] .syntax-keyword { color: #c4b5fd; }[data-theme='dark'] .syntax-identifier { color: #93c5fd; }[data-theme='dark'] .syntax-string { color: #86efac; }[data-theme='dark'] .syntax-number { color: #fcd34d; }[data-theme='dark'] .syntax-property { color: #7dd3fc; }
 .diagram-code-help, .diagram-code-error { margin: 0; }
 .diagram-code-error { color: #dc2626; font-size: 12px; }
 .diagram-environment-badge { position: absolute; z-index: 6; top: 12px; left: 50%; transform: translateX(-50%); padding: 5px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--muted); font-size: 12px; pointer-events: none; }

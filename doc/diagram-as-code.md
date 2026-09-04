@@ -243,6 +243,39 @@ validation status is `not-run` rather than an invented policy result.
 Output is UTF-8, LF, deterministic and sorted by stable IDs. Selection export
 includes endpoints of selected connections and removes parents outside scope.
 
+### Code intelligence
+
+The editor highlights keywords, identifiers, strings, numbers, comments,
+properties, operators, and invalid tokens. Place the caret on a component,
+connection, template, variable, style, variant, view, or imported symbol to see
+its kind and definition line. Moving the pointer over text also updates this
+symbol information.
+
+The **Complete**, **Definition**, **References**, **Rename**, **Format**, and
+**Commands** buttons are keyboard accessible. Supported shortcuts:
+
+- `Ctrl+Space` / `Cmd+Space`: contextual completion.
+- `F12`: go to definition.
+- `Shift+F12`: find references.
+- `F2`: rename the selected symbol atomically.
+- `Shift+Alt+F`: format the document; use the Format selection command for a selection.
+- `Ctrl+Shift+P` / `Cmd+Shift+P`: diagram command palette.
+- `Ctrl+Enter` / `Cmd+Enter`: draw the diagram.
+- `Escape`: close completion, references, rename, or command UI.
+
+Completion includes declarations, component shorthands, in-scope symbols,
+style/metadata properties, enum values, templates, and import language keywords.
+Rename changes identifier tokens only: identical text in comments and quoted
+labels is preserved. Names must start with a letter and contain only letters,
+numbers, underscores, or hyphens. Formatting is deterministic, normalizes block
+indentation and connection spacing, and preserves comments.
+
+When a parser diagnostic has a safe deterministic correction, a **Quick fix**
+button appears. For example, an unknown component can be declared as a service,
+or an unsupported component type can be changed to `service`. Applying a fix
+changes source only; draw or live preview still uses the normal parser and keeps
+the last valid canvas if another error remains.
+
 ### Drawing and errors
 
 - Select **Draw diagram** or press `Ctrl+Enter` / `Cmd+Enter` to render.

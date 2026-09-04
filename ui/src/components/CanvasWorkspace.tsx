@@ -84,6 +84,7 @@ import { descendantIds, fitDiagramBoundaries } from '../diagramLayout'
 import { boundaryTypes, validateBoundaries } from '../diagramBoundaries'
 import { connectionMetadata, connectionProtocols } from '../diagramConnections'
 import { compileVariantSource } from '../diagramVariants'
+import DiagramCodeEditor from './DiagramCodeEditor'
 
 type CanvasTool = 'select' | 'pan' | 'connect'
 
@@ -953,7 +954,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
         </section>}
         <div className="diagram-code-input">
           <div className="diagram-code-lines" ref={codeLineNumbers} aria-hidden="true">{diagramCode.split('\n').map((_, index) => <span className={Number(codeError.match(/^Line (\d+)/)?.[1]) === index + 1 ? 'error' : ''} key={index}>{index + 1}</span>)}</div>
-          <textarea aria-label="Diagram code" value={diagramCode} onChange={(event) => { const next = event.target.value; setDiagramCode(next); onDiagramCodeChange?.(next); setCodeError(''); try { const available = compileVariantSource(next).variants.map((item) => item.name); if (activeVariant && !available.includes(activeVariant)) { setActiveVariant(''); onActiveVariantChange?.('') } } catch { /* Draw reports source diagnostics. */ } }} onKeyDown={(event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); drawFromCode() } }} onScroll={(event) => { if (codeLineNumbers.current) codeLineNumbers.current.scrollTop = event.currentTarget.scrollTop }} spellCheck={false} />
+          <DiagramCodeEditor value={diagramCode} diagnostic={codeError} onRun={drawFromCode} onChange={(next) => { setDiagramCode(next); onDiagramCodeChange?.(next); setCodeError(''); try { const available = compileVariantSource(next).variants.map((item) => item.name); if (activeVariant && !available.includes(activeVariant)) { setActiveVariant(''); onActiveVariantChange?.('') } } catch { /* Draw reports source diagnostics. */ } }} onScroll={(top) => { if (codeLineNumbers.current) codeLineNumbers.current.scrollTop = top }} />
         </div>
         {codeError ? <p className="diagram-code-error" role="alert">{codeError}</p> : <p className="diagram-code-help"><code>region east "us-east-1" {'{'}</code><br /><code>&nbsp;&nbsp;aws-lambda api "API"</code><br /><code>{'}'}</code><br /><code>api.right -&gt; db.left : "reads"</code></p>}
         <button className="diagram-code-draw" aria-label="Draw diagram" onClick={drawFromCode}><Sparkles />Draw diagram <kbd aria-hidden="true">Ctrl ↵</kbd></button>

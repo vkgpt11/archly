@@ -197,6 +197,16 @@ safe composition across sources.
 Existing line numbers, searchable component reference, component insertion, and
 line-specific parser errors are the baseline for this section.
 
+Implementation status: **Done — Must requirements IDE-001–007**, plus the command
+palette (IDE-009). The editor highlights all language token classes and invalid
+lines; completes declarations, catalog shorthands, symbols, properties, enums,
+templates and import keywords; exposes cursor/hover information; navigates to
+definitions and references; safely renames non-string/non-comment symbol tokens;
+formats documents or selections while preserving comments; and exposes bounded,
+keyboard-accessible diagnostics and deterministic quick fixes. Advanced bracket
+matching, folding, comment toggling and multi-cursor behavior (IDE-008) remain a
+follow-up rather than replacing the browser's native text-selection behavior.
+
 | ID | Priority | Requirement |
 | --- | --- | --- |
 | V3-DAC-IDE-001 | Must | The diagram editor provides syntax highlighting for keywords, identifiers, strings, numbers, comments, properties, and invalid tokens. |
