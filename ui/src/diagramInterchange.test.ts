@@ -16,7 +16,17 @@ describe('export compatibility', () => {
     expect(metadata.nodes).toEqual([...persisted.nodes].sort((a, b) => a.id.localeCompare(b.id)))
     expect(metadata.edges).toEqual(persisted.edges)
     expect(metadata.view).toBe('architecture')
+    expect(metadata.validation.status).toBe('passed')
     expect(result.warnings.length).toBe(format === 'metadata' ? 0 : 1)
+  })
+  it('exports architecture rule diagnostics in metadata', () => {
+    const source = 'service api "API"\nservice web "Web"\nconnection plain web -> api\nmetadata-edge plain protocol=REST encrypted=false'
+    const { nodes, edges } = parseDiagramCode(source)
+    const metadata = JSON.parse(buildInterchange('metadata', nodes, edges).text)
+    expect(metadata.validation.status).toBe('warnings')
+    expect(metadata.validation.diagnostics).toEqual([
+      expect.objectContaining({ ruleId: 'services-must-use-tls', affectedSymbols: ['plain', 'web', 'api'] }),
+    ])
   })
   it('escapes syntax and never emits includes, links or code from labels', () => {
     const { nodes, edges } = diagram()

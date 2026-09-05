@@ -87,6 +87,7 @@ import { compileVariantSource } from '../diagramVariants'
 import DiagramCodeEditor from './DiagramCodeEditor'
 import type { DiagramModule } from '../diagramImports'
 import { applyViewState, compileDiagramViews, type DiagramViewState } from '../diagramViews'
+import { validateDiagramRules, type DiagramRuleViolation } from '../diagramRules'
 
 type CanvasTool = 'select' | 'pan' | 'connect'
 
@@ -398,6 +399,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
   const [activeVariant, setActiveVariant] = useState(initialActiveVariant)
   const [diagramModules, setDiagramModules] = useState(initialDiagramModules)
   const [modulesOpen, setModulesOpen] = useState(false)
+  const [problemsOpen, setProblemsOpen] = useState(false)
   const [activeView, setActiveView] = useState(initialActiveView)
   const [codeError, setCodeError] = useState('')
   const [mutationError, setMutationError] = useState('')
@@ -445,6 +447,11 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
   const views = useMemo(() => {
     try { return compileDiagramViews(diagramCode).views } catch { return [] }
   }, [diagramCode])
+  const ruleViolations = useMemo(() => {
+    try { return validateDiagramRules(nodes, edges, diagramCode) } catch { return [] }
+  }, [diagramCode, edges, nodes])
+  const activeRuleViolations = useMemo(() => ruleViolations.filter((violation) => !violation.suppressed), [ruleViolations])
+  const ruleProblemLines = useMemo(() => new Set(activeRuleViolations.map((violation) => violation.location.line)), [activeRuleViolations])
   useEffect(() => {
     if (nodes.some((node) => node.type !== 'architecture')) setNodes((current) => current.map(normalizedNode))
   }, [nodes, setNodes])
@@ -917,6 +924,12 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
     return { ...node, hidden, data: { ...node.data, hiddenCount }, style: node.data?.collapsed ? { ...node.style, height: 64 } : node.style }
   }), [nodes])
 
+  const selectRuleViolation = (violation: DiagramRuleViolation) => {
+    const affected = new Set(violation.affectedSymbols)
+    setNodes((current) => current.map((node) => ({ ...node, selected: affected.has(node.id) })))
+    setEdges((current) => current.map((edge) => ({ ...edge, selected: affected.has(edge.id) || affected.has(edge.source) && affected.has(edge.target) })))
+  }
+
   return (
     <div className={`canvas-workspace${tool === 'connect' ? ' connect-mode' : ''}`}>
       {mutationError && <p role="alert" className="diagram-code-error">{mutationError}</p>}
@@ -1062,6 +1075,15 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
         <label className="diagram-live-preview"><input type="checkbox" checked={livePreview} onChange={(event) => setLivePreview(event.target.checked)} />Live preview</label>
         <button className="diagram-code-reference-toggle" onClick={insertTemplateExample}>Insert template example</button>
         <button className="diagram-code-reference-toggle" onClick={() => { setCodeOpen(false); setPropertiesOpen(false); setLayoutOpen(true) }}>Automatic layout</button>
+        <button className="diagram-code-reference-toggle" aria-expanded={problemsOpen} onClick={() => setProblemsOpen((open) => !open)}><ShieldCheck />Problems ({activeRuleViolations.length}) <ChevronDown /></button>
+        {problemsOpen && <section className="diagram-problems-panel" aria-label="Architecture rule problems">
+          {!ruleViolations.length && <p>No architecture rule problems.</p>}
+          {ruleViolations.map((violation, index) => <button key={`${violation.ruleId}-${index}`} className={`diagram-problem ${violation.severity}${violation.suppressed ? ' suppressed' : ''}`} onClick={() => selectRuleViolation(violation)}>
+            <strong>{violation.ruleId}</strong>
+            <span>{violation.suppressed ? `Suppressed: ${violation.suppressionReason}` : violation.message}</span>
+            <small>Line {violation.location.line} · {violation.severity} · {violation.remediation}</small>
+          </button>)}
+        </section>}
         <button className="diagram-code-reference-toggle" aria-expanded={modulesOpen} onClick={() => setModulesOpen((open) => !open)}><FileCode2 />Project modules ({diagramModules.length}) <ChevronDown /></button>
         {modulesOpen && <section className="diagram-module-editor" aria-label="Project diagram modules">
           <p>Modules belong to this project. Prefix declarations with <code>export</code>, then import selected symbols by stable module ID.</p>
@@ -1085,7 +1107,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
           })}</div>
         </section>}
         <div className="diagram-code-input">
-          <div className="diagram-code-lines" ref={codeLineNumbers} aria-hidden="true">{diagramCode.split('\n').map((_, index) => <span className={Number(codeError.match(/^Line (\d+)/)?.[1]) === index + 1 ? 'error' : ''} key={index}>{index + 1}</span>)}</div>
+          <div className="diagram-code-lines" ref={codeLineNumbers} aria-hidden="true">{diagramCode.split('\n').map((_, index) => <span className={Number(codeError.match(/^Line (\d+)/)?.[1]) === index + 1 ? 'error' : ruleProblemLines.has(index + 1) ? 'warning' : ''} key={index}>{index + 1}</span>)}</div>
           <DiagramCodeEditor value={diagramCode} diagnostic={codeError} onRun={drawFromCode} onChange={(next) => { setDiagramCode(next); onDiagramCodeChange?.(next); setCodeError(''); try { const available = compileVariantSource(next).variants.map((item) => item.name); if (activeVariant && !available.includes(activeVariant)) { setActiveVariant(''); onActiveVariantChange?.('') } } catch { /* Draw reports source diagnostics. */ } }} onScroll={(top) => { if (codeLineNumbers.current) codeLineNumbers.current.scrollTop = top }} />
         </div>
         {codeError ? <p className="diagram-code-error" role="alert">{codeError}</p> : <p className="diagram-code-help"><code>region east "us-east-1" {'{'}</code><br /><code>&nbsp;&nbsp;aws-lambda api "API"</code><br /><code>{'}'}</code><br /><code>api.right -&gt; db.left : "reads"</code></p>}

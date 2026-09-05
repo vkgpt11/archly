@@ -95,6 +95,8 @@ function parseExpandedDiagramCode(source: string): DiagramCodeResult {
     }
     const boundaryMetadata = line.match(/^boundary\s+([A-Za-z][\w-]*)\s+(.+)$/)
     if (boundaryMetadata) { boundaries.push({ id: boundaryMetadata[1], options: readOptions(boundaryMetadata[2]), line: index + 1 }); return }
+    const ruleMatch = line.match(/^rule\s+([A-Za-z][\w-]*)\s+(.+)$/)
+    if (ruleMatch) { readOptions(ruleMatch[2]); return }
     const nodeStyleMatch = line.match(/^style\s+([A-Za-z][\w-]*)\s+(.+)$/i)
     if (nodeStyleMatch) { nodeStyles.push({ id: nodeStyleMatch[1], options: readOptions(nodeStyleMatch[2]), line: index + 1 }); return }
     const edgeStyleMatch = line.match(/^style-edge\s+([A-Za-z][\w-]*)\s*->\s*([A-Za-z][\w-]*)\s+(.+)$/i)

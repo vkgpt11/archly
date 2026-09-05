@@ -1,5 +1,6 @@
 import type { Edge, Node } from '@xyflow/react'
 import { serializeCanvas } from './projectPersistence'
+import { validateDiagramRules } from './diagramRules'
 
 export type InterchangeFormat = 'mermaid' | 'plantuml' | 'd2' | 'metadata'
 export type InterchangeResult = { text: string; extension: string; warnings: string[] }
@@ -26,7 +27,9 @@ export function buildInterchange(format: InterchangeFormat, originalNodes: Node[
   if (edges.length !== originalEdges.length && !selectionOnly) warnings.push('Dangling connections are excluded from the rendered graph; original connections remain in metadata.')
   nodes.forEach((node) => { if (!ids.has(String(node.data.containerId))) delete node.data.containerId })
   const durable = JSON.parse(serializeCanvas(nodes, edges)) as { nodes: Node[]; edges: Edge[] }
-  const metadata = { format: 'archly-interchange', version: 1, view: 'architecture', environment: environment || null, provenance: { generator: 'Archly', source: 'canvas' }, validation: { status: 'not-run', diagnostics: [] }, ...durable, ...(warnings.length ? { originalConnections: originalEdges } : {}) }
+  const validationSource = [...nodes.map((node) => `${node.data.kind || 'service'} ${node.id}`), ...edges.map((edge) => `connection ${edge.id} ${edge.source} -> ${edge.target}`)].join('\n')
+  const diagnostics = validateDiagramRules(nodes, edges, validationSource).filter((item) => !item.suppressed)
+  const metadata = { format: 'archly-interchange', version: 1, view: 'architecture', environment: environment || null, provenance: { generator: 'Archly', source: 'canvas' }, validation: { status: diagnostics.some((item) => item.severity === 'error') ? 'failed' : diagnostics.length ? 'warnings' : 'passed', diagnostics }, ...durable, ...(warnings.length ? { originalConnections: originalEdges } : {}) }
   if (format === 'metadata') return { text: `${json(metadata)}\n`, extension: 'archly-metadata.json', warnings }
   warnings.push('Only labels, hierarchy, connection direction and basic colours are rendered in this format. Exact positions, icons, port handles, routing, advanced styles, and semantic metadata are preserved in the embedded Archly metadata comment, not in the destination rendering.')
   const prefix = format === 'mermaid' ? '%%' : format === 'plantuml' ? "'" : '#'

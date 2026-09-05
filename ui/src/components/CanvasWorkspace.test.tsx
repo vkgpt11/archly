@@ -130,6 +130,18 @@ describe('CanvasWorkspace', () => {
     expect(screen.getByText('DB', { exact: true })).toBeInTheDocument()
     expect(screen.queryByText('Client', { exact: true })).not.toBeInTheDocument()
   })
+  it('shows architecture rule problems and selects affected elements', () => {
+    render(<VariantHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Diagram code' }), { target: { value: `region public "Public subnet" {\n  database db "Customer DB"\n}\nservice api "API"\nconnection plain api -> db : "REST"\nmetadata-edge plain protocol=REST encrypted=false` } })
+    fireEvent.click(screen.getByRole('button', { name: 'Draw diagram' }))
+    fireEvent.click(screen.getByRole('button', { name: /Problems/ }))
+    expect(screen.getByLabelText('Architecture rule problems')).toHaveTextContent('no-public-database')
+    expect(screen.getByLabelText('Architecture rule problems')).toHaveTextContent('services-must-use-tls')
+    expect(document.querySelector('.diagram-code-lines .warning')).toHaveTextContent('2')
+    fireEvent.click(screen.getByRole('button', { name: /no-public-database/ }))
+    expect(screen.getByText('Customer DB', { exact: true }).closest('.react-flow__node')).toHaveClass('selected')
+  })
   it('selects environment variants, identifies the active environment, and preserves the last valid canvas', async () => {
     render(<VariantHarness />)
     fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))

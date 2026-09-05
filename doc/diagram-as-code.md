@@ -298,6 +298,33 @@ true/false; direction is forward/reverse/bidirectional/none; descriptions have a
 2000-character limit. The connection inspector edits these values. Marker
 controls synchronize direction metadata.
 
+### Architecture validation rules
+
+The **Problems** panel evaluates built-in architecture rules against the last
+valid diagram. Violations identify the rule ID, severity, affected symbols,
+source line, message, and remediation. Selecting a problem selects the affected
+canvas element or connection.
+
+Supported rule IDs are `no-public-database`, `services-must-use-tls`,
+`no-cross-boundary-connection-without-encryption`, and `no-orphan-component`.
+Rules run locally after source or canvas changes and do not replace the last
+valid canvas if rule configuration is invalid.
+
+Configure severity or document a suppression in source:
+
+```text
+rule services-must-use-tls severity=error
+rule no-orphan-component suppress="external actor is intentionally standalone"
+```
+
+Severity accepts `error`, `warning`, `info`, and `off`. A suppression requires a
+reason. Text exports include the validation result in embedded Archly metadata.
+CI can fail on blocking exported diagnostics with:
+
+```text
+npm run validate:diagram -- architecture.archly-metadata.json
+```
+
 ### Text export compatibility
 
 Export project offers Mermaid (`.mmd`), PlantUML (`.puml`), D2 (`.d2`), and
@@ -318,7 +345,7 @@ Metadata schema version 1 contains `format`, `version`, `schemaVersion`, `view`,
 `environment`, `provenance`, `validation`, `nodes`, and `edges`. Node data retains
 boundary semantics; edge data retains protocol/security metadata. `view` is
 currently architecture, environment is the active variant or null for Base, and
-validation status is `not-run` rather than an invented policy result.
+validation status is `passed`, `warnings`, or `failed`.
 Output is UTF-8, LF, deterministic and sorted by stable IDs. Selection export
 includes endpoints of selected connections and removes parents outside scope.
 

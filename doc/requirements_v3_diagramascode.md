@@ -1,6 +1,6 @@
 # Archly V3 Diagram-as-Code Requirements
 
-Status: Core Must requirements through project imports and code intelligence complete; release verification pending
+Status: Core Must requirements through project imports, views, code intelligence, and architecture validation rules complete; release verification pending
 
 Version: 3.0
 
@@ -198,6 +198,16 @@ follow-ups.
 | V3-DAC-VIEW-008 | Should | Exports identify the view name and active environment variant. |
 
 ## 10. Validation and architecture rules
+
+Implementation status: **Done — Must requirements RUL-001–007**. Built-in
+architecture rules validate the last valid diagram with stable identifiers,
+severity, scope, source location, affected symbols, and remediation guidance.
+The editor exposes an accessible Problems panel, source line annotation, and
+canvas selection for affected elements. Source-level `rule` directives configure
+severity or explicit suppressions with reasons. Exported Archly metadata carries
+validation status and diagnostics, and `npm run validate:diagram -- <export>`
+provides a headless CI check for blocking exported violations. Quick fixes
+(RUL-008) and organization rule packs (RUL-009) remain follow-ups.
 
 | ID | Priority | Requirement |
 | --- | --- | --- |

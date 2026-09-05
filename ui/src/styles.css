@@ -450,6 +450,7 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .diagram-code-lines { height: 370px; overflow: hidden; padding: 12px 8px; border-right: 1px solid var(--border); color: var(--muted); background: var(--surface-muted); font: 13px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; text-align: right; user-select: none; }
 .diagram-code-lines span { display: block; }
 .diagram-code-lines span.error { margin-inline: -8px; padding-inline: 8px; color: #fff; background: #dc2626; font-weight: 700; }
+.diagram-code-lines span.warning { margin-inline: -8px; padding-inline: 8px; color: #78350f; background: #fef3c7; font-weight: 700; }
 .diagram-live-preview { display: flex; align-items: center; gap: 7px; width: fit-content; color: var(--text-soft); font-size: 12px; }
 .diagram-live-preview input { margin: 0; accent-color: var(--accent); }
 .diagram-code-reference-toggle { display: flex; align-items: center; gap: 7px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-muted); color: inherit; font-size: 12px; text-align: left; }
@@ -466,6 +467,14 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .diagram-module-editor label { display: grid; gap: 4px; font-size: 11px; }
 .diagram-module-editor input, .diagram-module-editor textarea { width: 100%; box-sizing: border-box; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .diagram-module-editor textarea { resize: vertical; min-height: 100px; }
+.diagram-problems-panel { display: grid; gap: 6px; max-height: 220px; overflow: auto; padding: 8px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-muted); }
+.diagram-problems-panel p { margin: 0; color: var(--muted); font-size: 12px; }
+.diagram-problem { display: grid; gap: 3px; padding: 8px; border: 1px solid var(--border); border-left-width: 4px; border-radius: 7px; background: var(--surface); color: inherit; text-align: left; }
+.diagram-problem.error { border-left-color: #dc2626; }
+.diagram-problem.warning { border-left-color: #d97706; }
+.diagram-problem.info { border-left-color: #2563eb; }
+.diagram-problem.suppressed { opacity: .68; }
+.diagram-problem span, .diagram-problem small { color: var(--muted); font-size: 11px; line-height: 1.35; }
 .diagram-code-panel textarea { min-width: 0; min-height: 280px; resize: vertical; padding: 12px; border: 0; border-radius: 0; background: var(--background); color: inherit; font: 13px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; }
 .diagram-code-panel textarea:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
 .diagram-code-intelligence { position: relative; min-width: 0; }
