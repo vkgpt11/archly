@@ -20,6 +20,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -39,9 +40,15 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .anyRequest().authenticated())
             .oauth2ResourceServer(oauth -> oauth
+                .bearerTokenResolver(bearerTokenResolver())
                 .jwt(Customizer.withDefaults())
                 .authenticationEntryPoint(new GmailAuthenticationEntryPoint()))
             .build();
+    }
+
+    @Bean
+    BearerTokenResolver bearerTokenResolver() {
+        return new CookieBearerTokenResolver();
     }
 
     @Bean
@@ -82,7 +89,9 @@ public class SecurityConfig {
             .filter(origin -> !origin.isBlank())
             .toList());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "If-Match"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "If-Match", "X-Archly-Session", "X-Correlation-ID"));
+        configuration.setExposedHeaders(List.of("X-Correlation-ID", "Content-Disposition"));
+        configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;

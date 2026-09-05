@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "public": "ui/dist",
+    "public": "site",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "cleanUrls": true,
     "trailingSlash": false,
@@ -16,5 +16,5 @@
       }
     ]
   },
-  "storage": { "rules": "deployment/gcp/storage.rules" }
+  "storage": { "rules": "storage.rules" }
 }

@@ -1,7 +1,7 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { GoogleLogin } from '@react-oauth/google'
 import ThemeToggle from './components/ThemeToggle'
-import { ApiError, api } from './api'
+import { ApiError, api, type AuthSession } from './api'
 
 const Dashboard = lazy(() => import('./components/Dashboard'))
 const SharedProjectView = lazy(() => import('./components/SharedProjectView'))
@@ -12,21 +12,37 @@ type Props = { googleEnabled?: boolean }
 export default function App({ googleEnabled = true }: Props) {
   const shareToken = window.location.pathname.match(/^\/share\/([^/]+)$/)?.[1]
   const [credential, setCredential] = useState<string | null>(null)
+  const [session, setSession] = useState<AuthSession | null>(null)
   const [error, setError] = useState('')
   const [authenticating, setAuthenticating] = useState(false)
+  const [restoringSession, setRestoringSession] = useState(!shareToken)
   const devBypassEnabled = import.meta.env.VITE_DEV_AUTH === 'true'
+
+  useEffect(() => {
+    if (shareToken) return
+    let active = true
+    api.restoreSession()
+      .then((restored) => { if (active) { setSession(restored); setCredential('') } })
+      .catch(() => {})
+      .finally(() => { if (active) setRestoringSession(false) })
+    return () => { active = false }
+  }, [shareToken])
 
   const authenticate = async (token: string) => {
     setError('')
     setAuthenticating(true)
     try {
-      await api.validateSession(token)
+      const verifiedSession = await api.validateSession(token)
+      setSession(verifiedSession)
       setCredential(token)
     } catch (failure) {
       setCredential(null)
-      setError(failure instanceof ApiError && failure.status === 401
-        ? 'Only verified personal @gmail.com accounts are supported. Google Workspace and other email domains cannot sign in.'
-        : 'Could not verify your Google account. Please try again.')
+      setSession(null)
+      setError(token === 'archly-local-dev'
+        ? 'Local developer sign-in failed. Start the API with ARCHLY_AUTH_DEV_BYPASS=true and try again.'
+        : failure instanceof ApiError && failure.status === 401
+          ? 'Only verified personal @gmail.com accounts are supported. Google Workspace and other email domains cannot sign in.'
+          : 'Could not verify your Google account. Please try again.')
     } finally {
       setAuthenticating(false)
     }
@@ -34,8 +50,12 @@ export default function App({ googleEnabled = true }: Props) {
 
   if (shareToken) return <Suspense fallback={loading}><SharedProjectView shareToken={decodeURIComponent(shareToken)} /></Suspense>
 
-  if (credential) {
-    return <Suspense fallback={loading}><Dashboard token={credential} onSignOut={() => setCredential(null)} /></Suspense>
+  if (restoringSession) return loading
+
+  if (credential !== null && session) {
+    return <Suspense fallback={loading}><Dashboard token={credential} isAdmin={session.isAdmin} user={session} onSignOut={() => {
+      void api.logout().finally(() => { setCredential(null); setSession(null) })
+    }} /></Suspense>
   }
 
   return (
