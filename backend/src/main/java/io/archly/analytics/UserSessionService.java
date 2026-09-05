@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import io.archly.project.ProjectRepository;
+import org.springframework.beans.factory.annotation.Value;
 
 @Service
 public class UserSessionService {
@@ -19,16 +20,19 @@ public class UserSessionService {
     private final ProductEventRepository events;
     private final Clock clock;
     private final ProjectRepository projects;
+    private final int retentionDays;
 
     @Autowired
     public UserSessionService(ArchlyUserRepository users, UserSessionRepository sessions,
-            ProductEventRepository events, ProjectRepository projects) {
-        this(users, sessions, events, projects, Clock.systemUTC());
+            ProductEventRepository events, ProjectRepository projects,
+            @Value("${archly.analytics.session-retention-days:90}") int retentionDays) {
+        this(users, sessions, events, projects, Clock.systemUTC(), retentionDays);
     }
 
     UserSessionService(ArchlyUserRepository users, UserSessionRepository sessions,
-            ProductEventRepository events, ProjectRepository projects, Clock clock) {
+            ProductEventRepository events, ProjectRepository projects, Clock clock, int retentionDays) {
         this.users = users; this.sessions = sessions; this.events = events; this.projects = projects; this.clock = clock;
+        this.retentionDays = Math.max(1, retentionDays);
     }
 
     @Transactional
@@ -40,7 +44,7 @@ public class UserSessionService {
             .orElseGet(() -> users.save(new ArchlyUser(subject, normalizedEmail, now)));
         String hash = sha256(sessionId == null || sessionId.isBlank() ? "legacy:" + subject : sessionId);
         if (sessions.findByUserIdAndSessionHash(user.getId(), hash).isEmpty()) {
-            sessions.save(new UserSession(user, hash, now));
+            sessions.save(new UserSession(user, hash, now, retentionDays));
             user.establishNewSession(normalizedEmail, now);
             users.save(user);
             events.save(new ProductEvent(user, null, ProductEvent.Type.SESSION_ESTABLISHED, now));

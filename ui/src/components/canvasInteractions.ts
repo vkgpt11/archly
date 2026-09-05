@@ -1,4 +1,5 @@
 import { applyNodeChanges, type Edge, type Node, type NodeChange } from '@xyflow/react'
+import { fitDiagramBoundaries } from '../diagramLayout'
 
 export type Alignment = 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom'
 
@@ -50,7 +51,8 @@ export function applyGroupAwareNodeChanges(changes: NodeChange[], nodes: Node[])
       changedIds.add(child.id)
     }
   }
-  return applyNodeChanges(expanded, nodes)
+  const next = applyNodeChanges(expanded, nodes)
+  return changes.some((change) => change.type === 'position') && nodes.some((node) => node.data.boundaryType) ? fitDiagramBoundaries(next) : next
 }
 
 function nodeSize(node: Node) {
@@ -90,6 +92,18 @@ export function reorderSelectedCanvasNodes(nodes: Node[], direction: 'front' | '
   const zValues = nodes.map((node) => Number(node.zIndex || 0))
   const zIndex = direction === 'front' ? Math.max(...zValues) + 1 : Math.min(...zValues) - 1
   return nodes.map((node) => node.selected ? { ...node, zIndex } : node)
+}
+
+export function equalizeSelectedCanvasNodes(nodes: Node[], dimension: 'width' | 'height'): Node[] {
+  const selected = nodes.filter((node) => node.selected && !node.data?.locked)
+  if (selected.length < 2) return nodes
+  const value = Math.max(...selected.map((node) => Number(node.measured?.[dimension] || node[dimension] || node.style?.[dimension] || 0)))
+  return nodes.map((node) => !selected.some((selectedNode) => selectedNode.id === node.id) ? node : {
+    ...node,
+    [dimension]: value,
+    style: { ...node.style, [dimension]: value },
+    data: { ...node.data, manualSize: true },
+  })
 }
 
 export function alignCanvasNodes(nodes: Node[], alignment: Alignment): Node[] {

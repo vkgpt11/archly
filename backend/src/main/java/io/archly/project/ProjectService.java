@@ -6,6 +6,7 @@ import io.archly.project.ProjectDtos.UpdateProjectRequest;
 import io.archly.project.ProjectDtos.OrganizeProjectRequest;
 import io.archly.analytics.ProductAnalyticsService;
 import io.archly.analytics.ProductEvent;
+import io.archly.analytics.UserSessionService;
 import jakarta.persistence.OptimisticLockException;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
@@ -25,16 +26,19 @@ public class ProjectService {
     private final ProjectContentValidator projectContentValidator;
     private final ProjectShareRepository shareRepository;
     private final ProductAnalyticsService analytics;
+    private final UserSessionService sessions;
 
     public ProjectService(ProjectRepository repository, RichTextSanitizer richTextSanitizer,
                           CanvasJsonValidator canvasJsonValidator, ProjectContentValidator projectContentValidator,
-                          ProjectShareRepository shareRepository, ProductAnalyticsService analytics) {
+                          ProjectShareRepository shareRepository, ProductAnalyticsService analytics,
+                          UserSessionService sessions) {
         this.repository = repository;
         this.richTextSanitizer = richTextSanitizer;
         this.canvasJsonValidator = canvasJsonValidator;
         this.projectContentValidator = projectContentValidator;
         this.shareRepository = shareRepository;
         this.analytics = analytics;
+        this.sessions = sessions;
     }
 
     @Transactional(readOnly = true)
@@ -47,7 +51,9 @@ public class ProjectService {
     }
 
     public ProjectResponse create(String email, CreateProjectRequest request) {
-        Project project = repository.save(new Project(email, request.name().trim()));
+        Project pending = new Project(email, request.name().trim());
+        linkOwner(pending, email);
+        Project project = repository.save(pending);
         analytics.record(email, project.getId(), ProductEvent.Type.PROJECT_CREATED);
         return response(project);
     }
@@ -78,6 +84,7 @@ public class ProjectService {
         Project source = findOwned(email, id);
         Project copy = new Project(email, source.getName() + " — Copy", source.getCanvasJson(),
             richTextSanitizer.sanitize(source.getMarkdown()));
+        linkOwner(copy, email);
         copy.organize(source.getFolder(), false);
         Project saved = repository.save(copy);
         analytics.record(email, saved.getId(), ProductEvent.Type.PROJECT_DUPLICATED);
@@ -113,6 +120,10 @@ public class ProjectService {
     private Project findOwned(String email, UUID id) {
         return repository.findByIdAndOwnerEmail(id, email)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
+    }
+
+    private void linkOwner(Project project, String email) {
+        sessions.findByEmail(email).ifPresent(user -> project.linkOwnerUser(user.getId()));
     }
 
     private ProjectResponse response(Project project) {

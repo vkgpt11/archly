@@ -1,11 +1,10 @@
 package io.archly.config;
 
-import java.util.Map;
-import java.time.Duration;
-import java.time.Instant;
 import io.archly.admin.AdminAuthorizationService;
 import io.archly.analytics.UserSessionService;
 import org.springframework.web.bind.annotation.RequestHeader;
+import java.time.Duration;
+import java.time.Instant;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -30,12 +29,16 @@ public class AuthController {
     }
 
     @GetMapping("/session")
-    ResponseEntity<Map<String, Object>> session(@AuthenticationPrincipal Jwt jwt,
+    ResponseEntity<AuthSessionResponse> session(@AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "X-Archly-Session", required = false) String sessionId) {
         String email = jwt.getClaimAsString("email");
         sessions.establish(jwt.getSubject(), email, sessionId);
-        return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, authenticationCookie(jwt).toString())
-            .body(Map.of("email", email, "isAdmin", administrators.isAdmin(email)));
+        String picture = jwt.getClaimAsString("picture");
+        if (picture != null && !picture.startsWith("https://")) picture = null;
+        AuthSessionResponse body = new AuthSessionResponse(email, jwt.getClaimAsString("name"), picture, administrators.isAdmin(email));
+        return ResponseEntity.ok()
+            .header(HttpHeaders.SET_COOKIE, authenticationCookie(jwt).toString())
+            .body(body);
     }
 
     @PostMapping("/logout")
@@ -54,4 +57,6 @@ public class AuthController {
             .httpOnly(true).secure(secureCookie).sameSite(secureCookie ? "None" : "Lax")
             .path("/").maxAge(lifetime).build();
     }
+
+    record AuthSessionResponse(String email, String name, String picture, boolean isAdmin) {}
 }

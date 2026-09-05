@@ -53,7 +53,7 @@ export default function App({ googleEnabled = true }: Props) {
   if (restoringSession) return loading
 
   if (credential !== null && session) {
-    return <Suspense fallback={loading}><Dashboard token={credential} isAdmin={session.isAdmin} onSignOut={() => {
+    return <Suspense fallback={loading}><Dashboard token={credential} isAdmin={session.isAdmin} user={session} onSignOut={() => {
       void api.logout().finally(() => { setCredential(null); setSession(null) })
     }} /></Suspense>
   }

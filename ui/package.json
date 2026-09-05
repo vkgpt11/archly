@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "validate:diagram": "node scripts/validate-diagram-rules.mjs",
     "test:watch": "vitest",
     "lint": "eslint ."
   },

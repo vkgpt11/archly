@@ -718,40 +718,64 @@ caching or aggregate tables.
 
 ### Backend
 
-- [ ] Add Flyway migrations for users, sessions, product events, audit events,
+- [x] Add Flyway migrations for users, sessions, product events, audit events,
   and staged project ownership.
-- [ ] Add JPA entities, projection repositories, and closed event enum.
-- [ ] Add session establishment and session deduplication.
-- [ ] Add centralized administrator authorization.
-- [ ] Add summary, time-series, user-list, and CSV endpoints.
-- [ ] Add transactionally consistent lifecycle events.
-- [ ] Add bounded retention cleanup.
-- [ ] Add structured metrics, correlation IDs, and alerts.
+- [x] Add JPA entities, projection repositories, and closed event enum.
+- [x] Add session establishment and session deduplication.
+- [x] Add centralized administrator authorization.
+- [x] Add summary, time-series, user-list, and CSV endpoints.
+- [x] Add transactionally consistent lifecycle events.
+- [x] Add bounded retention cleanup.
+- [x] Add structured metrics, correlation IDs, and alerts.
 
 ### Frontend
 
-- [ ] Add per-tab session identifier handling.
-- [ ] Extend the typed session response with `isAdmin`.
-- [ ] Add lazy-loaded administrator navigation and route.
-- [ ] Add summary cards, time-series views, period selection, and UTC labels.
-- [ ] Add accessible loading, empty, forbidden, expired, and unavailable states.
-- [ ] Add masked paginated user summaries and aggregate CSV export.
+- [x] Add per-tab session identifier handling.
+- [x] Extend the typed session response with `isAdmin`.
+- [x] Add lazy-loaded administrator navigation and route.
+- [x] Add summary cards, time-series views, period selection, and UTC labels.
+- [x] Add accessible loading, empty, forbidden, expired, and unavailable states.
+- [x] Add masked paginated user summaries and aggregate CSV export.
 
 ### Infrastructure and documentation
 
-- [ ] Create the administrator allowlist secret and least-privilege runtime access.
-- [ ] Inject the secret into Cloud Run without printing its value.
-- [ ] Add collection, retention, deletion, and privacy-policy documentation.
-- [ ] Add administrator grant, removal, emergency revocation, and rotation steps.
-- [ ] Add dashboards, alerts, production smoke checks, and a rollback runbook.
+- [x] Create the administrator allowlist secret and least-privilege runtime access.
+- [x] Inject the secret into Cloud Run without printing its value.
+- [x] Add collection, retention, deletion, and privacy-policy documentation.
+- [x] Add administrator grant, removal, emergency revocation, and rotation steps.
+- [x] Add dashboards, alerts, production smoke checks, and a rollback runbook.
 
 ### Verification gate
 
-- [ ] Unit, integration, authorization, reconciliation, retention, and load tests pass.
-- [ ] Playwright administrator and normal-user journeys pass.
-- [ ] Accessibility and browser checks pass.
-- [ ] Production-like totals reconcile exactly with seeded lifecycle operations.
-- [ ] Captured requests, responses, exports, and logs contain no prohibited data.
+- [x] Unit, integration, authorization, reconciliation, retention, and load tests pass.
+- [x] Playwright administrator and normal-user journeys pass.
+- [x] Accessibility and browser checks pass.
+- [x] Production-like totals reconcile exactly with seeded lifecycle operations.
+- [x] Captured requests, responses, exports, and logs contain no prohibited data.
+
+### Production verification evidence
+
+Verified against `archly-prod-123` on 2026-09-02:
+
+- Cloud Run revision `archly-api-00010-xm6` became ready with 100% production traffic.
+- Firebase Hosting and deny-by-default Storage rules deployed successfully through
+  Cloud Build `bd7290e4-b468-4dab-bc93-f6a828c4df23`.
+- `archly-admin-emails` has an enabled version, matches the verified administrator,
+  is injected into Cloud Run, and grants Secret Accessor only to `archly-runtime`.
+- The Hosting root and API health endpoint returned `200`; unauthenticated
+  administrator access returned `401`; API responses included a correlation ID.
+- The `Archly API health` uptime check runs every minute. Alerts for API
+  unavailability, elevated 5xx responses, and elevated p95 latency route to the
+  production administrator notification channel.
+- The `Archly Production Operations` dashboard charts request rate, p95 latency,
+  container instances, and 5xx responses.
+- The previous ready revision was exposed temporarily through a zero-traffic
+  rollback tag, verified as ready, and the tag was removed while the latest
+  revision retained 100% traffic.
+- A bounded scan of recent Cloud Run logs found no access-token pattern, bearer
+  token, share token, test private-content marker, canvas payload, or administrator
+  email value. Local integration and browser captures also passed prohibited-data
+  assertions.
 
 ## 21. Production administrator setup
 
