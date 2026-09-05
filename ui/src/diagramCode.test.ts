@@ -80,7 +80,7 @@ style-edge api->db color=#ff5500 line=dashed routing=straight`)
     expect(result.edges[0]).toMatchObject({ data: { routing: 'straight' }, style: { stroke: '#ff5500', strokeDasharray: '7 5' } })
     const serialized = diagramToCode(result.nodes, result.edges)
     expect(serialized).toContain('style api fill=#112233 border=#445566 text=#ddeeff description="Handles orders"')
-    expect(serialized).toContain('style-edge api->db color=#ff5500 line=dashed routing=straight')
+    expect(serialized).toContain('style-edge "code-edge-0-api-db" color=#ff5500 line=dashed routing=straight')
   })
 
   it('reports invalid references without producing a partial diagram', () => {
@@ -88,10 +88,25 @@ style-edge api->db color=#ff5500 line=dashed routing=straight`)
   })
 
   it('serializes an existing canvas into editable source', () => {
-    expect(diagramToCode(
+    const source = diagramToCode(
       [{ id: 'api', position: { x: 0, y: 0 }, data: { kind: 'service', label: 'API' } }],
       [],
-    )).toContain('service api "API"')
+    )
+    expect(source).toContain('service api "API"')
+    expect(source).toContain('position api x=0 y=0')
+  })
+
+  it('round-trips exact canvas positions', () => {
+    const source = diagramToCode(
+      [{ id: 'api', position: { x: 123.456, y: -78.9 }, data: { kind: 'service', label: 'API' } }],
+      [],
+    )
+    expect(parseDiagramCode(source).nodes[0].position).toEqual({ x: 123.46, y: -78.9 })
+  })
+
+  it('validates position directives', () => {
+    expect(() => parseDiagramCode('service api "API"\nposition missing x=1 y=2')).toThrow('unknown component “missing”')
+    expect(() => parseDiagramCode('service api "API"\nposition api x=left y=2')).toThrow('position requires numeric x and y values')
   })
 
   it('creates valid aliases for generated canvas ids', () => {

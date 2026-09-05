@@ -43,6 +43,25 @@ class ProjectControllerTest {
     }
 
     @Test
+    void createsAndListsPersistentProjectFolders() throws Exception {
+        var identity = jwt().jwt(token -> token.claim("email", "folders@gmail.com"));
+        mvc.perform(post("/api/project-folders").with(identity)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Production\"}"))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.name").value("Production"));
+
+        mvc.perform(get("/api/project-folders").with(identity))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].name").value("Production"));
+
+        mvc.perform(post("/api/project-folders").with(identity)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"production\"}"))
+            .andExpect(status().isConflict());
+    }
+
+    @Test
     void returnsClearGmailOnlyResponseForRejectedBearerToken() throws Exception {
         when(jwtDecoder.decode("rejected-google-token"))
             .thenThrow(new JwtValidationException("Rejected Google identity",
@@ -69,13 +88,19 @@ class ProjectControllerTest {
     @Test
     void restoresAuthenticationFromHttpOnlyCookieAndClearsItOnLogout() throws Exception {
         Instant now = Instant.now();
-        Jwt identity = Jwt.withTokenValue("cookie-token").header("alg", "test").subject("cookie-subject")
+        Jwt cookieIdentity = Jwt.withTokenValue("cookie-token")
+            .header("alg", "test").subject("cookie-subject")
             .claim("email", "cookie@gmail.com").issuedAt(now).expiresAt(now.plusSeconds(600)).build();
-        when(jwtDecoder.decode("cookie-token")).thenReturn(identity);
-        mvc.perform(get("/api/projects").cookie(new Cookie("ARCHLY_AUTH", "cookie-token"))).andExpect(status().isOk());
+        when(jwtDecoder.decode("cookie-token")).thenReturn(cookieIdentity);
+
+        mvc.perform(get("/api/projects").cookie(new Cookie("ARCHLY_AUTH", "cookie-token")))
+            .andExpect(status().isOk());
+
         mvc.perform(post("/api/auth/logout").cookie(new Cookie("ARCHLY_AUTH", "cookie-token")))
             .andExpect(status().isNoContent())
-            .andExpect(header().string("Set-Cookie", org.hamcrest.Matchers.containsString("Max-Age=0")));
+            .andExpect(header().string("Set-Cookie", org.hamcrest.Matchers.allOf(
+                org.hamcrest.Matchers.containsString("ARCHLY_AUTH="),
+                org.hamcrest.Matchers.containsString("Max-Age=0"))));
     }
 
     @Test

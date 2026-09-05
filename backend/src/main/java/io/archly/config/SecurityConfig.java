@@ -46,7 +46,10 @@ public class SecurityConfig {
             .build();
     }
 
-    @Bean BearerTokenResolver bearerTokenResolver() { return new CookieBearerTokenResolver(); }
+    @Bean
+    BearerTokenResolver bearerTokenResolver() {
+        return new CookieBearerTokenResolver();
+    }
 
     @Bean
     JwtDecoder jwtDecoder(

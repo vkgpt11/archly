@@ -138,6 +138,212 @@ region east "AWS · us-east-1" {
   await expect(page.getByRole('textbox', { name: 'Diagram code' })).toHaveValue(source)
 })
 
+test('template instances render, persist across reopening, and preserve the canvas on invalid calls', async ({ page }) => {
+  await installStatefulApi(page)
+  await signIn(page)
+  await page.getByRole('button', { name: 'Open Existing architecture' }).click()
+  await page.getByRole('button', { name: 'Diagram as code' }).click()
+  const source = `# Reusable services
+template Stack(name="Orders") {
+  service api "\${name} API"
+  redis cache "\${name} cache"
+  api -> cache
+}
+use Stack orders()
+use Stack billing(name="Billing")`
+  const saved = page.waitForResponse((response) => response.request().method() === 'PUT' && response.url().includes('/api/projects/existing') && String(response.request().postDataJSON().canvasJson).includes('template Stack'))
+  await page.getByRole('textbox', { name: 'Diagram code' }).fill(source)
+  await page.getByRole('button', { name: 'Draw diagram' }).click()
+  await expect(page.getByText('Orders API', { exact: true })).toBeVisible()
+  await expect(page.getByText('Billing API', { exact: true })).toBeVisible()
+  expect((await saved).ok()).toBeTruthy()
+  await expect(page.getByText('Saved', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Back to projects' }).click()
+  await page.getByRole('button', { name: 'Open Existing architecture' }).click()
+  await page.getByRole('button', { name: 'Diagram as code' }).click()
+  await expect(page.getByRole('textbox', { name: 'Diagram code' })).toHaveValue(source)
+  await expect(page.getByText('Billing API', { exact: true })).toBeVisible()
+  await page.getByRole('textbox', { name: 'Diagram code' }).fill(`${source}\nuse Missing bad()`)
+  await page.getByRole('button', { name: 'Draw diagram' }).click()
+  await expect(page.getByRole('alert')).toContainText('unknown template')
+  await expect(page.getByText('Billing API', { exact: true })).toBeVisible()
+})
+
+test('advanced diagram features persist and export with explicit compatibility warnings', async ({ page }) => {
+  await installStatefulApi(page)
+  await signIn(page)
+  await page.getByRole('button', { name: 'Open Existing architecture' }).click()
+  await page.getByRole('button', { name: 'Diagram as code' }).click()
+  const source = `layout {
+direction: left
+horizontal-spacing: 100
+}
+account cloud "Production" {
+region east "East" {
+service api "Orders"
+redis cache "Cache"
+}
+}
+style api {
+fill: #ddeeff
+shape: rounded
+width: 180
+}
+connection request api.right -> cache.left : "Lookup"
+metadata-edge request {
+protocol: TCP
+port: 6379
+encrypted: true
+}
+style-edge request line=dotted routing=orthogonal`
+  await page.getByRole('textbox', { name: 'Diagram code' }).fill(source)
+  await page.getByRole('button', { name: 'Draw diagram' }).click()
+  await expect(page.getByText('Orders', { exact: true })).toBeVisible()
+  await expect(page.getByText('Saved', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Automatic layout', exact: true }).click()
+  await page.getByLabel('Layout direction').selectOption('down')
+  await page.getByRole('button', { name: 'Preview layout' }).click()
+  await expect(page.getByRole('img', { name: 'Layout preview' })).toBeVisible()
+  await page.getByRole('button', { name: 'Cancel layout' }).click()
+  await expect(page.getByRole('textbox', { name: 'Diagram code' })).toHaveValue(source)
+  await page.getByRole('button', { name: 'Back to projects' }).click()
+  await page.getByRole('button', { name: 'Open Existing architecture' }).click()
+  await page.getByRole('button', { name: 'Diagram as code' }).click()
+  await expect(page.getByRole('textbox', { name: 'Diagram code' })).toHaveValue(source)
+  await page.getByRole('button', { name: 'Export project', exact: true }).click()
+  for (const format of ['Mermaid', 'PlantUML', 'D2']) {
+    await page.getByRole('button', { name: format, exact: true }).click()
+    await expect(page.getByRole('note')).toContainText('embedded Archly metadata')
+    await expect(page.getByLabel('Exported diagram source')).toHaveValue(/archly-metadata:/)
+  }
+  await page.getByRole('button', { name: 'Architecture metadata', exact: true }).click()
+  const exported = JSON.parse(await page.getByLabel('Exported diagram source').inputValue())
+  expect(exported.nodes.find((node: { id: string }) => node.id === 'cloud').data.boundaryType).toBe('account')
+  expect(exported.edges[0].data).toMatchObject({ protocol: 'TCP', port: '6379', encrypted: true })
+})
+
+test('environment variants switch safely, persist the active environment, and reach exports', async ({ page }) => {
+  await installStatefulApi(page)
+  await signIn(page)
+  await page.getByRole('button', { name: 'Open Existing architecture' }).click()
+  await page.getByRole('button', { name: 'Diagram as code' }).click()
+  const source = `service api "Base API"
+database db "Database"
+connection query api -> db
+variant development {
+  override api label="Development API" replica-count=2 fill=#ddeeff
+  override-edge query protocol=HTTP port=8080 encrypted=false
+  add cache local "Local cache"
+}
+variant production {
+  override api label="Production API" icon=aws-lambda replica-count=6
+  override-edge query protocol=HTTPS port=443 encrypted=true
+}
+variant broken {
+  override missing label="Missing"
+}`
+  await page.getByRole('textbox', { name: 'Diagram code' }).fill(source)
+  await page.getByRole('button', { name: 'Draw diagram' }).click()
+  await expect(page.getByText('Base API', { exact: true })).toBeVisible()
+  const saved = page.waitForResponse((response) => response.request().method() === 'PUT' && response.url().includes('/api/projects/existing') && String(response.request().postDataJSON().canvasJson).includes('"activeVariant":"production"'))
+  await page.getByLabel('Diagram environment').selectOption('production')
+  await expect(page.getByLabel('Active environment')).toHaveText('Environment: production')
+  await expect(page.getByText('Production API', { exact: true })).toBeVisible()
+  expect((await saved).ok()).toBeTruthy()
+  await page.getByLabel('Diagram environment').selectOption('broken')
+  await expect(page.getByRole('alert')).toContainText('variant “broken”')
+  await expect(page.getByText('Production API', { exact: true })).toBeVisible()
+  await expect(page.getByLabel('Active environment')).toHaveText('Environment: production')
+  await page.getByRole('button', { name: 'Back to projects' }).click()
+  await page.getByRole('button', { name: 'Open Existing architecture' }).click()
+  await expect(page.getByLabel('Active environment')).toHaveText('Environment: production')
+  await expect(page.getByText('Production API', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Export project', exact: true }).click()
+  await page.getByRole('button', { name: 'Architecture metadata', exact: true }).click()
+  expect(JSON.parse(await page.getByLabel('Exported diagram source').inputValue()).environment).toBe('production')
+})
+
+test('diagram code intelligence navigates, renames, completes, formats, and offers quick fixes', async ({ page }) => {
+  await installStatefulApi(page)
+  await signIn(page)
+  await page.getByRole('button', { name: 'Open Existing architecture' }).click()
+  await page.getByRole('button', { name: 'Diagram as code' }).click()
+  const editor = page.getByRole('textbox', { name: 'Diagram code' })
+  const source = '# api in comment\nservice api "api in string"\ndatabase db\nconnection query api -> db'
+  await editor.fill(source)
+  await expect(page.locator('.syntax-keyword').filter({ hasText: 'service' })).toBeVisible()
+  const reference = source.lastIndexOf('api')
+  await editor.evaluate((element, offset) => { const field = element as HTMLTextAreaElement; field.focus(); field.setSelectionRange(Number(offset) + 1, Number(offset) + 1) }, reference)
+  await page.keyboard.press('ArrowLeft')
+  await expect(page.getByLabel('Symbol information')).toContainText('component')
+  await page.getByRole('button', { name: 'Definition' }).click()
+  await expect.poll(() => editor.evaluate((element) => (element as HTMLTextAreaElement).selectionStart)).toBe(source.indexOf('api "'))
+  await page.getByRole('button', { name: 'References' }).click()
+  await expect(page.getByLabel('Symbol references').getByRole('button')).toHaveCount(2)
+  await page.getByRole('button', { name: 'Rename' }).click()
+  await page.getByLabel('New symbol name').fill('gateway')
+  await page.getByRole('button', { name: 'Apply rename' }).click()
+  await expect(editor).toHaveValue(/service gateway/)
+  await expect(editor).toHaveValue(/# api in comment/)
+  await editor.fill(`${await editor.inputValue()}\n`)
+  await editor.evaluate((element) => { const field = element as HTMLTextAreaElement; field.focus(); field.setSelectionRange(field.value.length, field.value.length) })
+  await page.getByRole('button', { name: 'Complete' }).click()
+  await expect(page.getByRole('listbox', { name: 'Code completions' })).toBeVisible()
+  await editor.press('Escape')
+  await editor.press('Control+Shift+P')
+  await expect(page.getByRole('dialog', { name: 'Diagram command palette' })).toBeVisible()
+  await page.getByRole('button', { name: 'Format document' }).click()
+  await expect(page.getByRole('status')).toContainText('Formatted document')
+  await editor.fill('api -> missing')
+  await page.getByRole('button', { name: 'Draw diagram' }).click()
+  await expect(page.getByRole('button', { name: /Quick fix: Declare api/ })).toBeVisible()
+  await page.getByRole('button', { name: /Quick fix: Declare api/ }).click()
+  await expect(editor).toHaveValue(/^service api/)
+})
+
+test('typed variables and project-owned modules draw, save, and reopen', async ({ page }) => {
+  await installStatefulApi(page)
+  await signIn(page)
+  await page.getByRole('button', { name: 'Open Existing architecture' }).click()
+  await page.getByRole('button', { name: 'Diagram as code' }).click()
+  await page.getByRole('button', { name: /Project modules/ }).click()
+  await page.getByRole('button', { name: /Add module/ }).click()
+  await page.getByLabel('Module 1 ID').fill('modules/platform')
+  await page.getByLabel('Module 1 version').fill('1.2.0')
+  await page.getByLabel('Module 1 source').fill('export service gateway "Shared Gateway"')
+  await page.getByRole('textbox', { name: 'Diagram code' }).fill('let brand: colour = "#336699"\nimport { gateway } from "modules/platform" version "1.2.0"\nstyle gateway fill=${brand}')
+  const saved = page.waitForResponse((response) => response.url().includes('/api/projects/') && response.request().method() === 'PUT')
+  await page.getByRole('button', { name: 'Draw diagram' }).click()
+  await expect(page.getByText('Shared Gateway', { exact: true })).toBeVisible()
+  expect((await saved).ok()).toBeTruthy()
+  await page.getByRole('button', { name: 'Back to projects' }).click()
+  await page.getByRole('button', { name: 'Open Existing architecture' }).click()
+  await expect(page.getByText('Shared Gateway', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Diagram as code' }).click()
+  await page.getByRole('button', { name: /Project modules \(1\)/ }).click()
+  await expect(page.getByLabel('Module 1 ID')).toHaveValue('modules/platform')
+})
+
+test('sequence and data-flow views share symbols and persist the active view', async ({ page }) => {
+  await installStatefulApi(page)
+  await signIn(page)
+  await page.getByRole('button', { name: 'Open Existing architecture' }).click()
+  await page.getByRole('button', { name: 'Diagram as code' }).click()
+  const source = `service client "Client"\nservice api "API"\ndatabase db "DB"\nview dataflow storage {\n include api db\n data db classification=restricted store=true\n}\nview sequence request {\n participant client\n participant api\n message client -> api : "Request" sync\n note api "Validates"\n}`
+  await page.getByRole('textbox', { name: 'Diagram code' }).fill(source)
+  await page.getByRole('button', { name: 'Draw diagram' }).click()
+  await page.getByLabel('Diagram view').selectOption('request')
+  await expect(page.getByText('Client', { exact: true })).toBeVisible()
+  await expect(page.getByText('Saved')).toBeVisible({ timeout: 15_000 })
+  await page.getByRole('button', { name: 'Back to projects' }).click()
+  await page.getByRole('button', { name: 'Open Existing architecture' }).click()
+  await page.getByRole('button', { name: 'Diagram as code' }).click()
+  await expect(page.getByLabel('Diagram view')).toHaveValue('request')
+  await page.getByLabel('Diagram view').selectOption('storage')
+  await expect(page.getByText('DB', { exact: true })).toBeVisible()
+  await expect(page.getByText('Client', { exact: true })).not.toBeVisible()
+})
+
 test('dashboard and editor have no serious or critical axe violations', async ({ page }) => {
   await installStatefulApi(page)
   await signIn(page)

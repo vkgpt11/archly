@@ -16,6 +16,17 @@ const project: Project = {
 }
 
 describe('project persistence', () => {
+  it('persists project-owned diagram modules in the canvas payload', () => {
+    const modules = [{ id: 'modules/shared', version: '1', source: 'export service api "API"' }]
+    const parsed = parseCanvasJson(serializeCanvas([], [], undefined, 'import { api } from "modules/shared"', undefined, modules))
+    expect(parsed.diagramModules).toEqual(modules)
+  })
+  it('persists the active view and independent view layouts', () => {
+    const states = { checkout: { positions: { api: { x: 240, y: 80 } }, viewport: { x: 10, y: 20, zoom: 1.2 } } }
+    const parsed = parseCanvasJson(serializeCanvas([], [], undefined, 'view sequence checkout {\n}', undefined, undefined, 'checkout', states))
+    expect(parsed.activeView).toBe('checkout')
+    expect(parsed.diagramViewStates).toEqual(states)
+  })
   it('preserves exact diagram source including comments and whitespace', () => {
     const source = 'direction down\n\n# Keep this comment\nservice api "API"\n'
     const serialized = serializeCanvas([], [], { x: 0, y: 0, zoom: 1 }, source)
@@ -80,6 +91,19 @@ describe('project persistence', () => {
     const edge: Edge = { id: 'a-a', source: 'a', target: 'a', data: { routing: 'smoothstep', waypoints: [{ x: 20, y: 30 }] } }
     const canvas = JSON.parse(serializeCanvas([], [edge]))
     expect(canvas.edges[0].data).toEqual({ routing: 'smoothstep', waypoints: [{ x: 20, y: 30 }] })
+  })
+
+  it('round-trips every durable canvas relationship and presentation property', () => {
+    const nodes: Node[] = [
+      { id: 'container', type: 'architecture', position: { x: 10, y: 20 }, zIndex: -1, data: { kind: 'container', label: 'Region', collapsed: true }, style: { width: 360, height: 240, background: '#ffffff' } },
+      { id: 'image', type: 'architecture', position: { x: 40, y: 60 }, zIndex: 3, data: { kind: 'image', label: 'Topology', alt: 'Topology diagram', imageSrc: 'data:image/png;base64,AAAA', containerId: 'container', groupId: 'group-1', manualSize: true }, style: { width: 240, height: 160 } },
+    ]
+    const edges: Edge[] = [{ id: 'loop', source: 'image', target: 'image', label: 'sync', markerStart: { type: 'arrowclosed' }, markerEnd: { type: 'arrowclosed' }, style: { stroke: '#123456', strokeWidth: 3, strokeDasharray: '7 5' }, data: { routing: 'smoothstep' } }]
+    const viewport = { x: 90, y: -20, zoom: 1.4 }
+    const parsed = parseCanvasJson(serializeCanvas(nodes, edges, viewport))
+    expect(parsed.nodes).toEqual(nodes)
+    expect(parsed.edges).toEqual(edges)
+    expect(parsed.viewport).toEqual(viewport)
   })
 
   it('rejects malformed and unsupported canvas documents instead of converting them to empty diagrams', () => {
