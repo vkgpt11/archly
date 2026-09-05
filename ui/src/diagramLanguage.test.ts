@@ -16,6 +16,12 @@ variant prod {
 }`
 
 describe('diagram language intelligence', () => {
+  it('recognizes typed variables and selected module imports', () => {
+    const source = 'let brand: colour = "#336699"\nimport { gateway, shared } from "modules/platform" version "1"'
+    const analysis = analyzeDiagram(source)
+    expect(analysis.tokens.filter((token) => token.kind === 'keyword').map((token) => token.value)).toEqual(expect.arrayContaining(['let', 'colour', 'import', 'from', 'version']))
+    expect(analysis.symbols.filter((symbol) => symbol.kind === 'import').map((symbol) => symbol.name)).toEqual(['gateway', 'shared'])
+  })
   it('highlights every required token category and invalid-line identifiers', () => {
     const tokens = tokenizeDiagram(`${source}\nstyle api opacity=0.5\n@bad`, 14)
     expect(new Set(tokens.map((token) => token.kind))).toEqual(new Set(['comment', 'keyword', 'identifier', 'operator', 'string', 'property', 'number', 'invalid']))

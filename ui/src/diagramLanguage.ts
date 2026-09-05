@@ -4,7 +4,7 @@ export type DiagramTokenKind = 'keyword' | 'identifier' | 'string' | 'number' | 
 export type DiagramToken = { kind: DiagramTokenKind; value: string; start: number; end: number; line: number }
 export type DiagramSymbol = { name: string; kind: 'component' | 'connection' | 'template' | 'variable' | 'style' | 'variant' | 'view' | 'import'; start: number; end: number; line: number; detail: string }
 
-export const languageKeywords = new Set(['account', 'subscription', 'project', 'region', 'zone', 'vpc', 'vnet', 'subnet', 'cluster', 'namespace', 'container', 'service', 'web', 'mobile', 'database', 'cache', 'queue', 'storage', 'external', 'actor', 'note', 'text', 'custom', 'connection', 'style', 'style-edge', 'metadata-edge', 'position', 'boundary', 'direction', 'layout', 'class', 'node', 'edge', 'template', 'use', 'let', 'variant', 'add', 'override', 'override-edge', 'remove', 'remove-edge', 'import', 'from', 'as', 'view', 'sequence', 'dataflow'])
+export const languageKeywords = new Set(['account', 'subscription', 'project', 'region', 'zone', 'vpc', 'vnet', 'subnet', 'cluster', 'namespace', 'container', 'service', 'web', 'mobile', 'database', 'cache', 'queue', 'storage', 'external', 'actor', 'note', 'text', 'custom', 'connection', 'style', 'style-edge', 'metadata-edge', 'position', 'boundary', 'direction', 'layout', 'class', 'node', 'edge', 'template', 'use', 'let', 'variant', 'add', 'override', 'override-edge', 'remove', 'remove-edge', 'import', 'export', 'from', 'as', 'version', 'string', 'number', 'boolean', 'colour', 'list', 'view', 'sequence', 'dataflow'])
 export const languageProperties = new Set(['fill', 'border', 'text', 'description', 'icon', 'shape', 'opacity', 'border-width', 'width', 'height', 'padding', 'color', 'line', 'routing', 'start', 'end', 'protocol', 'port', 'async', 'encrypted', 'label', 'kind', 'replica-count', 'provider', 'identifier', 'type', 'x', 'y', 'horizontal-spacing', 'vertical-spacing', 'rank-separation'])
 const componentKinds = [...new Set(componentDefinitions.flatMap((item) => [item.kind, item.iconId]).filter(Boolean) as string[])]
 const declarationKeywords = ['service', 'web', 'mobile', 'database', 'cache', 'queue', 'storage', 'external', 'actor', 'container', 'region', 'account', 'subscription', 'project', 'zone', 'vpc', 'vnet', 'subnet', 'cluster', 'namespace', 'connection', 'template', 'use', 'variant', 'let', 'class', 'import', 'view']
@@ -66,6 +66,14 @@ export function analyzeDiagram(source: string, invalidLine?: number) {
     const resolvedDetail = kind === 'component' ? `${declaration} component` : kind === 'template' ? `${detail}${source.slice(start + name.length).match(/^\s*(\([^\n{]*\))/)?.[1] || ''}` : detail
     if (!symbols.some((symbol) => symbol.start === start)) symbols.push({ name, kind, start, end: start + name.length, line: lineAt(source, start), detail: resolvedDetail })
   }
+  for (const match of source.matchAll(/\bimport\s*\{([^}]+)\}\s*from\s*"[^"]+"/g)) {
+    const lineStart = source.lastIndexOf('\n', match.index! - 1) + 1
+    if (/^\s*(?:#|\/\/)/.test(source.slice(lineStart, match.index!))) continue
+    for (const imported of match[1].matchAll(/[A-Za-z][\w-]*/g)) {
+      const start = match.index! + match[0].indexOf('{') + 1 + imported.index!
+      if (!symbols.some((symbol) => symbol.start === start)) symbols.push({ name: imported[0], kind: 'import', start, end: start + imported[0].length, line: lineAt(source, start), detail: 'Imported project-module symbol' })
+    }
+  }
   return { tokens, symbols: symbols.sort((a, b) => a.start - b.start) }
 }
 
@@ -86,7 +94,7 @@ function semanticOccurrences(source: string, symbol: DiagramSymbol): Array<{ sta
     let role: DiagramSymbol['kind'] | undefined
     if (/^use\s*$/.test(before)) role = 'template'
     else if (/^(?:style-edge|metadata-edge|override-edge|remove-edge)\s*$/.test(before) || /^connection\s*$/.test(before)) role = 'connection'
-    else if (/^(?:style|position|boundary|override|remove)\s*$/.test(before) || /(?:^|\s)->\s*$/.test(before) || new RegExp(`\\b${symbol.name}(?:\\.\\w+)?\\s*->`).test(line)) role = 'component'
+    else if (/^(?:style|position|boundary|override|remove|participant|data|note|activate|deactivate)\s*$/.test(before) || /^\s*(?:include|exclude)\b/.test(line) || /(?:^|\s)->\s*$/.test(before) || new RegExp(`\\b${symbol.name}(?:\\.\\w+)?\\s*->`).test(line)) role = 'component'
     else if (/\bclass\s*=\s*$/.test(before)) role = 'style'
     if (role === symbol.kind) result.set(token.start, { start: token.start, end: token.end, line: token.line })
   }

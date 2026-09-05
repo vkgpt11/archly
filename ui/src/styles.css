@@ -265,6 +265,7 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .architecture-node-copy strong { display: -webkit-box; overflow: hidden; font-size: 9px; font-weight: 400; line-height: 1.25; text-align: center; white-space: normal; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .architecture-node-copy textarea { width: 100%; min-width: 0; height: auto; min-height: 13px; max-height: 26px; overflow: hidden; padding: 1px 3px; border: 1px solid transparent; border-radius: 4px; outline: 0; color: inherit; background: transparent; font-size: 9px; font-weight: 400; line-height: 1.25; text-align: center; white-space: normal; overflow-wrap: anywhere; resize: none; }
 .architecture-node-copy textarea:hover, .architecture-node-copy textarea:focus { border-color: var(--node-accent); background: color-mix(in srgb, var(--node-bg) 85%, transparent); }
+.view-node-metadata { position: absolute; top: calc(100% + 4px); left: 50%; transform: translateX(-50%); min-width: max-content; max-width: 180px; padding: 2px 5px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: var(--muted); font-size: 8px; line-height: 1.25; box-shadow: 0 2px 6px rgba(20,21,30,.08); }
 .architecture-node.selected { outline: 2px solid var(--node-accent); }
 .architecture-node.selected .architecture-node-copy { justify-content: flex-end; }
 .component-lock { position: absolute; z-index: 4; right: -8px; bottom: -8px; width: 17px; height: 17px; display: grid; place-items: center; padding: 0; border: 1px solid var(--border); border-radius: 5px; color: var(--muted); background: var(--surface); box-shadow: 0 3px 7px rgba(20,21,30,.13); }
@@ -394,6 +395,13 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spa
 .diagram-code-reference > div { display: grid; gap: 3px; overflow: auto; }
 .diagram-code-reference > div button { display: grid; grid-template-columns: minmax(120px, .8fr) 1fr; gap: 8px; padding: 6px 7px; border: 0; border-radius: 6px; background: transparent; color: inherit; text-align: left; }
 .diagram-code-reference > div button:hover { background: var(--surface); }.diagram-code-reference > div code { color: var(--accent); font-size: 11px; }.diagram-code-reference > div span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.diagram-module-editor { display: grid; gap: 10px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-muted); max-height: 42vh; overflow: auto; }
+.diagram-module-editor p { margin: 0; font-size: 12px; color: var(--muted); }
+.diagram-module-editor fieldset { display: grid; gap: 8px; margin: 0; padding: 10px; border: 1px solid var(--border); border-radius: 7px; }
+.diagram-module-editor legend { font-size: 12px; font-weight: 700; padding: 0 4px; }
+.diagram-module-editor label { display: grid; gap: 4px; font-size: 11px; }
+.diagram-module-editor input, .diagram-module-editor textarea { width: 100%; box-sizing: border-box; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.diagram-module-editor textarea { resize: vertical; min-height: 100px; }
 .diagram-code-panel textarea { min-width: 0; min-height: 280px; resize: vertical; padding: 12px; border: 0; border-radius: 0; background: var(--background); color: inherit; font: 13px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; }
 .diagram-code-panel textarea:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
 .diagram-code-intelligence { position: relative; min-width: 0; }

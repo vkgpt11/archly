@@ -6,6 +6,8 @@ import { clearNodeSelection, selectOnlyEdge } from './canvasSelection'
 import { getComponentSize, getEdgeLabelWidth, truncateCanvasText } from './canvasSizing'
 import { useState } from 'react'
 import type { Edge, Node } from '@xyflow/react'
+import type { DiagramModule } from '../diagramImports'
+import type { DiagramViewState } from '../diagramViews'
 
 afterEach(() => { cleanup(); localStorage.clear() })
 
@@ -70,6 +72,29 @@ function VariantHarness() {
   </div>
 }
 
+function ModulesHarness() {
+  const [nodes, setNodes] = useState<Node[]>([])
+  const [edges, setEdges] = useState<Edge[]>([])
+  const [source, setSource] = useState('import { shared } from "modules/module-1" version "1"')
+  const [modules, setModules] = useState<DiagramModule[]>([])
+  return <div style={{ width: 1000, height: 700 }}>
+    <CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} diagramCode={source} onDiagramCodeChange={setSource} diagramModules={modules} onDiagramModulesChange={setModules} />
+    <output data-testid="module-state">{JSON.stringify(modules)}</output>
+  </div>
+}
+
+function ViewsHarness() {
+  const source = `service client "Client"\nservice api "API"\ndatabase db "DB"\nview dataflow storage {\n include api db\n data db classification=restricted store=true\n}\nview sequence request {\n participant client\n participant api\n message client -> api : "Request" sync\n}`
+  const [nodes, setNodes] = useState<Node[]>([])
+  const [edges, setEdges] = useState<Edge[]>([])
+  const [activeView, setActiveView] = useState('')
+  const [states, setStates] = useState<Record<string, DiagramViewState>>({ request: { positions: { api: { x: 777, y: 333 } } } })
+  return <div style={{ width: 1000, height: 700 }}>
+    <CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} diagramCode={source} activeView={activeView} onActiveViewChange={setActiveView} diagramViewStates={states} onDiagramViewStatesChange={setStates} />
+    <output data-testid="view-state">{JSON.stringify({ activeView, states, nodes: nodes.map((node) => ({ id: node.id, position: node.position })), edges: edges.map((edge) => edge.label) })}</output>
+  </div>
+}
+
 function BidirectionalHarness() {
   const [nodes, setNodes] = useState<Node[]>([
     { id: 'api', type: 'architecture', position: { x: 10, y: 20 }, selected: true, data: { label: 'API', kind: 'service' } },
@@ -83,6 +108,28 @@ function BidirectionalHarness() {
 }
 
 describe('CanvasWorkspace', () => {
+  it('creates, edits, and draws a project-owned diagram module', () => {
+    render(<ModulesHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))
+    fireEvent.click(screen.getByRole('button', { name: /Project modules/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Add module/ }))
+    fireEvent.change(screen.getByLabelText('Module 1 source'), { target: { value: 'export service shared "Shared API"' } })
+    expect(screen.getByTestId('module-state')).toHaveTextContent('Shared API')
+    fireEvent.click(screen.getByRole('button', { name: 'Draw diagram' }))
+    expect(screen.getByText('Shared API', { exact: true })).toBeInTheDocument()
+  })
+  it('switches named views and restores their independent layout', () => {
+    render(<ViewsHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))
+    fireEvent.change(screen.getByLabelText('Diagram view'), { target: { value: 'request' } })
+    expect(screen.getByTestId('view-state')).toHaveTextContent('"activeView":"request"')
+    expect(screen.getByTestId('view-state')).toHaveTextContent('"x":777,"y":333')
+    expect(screen.getByTestId('view-state')).toHaveTextContent('Request')
+    fireEvent.change(screen.getByLabelText('Diagram view'), { target: { value: 'storage' } })
+    expect(screen.getByTestId('view-state')).toHaveTextContent('"activeView":"storage"')
+    expect(screen.getByText('DB', { exact: true })).toBeInTheDocument()
+    expect(screen.queryByText('Client', { exact: true })).not.toBeInTheDocument()
+  })
   it('selects environment variants, identifies the active environment, and preserves the last valid canvas', async () => {
     render(<VariantHarness />)
     fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))

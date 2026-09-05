@@ -16,6 +16,17 @@ const project: Project = {
 }
 
 describe('project persistence', () => {
+  it('persists project-owned diagram modules in the canvas payload', () => {
+    const modules = [{ id: 'modules/shared', version: '1', source: 'export service api "API"' }]
+    const parsed = parseCanvasJson(serializeCanvas([], [], undefined, 'import { api } from "modules/shared"', undefined, modules))
+    expect(parsed.diagramModules).toEqual(modules)
+  })
+  it('persists the active view and independent view layouts', () => {
+    const states = { checkout: { positions: { api: { x: 240, y: 80 } }, viewport: { x: 10, y: 20, zoom: 1.2 } } }
+    const parsed = parseCanvasJson(serializeCanvas([], [], undefined, 'view sequence checkout {\n}', undefined, undefined, 'checkout', states))
+    expect(parsed.activeView).toBe('checkout')
+    expect(parsed.diagramViewStates).toEqual(states)
+  })
   it('preserves exact diagram source including comments and whitespace', () => {
     const source = 'direction down\n\n# Keep this comment\nservice api "API"\n'
     const serialized = serializeCanvas([], [], { x: 0, y: 0, zoom: 1 }, source)

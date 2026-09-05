@@ -121,7 +121,7 @@ export function expandDiagramTemplates(source: string): SourceLine[] {
         if (namedEdge) { edgeIds.add(namedEdge[1].startsWith('"') ? JSON.parse(namedEdge[1]) as string : namedEdge[1]); continue }
         const nested = text.match(callPattern)
         if (nested) { nestedInstances.add(nested[2]); continue }
-        const variable = text.match(/^let\s+([A-Za-z][\w-]*)\s*=/)
+        const variable = text.match(/^let\s+([A-Za-z][\w-]*)(?:\s*:\s*(?:string|number|boolean|colour|list))?\s*=/)
         if (variable) { localVariables.add(variable[1]); continue }
         if (/^(?:#|\/\/|\}|direction\b|layout\b|class\b|style\b|style-edge\b|metadata-edge\b|position\b)/.test(text) || new RegExp(`^${identifier}(?:\\.(?:left|right|top|bottom))?\\s*->`).test(text)) continue
         const declaration = text.match(new RegExp(`^${identifier}\\s+(${identifier})(?:\\s|$)`))

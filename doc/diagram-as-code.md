@@ -41,17 +41,57 @@ Regions and containers may be nested. Moving an outer boundary moves all nested 
 ## Variables and appearance
 
 ```text
-let apiLabel = "Orders API"
+let apiLabel: string = "Orders API"
+let replicas: number = 3
+let enabled: boolean = true
+let brand: colour = "#112233"
+let zones: list = ["us-east-1a", "us-east-1b"]
 
-service api "${apiLabel}"
+service api "${apiLabel} (${replicas} replicas)"
 database db "Orders DB"
 api -> db : "SQL"
 
-style api fill=#112233 border=#445566 text=#ddeeff description="Handles orders"
+style api fill=${brand} border=#445566 text=#ddeeff description="Handles orders"
 style-edge api->db color=#ff5500 line=dashed routing=straight
 ```
 
-Colors use six-digit hexadecimal values. Edge routing is `straight`, `default`, or `smoothstep`. Notes and annotations use the normal `note` and `text` component types.
+Supported variable types are `string`, `number`, `boolean`, `colour`, and a list
+of at most 100 strings. Untyped variables remain compatible as strings. Values
+inside quoted text are escaped; values substituted outside quotes must contain
+only identifier-safe characters. Colors use six-digit hexadecimal values. Edge
+routing is `straight`, `default`, or `smoothstep`. Notes and annotations use the
+normal `note` and `text` component types.
+
+### Project-owned modules
+
+Open **Project modules** in the diagram-code panel to add a stable module ID,
+numeric version, and source. Only declarations prefixed with `export` are visible:
+
+```text
+# module ID: modules/platform, version: 1.2.0
+export let brand: colour = "#336699"
+export service gateway "Gateway"
+export class node shared {
+  fill: "#336699"
+}
+export template Worker(name) {
+  service worker "${name}"
+}
+```
+
+Import only the required symbols and, when needed, require its exact version:
+
+```text
+import { brand, gateway, shared, Worker } from "modules/platform" version "1.2.0"
+use Worker jobs(name="Jobs")
+style gateway class=shared border=${brand}
+```
+
+Modules are stored within the current project and inherit its owner/share access
+rules. URLs, absolute paths, `..`, and filesystem traversal are rejected. Import
+resolution performs no network or local filesystem access. Missing modules,
+private symbols, duplicates, version mismatches, and complete dependency cycles
+are reported without replacing the last valid canvas.
 
 ## Exact positions
 
@@ -98,6 +138,45 @@ As with other source constructs, a subsequent visual canvas edit generates
 expanded component declarations; it does not retain linked template instances.
 Selection-to-template extraction and a managed template library are not yet
 available.
+
+### Sequence and data-flow views
+
+Views reuse the project's shared components without duplicating definitions.
+Select the active view from the **View** menu in the diagram-code panel.
+
+```text
+service client "Client"
+service api "Orders API"
+database db "Orders DB"
+
+view dataflow sensitive-data {
+  include api db
+  data api classification=confidential processing="validate" trust-boundary=internal
+  data db classification=restricted store=true
+}
+
+view sequence create-order {
+  participant client
+  participant api
+  participant db
+  message client -> api : "Create order" sync
+  activate api
+  alt "valid order" {
+    message api -> db : "Insert" async
+    return db -> api : "Created"
+  }
+  note api "Validates the request"
+  deactivate api
+}
+```
+
+Data-flow views accept `include`, `exclude`, and `data` annotations with
+`classification`, `store`, `processing`, and `trust-boundary`. Sequence views
+accept participants, ordered `message` and `return` lines, `sync` or `async`,
+activation/deactivation, notes, and nested `alt` groups. Renaming a shared
+component updates all view references. Each view stores its own positions and
+viewport; invalid references report the source line and view name without
+replacing the last valid canvas.
 
 ### Environment variants
 

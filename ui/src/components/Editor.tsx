@@ -143,6 +143,9 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
   const [viewport, setViewport] = useState(initialCanvas.viewport || { x: 0, y: 0, zoom: 1 })
   const [diagramCode, setDiagramCode] = useState(initialCanvas.diagramCode || '')
   const [activeVariant, setActiveVariant] = useState(initialCanvas.activeVariant || '')
+  const [diagramModules, setDiagramModules] = useState(initialCanvas.diagramModules || [])
+  const [activeView, setActiveView] = useState(initialCanvas.activeView || '')
+  const [diagramViewStates, setDiagramViewStates] = useState(initialCanvas.diagramViewStates || {})
   const [view, setView] = useState<View>('split')
   const [documentWidth, setDocumentWidth] = useState(25)
   const [linkEditorOpen, setLinkEditorOpen] = useState(false)
@@ -233,6 +236,9 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
     setViewport(canvas.viewport || { x: 0, y: 0, zoom: 1 })
     setDiagramCode(canvas.diagramCode || '')
     setActiveVariant(canvas.activeVariant || '')
+    setDiagramModules(canvas.diagramModules || [])
+    setActiveView(canvas.activeView || '')
+    setDiagramViewStates(canvas.diagramViewStates || {})
     setProject(server)
     clearDraft(server.id)
     setConflict(null)
@@ -321,7 +327,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
       ...latestProject.current,
       name: project.name,
       markdown: project.markdown,
-      canvasJson: serializeCanvas(nodes, edges, viewport, diagramCode || undefined, activeVariant || undefined),
+      canvasJson: serializeCanvas(nodes, edges, viewport, diagramCode || undefined, activeVariant || undefined, diagramModules, activeView || undefined, diagramViewStates),
     }
     const signature = contentSignature(latestProject.current)
     if (signature === lastSavedSignature.current) {
@@ -339,7 +345,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
     setSaveState(navigator.onLine ? 'saving' : 'offline')
     const timer = window.setTimeout(() => void flushSave(), 900)
     return () => window.clearTimeout(timer)
-  }, [nodes, edges, viewport, diagramCode, activeVariant, project.id, project.name, project.markdown, canvasLoadError, conflictActive, flushSave, tabId])
+  }, [nodes, edges, viewport, diagramCode, activeVariant, diagramModules, activeView, diagramViewStates, project.id, project.name, project.markdown, canvasLoadError, conflictActive, flushSave, tabId])
 
   useEffect(() => {
     const retryWhenOnline = () => { if (!conflictActive) void flushSave() }
@@ -540,7 +546,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
         )}
         {showCanvas && (
           <section className="canvas-panel" style={view === 'split' ? { flexBasis: `${100 - documentWidth}%` } : undefined}>
-            <Suspense fallback={<p className="muted">Loading canvas…</p>}><CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} viewport={viewport} onViewportChange={setViewport} diagramCode={diagramCode} onDiagramCodeChange={setDiagramCode} activeVariant={activeVariant} onActiveVariantChange={setActiveVariant} /></Suspense>
+            <Suspense fallback={<p className="muted">Loading canvas…</p>}><CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} viewport={viewport} onViewportChange={setViewport} diagramCode={diagramCode} onDiagramCodeChange={setDiagramCode} activeVariant={activeVariant} onActiveVariantChange={setActiveVariant} diagramModules={diagramModules} onDiagramModulesChange={setDiagramModules} activeView={activeView} onActiveViewChange={setActiveView} diagramViewStates={diagramViewStates} onDiagramViewStatesChange={setDiagramViewStates} /></Suspense>
           </section>
         )}
       </div>

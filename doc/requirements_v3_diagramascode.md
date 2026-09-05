@@ -1,6 +1,6 @@
 # Archly V3 Diagram-as-Code Requirements
 
-Status: Five feature implementations complete locally; release verification pending
+Status: Core Must requirements through project imports and code intelligence complete; release verification pending
 
 Version: 3.0
 
@@ -151,8 +151,16 @@ baseline for this section.
 
 ## 8. Variables and imports
 
-String variables within one source file already exist. The remaining work adds
-safe composition across sources.
+Implementation status: **Done — Must requirements IMP-001–006**. Variables are
+type-checked as string, number, boolean, colour, or bounded string lists. A
+project can persist up to 100 versioned modules in its authorized canvas payload;
+imports select only explicitly exported variables, templates, style classes, and
+component contracts. Resolution reports missing modules, duplicate symbols,
+exact-version mismatches, and complete dependency cycles. Module identifiers are
+strict project-relative IDs: URLs, filesystem paths, and traversal are rejected,
+and resolution performs no network or filesystem access. Cross-module editor
+navigation and reproducible version locking beyond exact imports (IMP-007–008)
+remain follow-ups.
 
 | ID | Priority | Requirement |
 | --- | --- | --- |
@@ -166,6 +174,17 @@ safe composition across sources.
 | V3-DAC-IMP-008 | Should | A project records the exact compatible module version used for reproducible rendering. |
 
 ## 9. Sequence and data-flow views
+
+Implementation status: **Done — Must requirements VIEW-001–006**. Projects can
+define named data-flow and sequence views over the shared component model.
+Data-flow views filter components/connections and annotate classification,
+storage, processing, and trust boundaries. Sequence views support participants,
+ordered synchronous/asynchronous messages, returns, activation events, notes,
+and nested alternative groups. Shared-symbol rename covers every view; each view
+persists independent node positions and viewport. Cross-view reference errors
+identify the source line and named view while the canvas keeps its last valid
+render. Derived-view creation and export labelling (VIEW-007–008) remain
+follow-ups.
 
 | ID | Priority | Requirement |
 | --- | --- | --- |
