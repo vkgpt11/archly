@@ -24,7 +24,8 @@ test('loads and manipulates the documented 300-node and 500-connection canvas', 
   })
 
   await page.goto('/')
-  await page.getByRole('button', { name: 'Continue as local developer' }).click()
+  const signIn = page.getByRole('button', { name: 'Continue as local developer' })
+  if (await signIn.isVisible()) await signIn.click()
   const start = Date.now()
   await page.getByRole('button', { name: 'Open Large architecture' }).click()
   await expect(page.locator('.react-flow')).toBeVisible({ timeout: 15_000 })

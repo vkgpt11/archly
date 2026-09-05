@@ -10,8 +10,15 @@ function download(data: string | Blob, filename: string, type?: string) {
   const anchor = document.createElement('a')
   anchor.href = url
   anchor.download = filename
+  anchor.style.display = 'none'
+  document.body.appendChild(anchor)
   anchor.click()
-  URL.revokeObjectURL(url)
+  anchor.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1_000)
+}
+
+export function downloadTextExport(text: string, name: string, extension: string) {
+  download(text, `${safeName(name)}.${extension}`, 'text/plain;charset=utf-8')
 }
 
 export function markdownFromHtml(html: string): string {
@@ -83,6 +90,135 @@ const selectionFilter = (selectionOnly: boolean) => (node: HTMLElement) => {
   return true
 }
 
+async function renderedExportOptions(project: Project, selectionOnly: boolean) {
+  const element = canvasElement()
+  const { getNodesBounds } = await import('@xyflow/react')
+  const canvas = JSON.parse(project.canvasJson)
+  const exportNodes = selectionOnly ? (canvas.nodes || []).filter((node: { selected?: boolean }) => node.selected) : (canvas.nodes || [])
+  if (selectionOnly && exportNodes.length === 0 && !(canvas.edges || []).some((edge: { selected?: boolean }) => edge.selected)) {
+    throw new Error('Select at least one component or connection before exporting the selection.')
+  }
+  const bounds = exportNodes.length ? getNodesBounds(exportNodes) : undefined
+  const padding = 48
+  const maxDimension = 12_000
+  const naturalWidth = Math.max(1, bounds?.width || element.clientWidth)
+  const naturalHeight = Math.max(1, bounds?.height || element.clientHeight)
+  const scale = Math.min(1, (maxDimension - padding * 2) / naturalWidth, (maxDimension - padding * 2) / naturalHeight)
+  const width = Math.ceil(naturalWidth * scale + padding * 2)
+  const height = Math.ceil(naturalHeight * scale + padding * 2)
+  const translateX = padding - (bounds?.x || 0) * scale
+  const translateY = padding - (bounds?.y || 0) * scale
+  return {
+    element,
+    edges: canvas.edges || [],
+    backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--canvas-bg').trim() || '#ffffff',
+    options: {
+      cacheBust: true,
+      filter: selectionFilter(selectionOnly), width, height,
+      style: {
+        width: `${width}px`, height: `${height}px`,
+        transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
+        transformOrigin: 'top left',
+        background: 'transparent', backgroundColor: 'transparent',
+      },
+    },
+  }
+}
+
+async function portableSvgBlob(dataUrl: string): Promise<Blob> {
+  return fetch(dataUrl).then((response) => response.blob())
+}
+
+async function svgToPng(svg: Blob, backgroundColor: string): Promise<Blob> {
+  const source = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(reader.error || new Error('The SVG could not be read.'))
+    reader.onload = () => resolve(String(reader.result))
+    reader.readAsDataURL(svg)
+  })
+  const image = new Image()
+  image.decoding = 'async'
+  image.src = source
+  await image.decode()
+  const canvas = document.createElement('canvas')
+  canvas.width = image.naturalWidth
+  canvas.height = image.naturalHeight
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('PNG export is not supported by this browser.')
+  context.fillStyle = backgroundColor
+  context.fillRect(0, 0, canvas.width, canvas.height)
+  context.drawImage(image, 0, 0)
+  return await new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('The diagram could not be converted to PNG.')), 'image/png'))
+}
+
+async function withPortableEdgeGeometry<T>(element: HTMLElement, edges: Array<{ id?: string; markerStart?: unknown; markerEnd?: unknown; style?: { stroke?: string; strokeWidth?: number } }>, render: () => Promise<T>): Promise<T> {
+  const edgeGroups = Array.from(element.querySelectorAll<SVGGElement>('.react-flow__edge[data-id]'))
+  const persistedEdges = new Map(edges.map((edge) => [edge.id, edge]))
+  const originals = edgeGroups.flatMap((group) => {
+    const path = group.querySelector<SVGPathElement>('path.react-flow__edge-path')
+    if (!path) return []
+    const edge = persistedEdges.get(group.dataset.id)
+    return [{
+      path,
+      attributes: new Map(['fill', 'stroke', 'stroke-width', 'stroke-opacity', 'stroke-dasharray', 'stroke-linecap', 'stroke-linejoin', 'marker-start', 'marker-end'].map((name) => [name, path.getAttribute(name)])),
+      hasStart: Boolean(edge?.markerStart || path.getAttribute('marker-start')),
+      hasEnd: Boolean(edge?.markerEnd || path.getAttribute('marker-end')),
+      edge,
+    }]
+  })
+  const arrows: (SVGPolygonElement | SVGPolylineElement)[] = []
+  for (const { path, hasStart, hasEnd, edge } of originals) {
+    const length = path.getTotalLength()
+    if (!length || !path.parentNode) continue
+    const computed = getComputedStyle(path)
+    const computedStroke = computed.stroke
+    const stroke = edge?.style?.stroke || (computedStroke && computedStroke !== 'none' && computedStroke !== 'transparent' ? computedStroke : '#68708a')
+    const strokeWidth = edge?.style?.strokeWidth !== undefined ? Math.max(0.5, Number(edge.style.strokeWidth) || 1.5) : Math.max(1.5, Number.parseFloat(computed.strokeWidth) || 1.5)
+    path.setAttribute('fill', 'none')
+    path.setAttribute('stroke', stroke)
+    path.setAttribute('stroke-width', String(strokeWidth))
+    path.setAttribute('stroke-linecap', computed.strokeLinecap || 'round')
+    path.setAttribute('stroke-linejoin', computed.strokeLinejoin || 'round')
+    if (computed.strokeOpacity && computed.strokeOpacity !== '1') path.setAttribute('stroke-opacity', computed.strokeOpacity)
+    if (computed.strokeDasharray && computed.strokeDasharray !== 'none') path.setAttribute('stroke-dasharray', computed.strokeDasharray)
+    const arrowLength = Math.max(8, strokeWidth * 4)
+    const arrowHalfWidth = Math.max(4, strokeWidth * 2.25)
+    const addArrow = (atStart: boolean) => {
+      const tip = path.getPointAtLength(atStart ? 0 : length)
+      const inside = path.getPointAtLength(atStart ? Math.min(12, length) : Math.max(0, length - 12))
+      const angle = atStart
+        ? Math.atan2(tip.y - inside.y, tip.x - inside.x) * 180 / Math.PI
+        : Math.atan2(tip.y - inside.y, tip.x - inside.x) * 180 / Math.PI
+      const marker = (atStart ? edge?.markerStart : edge?.markerEnd) as { type?: string } | undefined
+      const open = marker?.type === 'arrow'
+      const polygon = document.createElementNS('http://www.w3.org/2000/svg', open ? 'polyline' : 'polygon')
+      polygon.setAttribute('points', open ? `${-arrowLength},${-arrowHalfWidth} 0,0 ${-arrowLength},${arrowHalfWidth}` : `0,0 ${-arrowLength},${-arrowHalfWidth} ${-arrowLength},${arrowHalfWidth}`)
+      polygon.setAttribute('transform', `translate(${tip.x} ${tip.y}) rotate(${angle})`)
+      polygon.setAttribute('fill', open ? 'none' : stroke)
+      polygon.setAttribute('stroke', stroke)
+      polygon.setAttribute('stroke-width', String(Math.max(1, strokeWidth * .6)))
+      polygon.setAttribute('stroke-linejoin', 'round')
+      polygon.setAttribute('data-archly-export-arrow', atStart ? 'start' : 'end')
+      polygon.style.pointerEvents = 'none'
+      path.parentNode?.appendChild(polygon)
+      arrows.push(polygon)
+    }
+    if (hasStart) addArrow(true)
+    if (hasEnd) addArrow(false)
+    path.removeAttribute('marker-start')
+    path.removeAttribute('marker-end')
+  }
+  try { return await render() }
+  finally {
+    arrows.forEach((arrow) => arrow.remove())
+    for (const { path, attributes } of originals) {
+      for (const [name, value] of attributes) {
+        if (value === null) path.removeAttribute(name); else path.setAttribute(name, value)
+      }
+    }
+  }
+}
+
 export async function exportProject(project: Project, format: ExportFormat, selectionOnly = false): Promise<void> {
   const name = safeName(project.name) + (selectionOnly ? '-selection' : '')
   if (format === 'markdown') return download(markdownFromHtml(project.markdown), `${name}.md`, 'text/markdown')
@@ -97,18 +233,19 @@ export async function exportProject(project: Project, format: ExportFormat, sele
     const source = JSON.stringify({ format: 'archly-diagram', version: 1, project: { name: project.name, canvas: sourceCanvas, markdown: project.markdown } }, null, 2)
     return download(source, `${name}.archly.json`, 'application/json')
   }
-  const { toPng, toSvg } = await import('html-to-image')
-  const element = canvasElement()
-  const options = { cacheBust: true, backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--canvas-bg').trim() || '#ffffff', filter: selectionFilter(selectionOnly) }
-  const dataUrl = format === 'png' ? await toPng(element, options) : await toSvg(element, options)
-  const blob = await fetch(dataUrl).then((response) => response.blob())
+  const { toSvg } = await import('html-to-image')
+  const { element, edges, backgroundColor, options } = await renderedExportOptions(project, selectionOnly)
+  const dataUrl = await withPortableEdgeGeometry(element, edges, () => toSvg(element, options))
+  const svg = await portableSvgBlob(dataUrl)
+  const blob = format === 'png' ? await svgToPng(svg, backgroundColor) : svg
   download(blob, `${name}.${format}`)
 }
 
-export async function copyDiagramToClipboard(selectionOnly = false): Promise<void> {
+export async function copyDiagramToClipboard(project: Project, selectionOnly = false): Promise<void> {
   if (!navigator.clipboard || typeof ClipboardItem === 'undefined') throw new Error('Image clipboard access is not supported by this browser.')
-  const { toPng } = await import('html-to-image')
-  const dataUrl = await toPng(canvasElement(), { cacheBust: true, filter: selectionFilter(selectionOnly) })
-  const blob = await fetch(dataUrl).then((response) => response.blob())
+  const { toSvg } = await import('html-to-image')
+  const { element, edges, backgroundColor, options } = await renderedExportOptions(project, selectionOnly)
+  const dataUrl = await withPortableEdgeGeometry(element, edges, () => toSvg(element, options))
+  const blob = await svgToPng(await portableSvgBlob(dataUrl), backgroundColor)
   await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
 }

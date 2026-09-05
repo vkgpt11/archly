@@ -1,11 +1,13 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import CanvasWorkspace from './CanvasWorkspace'
-import { alignCanvasNodes, applyGroupAwareNodeChanges, arrangeCanvasNodes, assignNodeToContainingContainer, distributeCanvasNodes, moveSelectedCanvasNodes, reorderSelectedCanvasNodes, selectPersistentGroup } from './canvasInteractions'
+import { alignCanvasNodes, applyGroupAwareNodeChanges, arrangeCanvasNodes, assignNodeToContainingContainer, distributeCanvasNodes, equalizeSelectedCanvasNodes, moveSelectedCanvasNodes, reorderSelectedCanvasNodes, selectPersistentGroup } from './canvasInteractions'
 import { clearNodeSelection, selectOnlyEdge } from './canvasSelection'
 import { getComponentSize, getEdgeLabelWidth, truncateCanvasText } from './canvasSizing'
 import { useState } from 'react'
 import type { Edge, Node } from '@xyflow/react'
+import type { DiagramModule } from '../diagramImports'
+import type { DiagramViewState } from '../diagramViews'
 
 afterEach(() => { cleanup(); localStorage.clear() })
 
@@ -59,7 +61,201 @@ function GroupHarness() {
   </div>
 }
 
+function VariantHarness() {
+  const [nodes, setNodes] = useState<Node[]>([])
+  const [edges, setEdges] = useState<Edge[]>([])
+  const [source, setSource] = useState('')
+  const [activeVariant, setActiveVariant] = useState('')
+  return <div style={{ width: 1000, height: 700 }}>
+    <CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} diagramCode={source} onDiagramCodeChange={setSource} activeVariant={activeVariant} onActiveVariantChange={setActiveVariant} />
+    <output data-testid="variant-state">{JSON.stringify({ source, activeVariant, labels: nodes.map((node) => node.data.label) })}</output>
+  </div>
+}
+
+function ModulesHarness() {
+  const [nodes, setNodes] = useState<Node[]>([])
+  const [edges, setEdges] = useState<Edge[]>([])
+  const [source, setSource] = useState('import { shared } from "modules/module-1" version "1"')
+  const [modules, setModules] = useState<DiagramModule[]>([])
+  return <div style={{ width: 1000, height: 700 }}>
+    <CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} diagramCode={source} onDiagramCodeChange={setSource} diagramModules={modules} onDiagramModulesChange={setModules} />
+    <output data-testid="module-state">{JSON.stringify(modules)}</output>
+  </div>
+}
+
+function ViewsHarness() {
+  const source = `service client "Client"\nservice api "API"\ndatabase db "DB"\nview dataflow storage {\n include api db\n data db classification=restricted store=true\n}\nview sequence request {\n participant client\n participant api\n message client -> api : "Request" sync\n}`
+  const [nodes, setNodes] = useState<Node[]>([])
+  const [edges, setEdges] = useState<Edge[]>([])
+  const [activeView, setActiveView] = useState('')
+  const [states, setStates] = useState<Record<string, DiagramViewState>>({ request: { positions: { api: { x: 777, y: 333 } } } })
+  return <div style={{ width: 1000, height: 700 }}>
+    <CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} diagramCode={source} activeView={activeView} onActiveViewChange={setActiveView} diagramViewStates={states} onDiagramViewStatesChange={setStates} />
+    <output data-testid="view-state">{JSON.stringify({ activeView, states, nodes: nodes.map((node) => ({ id: node.id, position: node.position })), edges: edges.map((edge) => edge.label) })}</output>
+  </div>
+}
+
+function BidirectionalHarness() {
+  const [nodes, setNodes] = useState<Node[]>([
+    { id: 'api', type: 'architecture', position: { x: 10, y: 20 }, selected: true, data: { label: 'API', kind: 'service' } },
+  ])
+  const [edges, setEdges] = useState<Edge[]>([])
+  const [diagramCode, setDiagramCode] = useState('# original formatting\nservice api "API"\nposition api x=10 y=20')
+  return <div style={{ width: 1000, height: 700 }}>
+    <CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} diagramCode={diagramCode} onDiagramCodeChange={setDiagramCode} />
+    <output data-testid="diagram-source">{diagramCode}</output>
+  </div>
+}
+
 describe('CanvasWorkspace', () => {
+  it('creates, edits, and draws a project-owned diagram module', () => {
+    render(<ModulesHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))
+    fireEvent.click(screen.getByRole('button', { name: /Project modules/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Add module/ }))
+    fireEvent.change(screen.getByLabelText('Module 1 source'), { target: { value: 'export service shared "Shared API"' } })
+    expect(screen.getByTestId('module-state')).toHaveTextContent('Shared API')
+    fireEvent.click(screen.getByRole('button', { name: 'Draw diagram' }))
+    expect(screen.getByText('Shared API', { exact: true })).toBeInTheDocument()
+  })
+  it('switches named views and restores their independent layout', () => {
+    render(<ViewsHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))
+    fireEvent.change(screen.getByLabelText('Diagram view'), { target: { value: 'request' } })
+    expect(screen.getByTestId('view-state')).toHaveTextContent('"activeView":"request"')
+    expect(screen.getByTestId('view-state')).toHaveTextContent('"x":777,"y":333')
+    expect(screen.getByTestId('view-state')).toHaveTextContent('Request')
+    fireEvent.change(screen.getByLabelText('Diagram view'), { target: { value: 'storage' } })
+    expect(screen.getByTestId('view-state')).toHaveTextContent('"activeView":"storage"')
+    expect(screen.getByText('DB', { exact: true })).toBeInTheDocument()
+    expect(screen.queryByText('Client', { exact: true })).not.toBeInTheDocument()
+  })
+  it('shows architecture rule problems and selects affected elements', () => {
+    render(<VariantHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Diagram code' }), { target: { value: `region public "Public subnet" {\n  database db "Customer DB"\n}\nservice api "API"\nconnection plain api -> db : "REST"\nmetadata-edge plain protocol=REST encrypted=false` } })
+    fireEvent.click(screen.getByRole('button', { name: 'Draw diagram' }))
+    fireEvent.click(screen.getByRole('button', { name: /Problems/ }))
+    expect(screen.getByLabelText('Architecture rule problems')).toHaveTextContent('no-public-database')
+    expect(screen.getByLabelText('Architecture rule problems')).toHaveTextContent('services-must-use-tls')
+    expect(document.querySelector('.diagram-code-lines .warning')).toHaveTextContent('2')
+    fireEvent.click(screen.getByRole('button', { name: /no-public-database/ }))
+    expect(screen.getByText('Customer DB', { exact: true }).closest('.react-flow__node')).toHaveClass('selected')
+  })
+  it('selects environment variants, identifies the active environment, and preserves the last valid canvas', async () => {
+    render(<VariantHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))
+    const source = `service api "Base API"\nvariant production {\noverride api label="Production API"\n}\nvariant broken {\noverride missing label=Nope\n}`
+    fireEvent.change(screen.getByRole('textbox', { name: 'Diagram code' }), { target: { value: source } })
+    fireEvent.click(screen.getByRole('button', { name: 'Draw diagram' }))
+    expect(screen.getByLabelText('Active environment')).toHaveTextContent('Base')
+    fireEvent.change(screen.getByLabelText('Diagram environment'), { target: { value: 'production' } })
+    expect(screen.getByLabelText('Active environment')).toHaveTextContent('production')
+    expect(screen.getByText('Production API', { exact: true })).toBeInTheDocument()
+    expect(screen.getByTestId('variant-state')).toHaveTextContent('"activeVariant":"production"')
+    fireEvent.change(screen.getByLabelText('Diagram environment'), { target: { value: 'broken' } })
+    expect(screen.getByRole('alert')).toHaveTextContent('Line 6: unknown component “missing” in variant “broken”')
+    expect(screen.getByText('Production API', { exact: true })).toBeInTheDocument()
+    expect(screen.getByLabelText('Active environment')).toHaveTextContent('production')
+    expect(JSON.parse(screen.getByTestId('variant-state').textContent || '{}').source).toBe(source)
+  })
+  it('draws a diagram from code and keeps invalid code from replacing the canvas', () => {
+    const { container } = render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))
+    const editor = screen.getByLabelText('Diagram code')
+    fireEvent.change(editor, { target: { value: 'web client "Web"\nservice api "API"\nclient -> api : "HTTPS"' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Draw diagram' }))
+    expect(screen.getAllByText('Web')).toHaveLength(1)
+    expect(screen.getAllByText('API')).toHaveLength(1)
+    fireEvent.change(editor, { target: { value: 'api -> missing' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Draw diagram' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Line 1: unknown component “api”')
+    expect(container.querySelector('.diagram-code-lines .error')).toHaveTextContent('1')
+    expect(screen.getByText('API')).toBeInTheDocument()
+  })
+
+  it('synchronizes canvas edits to code and preserves source formatting after a code redraw', async () => {
+    render(<BidirectionalHarness />)
+    fireEvent.change(screen.getByLabelText('Component name'), { target: { value: 'Orders API' } })
+    await waitFor(() => expect(screen.getByTestId('diagram-source')).toHaveTextContent('service api "Orders API"'))
+    expect(screen.getByTestId('diagram-source')).toHaveTextContent('position api x=10 y=20')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))
+    const exactSource = '# keep this comment\n\nservice api "Billing API"\nposition api x=44 y=55'
+    fireEvent.change(screen.getByLabelText('Diagram code'), { target: { value: exactSource } })
+    fireEvent.click(screen.getByRole('button', { name: 'Draw diagram' }))
+    await waitFor(() => expect(screen.getByText('Billing API')).toBeInTheDocument())
+    expect(screen.getByTestId('diagram-source').textContent).toBe(exactSource)
+    expect(screen.getByLabelText('Diagram code')).toHaveValue(exactSource)
+  })
+
+  it('shows a line number for every diagram-code line', () => {
+    const { container } = render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))
+    fireEvent.change(screen.getByLabelText('Diagram code'), { target: { value: 'direction right\n\nservice api "API"' } })
+    expect([...container.querySelectorAll('.diagram-code-lines span')].map((line) => line.textContent)).toEqual(['1', '2', '3'])
+  })
+
+  it('provides accessible completion, symbol navigation, rename, formatting, commands, and quick fixes', async () => {
+    render(<VariantHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))
+    const editor = screen.getByLabelText('Diagram code') as HTMLTextAreaElement
+    const source = '# api stays in comment\nservice api "api stays in string"\ndatabase db\nconnection query api -> db'
+    fireEvent.change(editor, { target: { value: source } })
+    const reference = source.lastIndexOf('api')
+    editor.setSelectionRange(reference, reference)
+    fireEvent.select(editor)
+    expect(screen.getByLabelText('Symbol information')).toHaveTextContent('component')
+    fireEvent.click(screen.getByRole('button', { name: 'Definition' }))
+    await waitFor(() => expect(editor.selectionStart).toBe(source.indexOf('api "')))
+    fireEvent.click(screen.getByRole('button', { name: 'References' }))
+    expect(within(screen.getByLabelText('Symbol references')).getAllByRole('button')).toHaveLength(2)
+    fireEvent.click(screen.getByRole('button', { name: 'Rename' }))
+    fireEvent.change(screen.getByLabelText('New symbol name'), { target: { value: 'gateway' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply rename' }))
+    expect(editor.value).toContain('# api stays in comment')
+    expect(editor.value).toContain('"api stays in string"')
+    expect(editor.value).toContain('service gateway')
+    expect(editor.value).toContain('query gateway -> db')
+    fireEvent.change(editor, { target: { value: `${editor.value}\n` } })
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.select(editor)
+    fireEvent.keyDown(editor, { key: ' ', ctrlKey: true })
+    expect(screen.getByRole('listbox', { name: 'Code completions' })).toBeInTheDocument()
+    expect(within(screen.getByRole('listbox')).getByRole('option', { name: 'import' })).toBeInTheDocument()
+    fireEvent.keyDown(editor, { key: 'Escape' })
+    fireEvent.keyDown(editor, { key: 'p', ctrlKey: true, shiftKey: true })
+    expect(screen.getByRole('dialog', { name: 'Diagram command palette' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Format document' }))
+    expect(screen.getByText('Formatted document while preserving comments.')).toBeInTheDocument()
+    fireEvent.change(editor, { target: { value: 'api -> missing' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Draw diagram' }))
+    fireEvent.click(screen.getByRole('button', { name: /Quick fix: Declare api/ }))
+    expect(editor.value).toMatch(/^service api/)
+  })
+
+  it('inserts reusable template examples with unique names and draws their instances', () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Insert template example' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Insert template example' }))
+    expect((screen.getByLabelText('Diagram code') as HTMLTextAreaElement).value).toContain('template ServiceStack2(')
+    fireEvent.click(screen.getByRole('button', { name: 'Draw diagram' }))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getAllByText('Orders API')).toHaveLength(2)
+    expect((screen.getByLabelText('Diagram code') as HTMLTextAreaElement).value).toContain('use ServiceStack2 servicestack2(')
+  })
+
+  it('searches the shorthand reference and inserts a unique component declaration', () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))
+    fireEvent.click(screen.getByRole('button', { name: /Component reference/ }))
+    fireEvent.change(screen.getByLabelText('Search component shorthands'), { target: { value: 'lambda' } })
+    fireEvent.click(screen.getByRole('button', { name: /aws-lambda.*Lambda/i }))
+    expect((screen.getByLabelText('Diagram code') as HTMLTextAreaElement).value).toContain('aws-lambda awsLambda "AWS Lambda"')
+  })
+
+
   it('exposes active canvas tools without relying on color alone', () => {
     render(<Harness />)
     const select = screen.getByRole('button', { name: 'Select' })
@@ -203,7 +399,8 @@ describe('CanvasWorkspace', () => {
 
   it('edits a boundary title and appearance', () => {
     render(<Harness />)
-    fireEvent.click(screen.getByRole('button', { name: 'Add container' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More creation actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Container' }))
     fireEvent.click(screen.getByRole('button', { name: 'Properties' }))
     const inspector = screen.getByRole('complementary', { name: 'Properties inspector' })
     fireEvent.change(within(inspector).getByLabelText('Component property title'), { target: { value: 'Production VPC' } })
@@ -214,6 +411,37 @@ describe('CanvasWorkspace', () => {
     expect(screen.getByLabelText('Component name')).toHaveValue('Production VPC')
     expect(boundary).toHaveClass('architecture-node-container')
     expect(boundary).toHaveStyle({ background: '#102030', borderColor: '#405060', color: '#f0f1f2' })
+  })
+
+  it('organizes secondary creation actions in More and accepts managed canvas images', () => {
+    render(<Harness />)
+    expect(screen.queryByRole('menu', { name: 'More creation actions' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'More creation actions' }))
+    expect(screen.getByRole('menuitem', { name: 'Text' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Note' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Container' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Upload canvas image')).toHaveAttribute('accept', 'image/png,image/jpeg,image/webp')
+  })
+
+  it('exposes editable positions without disabling automatic sizing', () => {
+    render(<SelectedComponentHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Properties' }))
+    expect(screen.getByLabelText('Component X position')).toHaveValue(0)
+    expect(screen.getByLabelText('Component Y position')).toHaveValue(0)
+    fireEvent.change(screen.getByLabelText('Component X position'), { target: { value: '125' } })
+    fireEvent.change(screen.getByLabelText('Component property title'), { target: { value: 'A longer service title' } })
+    expect(screen.getByLabelText('Component name').closest('.react-flow__node')).toHaveStyle({ width: '82px' })
+  })
+
+  it('equalizes selected element dimensions as one durable mutation', () => {
+    const nodes = [
+      { id: 'a', position: { x: 0, y: 0 }, selected: true, data: {}, style: { width: 60, height: 40 } },
+      { id: 'b', position: { x: 100, y: 0 }, selected: true, data: {}, style: { width: 100, height: 70 } },
+    ] as Node[]
+    const equalWidth = equalizeSelectedCanvasNodes(nodes, 'width')
+    expect(equalWidth.map((node) => node.style?.width)).toEqual([100, 100])
+    expect(equalWidth.every((node) => node.data.manualSize)).toBe(true)
+    expect(equalizeSelectedCanvasNodes(nodes, 'height').map((node) => node.style?.height)).toEqual([70, 70])
   })
 
   it('adds a library component by dragging it onto the canvas', () => {
@@ -601,6 +829,29 @@ describe('CanvasWorkspace', () => {
     expect(moved[1].position).toEqual({ x: 70, y: 90 })
     const outside = assignNodeToContainingContainer(moved.map((node) => node.id === 'child' ? { ...node, position: { x: 400, y: 400 } } : node), 'child')
     expect(outside[1].data.containerId).toBeUndefined()
+  })
+
+  it('moves every nested descendant when a region moves', () => {
+    const nodes: Node[] = [
+      { id: 'region', position: { x: 0, y: 0 }, data: { kind: 'container' }, style: { width: 500, height: 400 } },
+      { id: 'vpc', position: { x: 40, y: 50 }, data: { kind: 'container', containerId: 'region' }, style: { width: 350, height: 250 } },
+      { id: 'api', position: { x: 90, y: 110 }, data: { kind: 'service', containerId: 'vpc' }, style: { width: 60, height: 42 } },
+    ]
+    const moved = applyGroupAwareNodeChanges([{ type: 'position', id: 'region', position: { x: 100, y: 80 } }], nodes)
+    expect(moved.find((node) => node.id === 'vpc')?.position).toEqual({ x: 140, y: 130 })
+    expect(moved.find((node) => node.id === 'api')?.position).toEqual({ x: 190, y: 190 })
+  })
+
+  it('assigns nested containers without creating containment cycles', () => {
+    const nodes: Node[] = [
+      { id: 'region', position: { x: 0, y: 0 }, data: { kind: 'container' }, style: { width: 500, height: 400 } },
+      { id: 'vpc', position: { x: 50, y: 50 }, data: { kind: 'container' }, style: { width: 300, height: 220 } },
+      { id: 'child', position: { x: 100, y: 100 }, data: { kind: 'service', containerId: 'vpc' }, style: { width: 60, height: 42 } },
+    ]
+    const nested = assignNodeToContainingContainer(nodes, 'vpc')
+    expect(nested.find((node) => node.id === 'vpc')?.data.containerId).toBe('region')
+    const cycleAttempt = assignNodeToContainingContainer(nested.map((node) => node.id === 'region' ? { ...node, position: { x: 70, y: 70 }, style: { width: 120, height: 100 } } : node), 'region')
+    expect(cycleAttempt.find((node) => node.id === 'region')?.data.containerId).toBeUndefined()
   })
 
   it('brings selected nodes forward and sends them backward', () => {

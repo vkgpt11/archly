@@ -1,17 +1,21 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { ApiError, api } from '../api'
 import type { Project, ProjectPage, ProjectSummary } from '../types'
-import ThemeToggle from './ThemeToggle'
+import UserMenu from './UserMenu'
+import type { AuthSession } from '../api'
 import { architectureTemplates, templateCanvas, type ArchitectureTemplate } from '../architectureTemplates'
+import { Archive, ArchiveRestore, Copy, Folder, FolderInput, FolderPlus, Plus, Trash2, X } from 'lucide-react'
 
 const Editor = lazy(() => import('./Editor'))
+const AdminDashboard = lazy(() => import('../admin/AdminDashboard'))
 const normalizeProjectPage = (response: ProjectPage | ProjectSummary[]): ProjectPage => Array.isArray(response)
   ? { items: response, page: 0, size: response.length, totalItems: response.length, totalPages: 1 }
   : response
 
-type Props = { token: string; onSignOut: () => void }
+type Props = { token: string; isAdmin?: boolean; user?: AuthSession; onSignOut: () => void }
 
-export default function Dashboard({ token, onSignOut }: Props) {
+export default function Dashboard({ token, isAdmin = false, user, onSignOut }: Props) {
+  const signedInUser = user || { email: 'developer@gmail.com', isAdmin }
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [selected, setSelected] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
@@ -20,7 +24,18 @@ export default function Dashboard({ token, onSignOut }: Props) {
   const [search, setSearch] = useState('')
   const [scope, setScope] = useState<'active' | 'archived'>('active')
   const [folder, setFolder] = useState('All')
+  const [workspaceFolders, setWorkspaceFolders] = useState<string[]>([])
   const [nextPage, setNextPage] = useState<number | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<ProjectSummary | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [adminOpen, setAdminOpen] = useState(() => window.location.hash === '#/admin')
+
+  useEffect(() => {
+    const syncAdminRoute = () => setAdminOpen(window.location.hash === '#/admin')
+    window.addEventListener('hashchange', syncAdminRoute)
+    syncAdminRoute()
+    return () => window.removeEventListener('hashchange', syncAdminRoute)
+  }, [])
 
   useEffect(() => {
     api.listProjects(token)
@@ -31,6 +46,12 @@ export default function Dashboard({ token, onSignOut }: Props) {
       })
       .catch((reason: Error) => setError(reason.message))
       .finally(() => setLoading(false))
+  }, [token])
+
+  useEffect(() => {
+    api.listProjectFolders(token)
+      .then((items) => setWorkspaceFolders(items.map((item) => item.name)))
+      .catch((reason: Error) => setError(reason.message))
   }, [token])
 
   async function loadMoreProjects() {
@@ -72,14 +93,33 @@ export default function Dashboard({ token, onSignOut }: Props) {
     } catch (reason) { setError((reason as Error).message) }
   }
 
-  async function removeProject(project: ProjectSummary) {
-    if (!window.confirm(`Delete “${project.name}”? This cannot be undone.`)) return
-    await api.deleteProject(token, project.id)
-    setProjects((current) => current.filter((item) => item.id !== project.id))
+  async function removeProject() {
+    if (!pendingDelete || deleting) return
+    setDeleting(true)
+    setError('')
+    try {
+      await api.deleteProject(token, pendingDelete.id)
+      setProjects((current) => current.filter((item) => item.id !== pendingDelete.id))
+      setPendingDelete(null)
+    } catch (reason) {
+      setError((reason as Error).message || 'The project could not be deleted. Please try again.')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   async function organizeProject(project: ProjectSummary, nextFolder: string | null, archived = Boolean(project.archived)) {
     try {
+      const knownFolder = nextFolder && [...workspaceFolders, ...projects.map((item) => item.folder).filter(Boolean)]
+        .some((item) => item?.toLowerCase() === nextFolder.toLowerCase())
+      if (nextFolder && !knownFolder) {
+        try {
+          const created = await api.createProjectFolder(token, nextFolder)
+          setWorkspaceFolders((current) => Array.from(new Set([...current, created.name])).sort((a, b) => a.localeCompare(b)))
+        } catch (reason) {
+          if (!(reason instanceof ApiError && reason.status === 409)) throw reason
+        }
+      }
       const updated = await api.organizeProject(token, project.id, nextFolder, archived, project.revision)
       setProjects((current) => current.map((item) => item.id === updated.id ? updated : item))
     } catch (reason) {
@@ -91,7 +131,18 @@ export default function Dashboard({ token, onSignOut }: Props) {
     }
   }
 
-  const folders = ['All', ...Array.from(new Set(projects.map((project) => project.folder).filter((value): value is string => Boolean(value))))]
+  async function createFolder() {
+    const requested = window.prompt('Folder name')?.trim()
+    if (!requested) return
+    setError('')
+    try {
+      const created = await api.createProjectFolder(token, requested)
+      setWorkspaceFolders((current) => Array.from(new Set([...current, created.name])).sort((a, b) => a.localeCompare(b)))
+      setFolder(created.name)
+    } catch (reason) { setError((reason as Error).message) }
+  }
+
+  const folders = ['All', ...Array.from(new Set([...workspaceFolders, ...projects.map((project) => project.folder).filter((value): value is string => Boolean(value))])).sort((a, b) => a.localeCompare(b))]
   const visibleProjects = projects.filter((project) =>
     Boolean(project.archived) === (scope === 'archived')
     && (folder === 'All' || project.folder === folder)
@@ -101,6 +152,7 @@ export default function Dashboard({ token, onSignOut }: Props) {
     return (
       <Suspense fallback={<main className="shared-error"><p>Loading editor…</p></main>}><Editor
         token={token}
+        userScope={signedInUser.email}
         initialProject={selected}
         onBack={(updated) => {
           setProjects((current) => current.map((item) => item.id === updated.id ? updated : item))
@@ -110,22 +162,30 @@ export default function Dashboard({ token, onSignOut }: Props) {
     )
   }
 
+  if (adminOpen && isAdmin) return <Suspense fallback={<main className="shared-error"><p>Loading administration…</p></main>}>
+    <AdminDashboard token={token} user={signedInUser} onSignOut={onSignOut} onBack={() => { window.location.hash = ''; setAdminOpen(false) }} />
+  </Suspense>
+
   return (
     <main className="dashboard-shell">
       <header className="topbar">
         <a className="brand" href="#" aria-label="Archly home"><span>A</span> Archly</a>
-        <ThemeToggle />
-        <button className="text-button" onClick={onSignOut}>Sign out</button>
+        {isAdmin && <button className="text-button admin-shortcut" onClick={() => { window.location.hash = '#/admin'; setAdminOpen(true) }}>Administration</button>}
+        <UserMenu token={token} user={signedInUser} onSignOut={onSignOut} onSwitchMode={isAdmin ? () => { window.location.hash = '#/admin'; setAdminOpen(true) } : undefined} />
       </header>
       <section className="dashboard-content">
         <div className="dashboard-heading">
           <div><p className="eyebrow">Your workspace</p><h1>Architecture projects</h1></div>
-          <button className="primary-button" onClick={() => setTemplatesOpen(true)}>+ New project</button>
+          <button className="primary-button icon-text-button" onClick={() => setTemplatesOpen(true)}><Plus />New project</button>
         </div>
         <div className="project-filters">
           <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search projects" aria-label="Search projects" />
           <div className="project-scope" aria-label="Project status"><button className={scope === 'active' ? 'active' : ''} onClick={() => setScope('active')}>Active</button><button className={scope === 'archived' ? 'active' : ''} onClick={() => setScope('archived')}>Archived</button></div>
-          <select aria-label="Project folder" value={folder} onChange={(event) => setFolder(event.target.value)}>{folders.map((item) => <option key={item}>{item}</option>)}</select>
+          <label className="project-folder-filter">
+            <Folder aria-hidden="true" />
+            <select aria-label="Project folder" value={folder} onChange={(event) => setFolder(event.target.value)}>{folders.map((item) => <option key={item} value={item}>{item === 'All' ? 'All folders' : item}</option>)}</select>
+          </label>
+          <button className="project-folder-add icon-text-button" onClick={() => void createFolder()}><FolderPlus />New folder</button>
         </div>
         {error && <p className="error" role="alert">{error}</p>}
         {loading ? <p className="muted">Loading projects…</p> : projects.length === 0 ? (
@@ -143,13 +203,15 @@ export default function Dashboard({ token, onSignOut }: Props) {
                 <div className="project-meta">
                   <button className="project-title" onClick={() => void openProject(project)}>{project.name}</button>
                   <p>Updated {new Date(project.updatedAt).toLocaleDateString()}</p>
-                  <button className="text-button project-copy" onClick={() => void duplicateProject(project)}>Duplicate</button>
-                  <button className="text-button" onClick={() => {
-                    const next = window.prompt('Folder name (leave blank for no folder)', project.folder || '')
-                    if (next !== null) void organizeProject(project, next.trim() || null)
-                  }}>Move</button>
-                  <button className="text-button" onClick={() => void organizeProject(project, project.folder || null, !project.archived)}>{project.archived ? 'Restore' : 'Archive'}</button>
-                  <button className="danger-link" onClick={() => removeProject(project)}>Delete</button>
+                  <div className="project-actions">
+                    <button className="text-button icon-text-button" onClick={() => void duplicateProject(project)}><Copy />Duplicate</button>
+                    <button className="text-button icon-text-button" onClick={() => {
+                      const next = window.prompt('Folder name (leave blank for no folder)', project.folder || '')
+                      if (next !== null) void organizeProject(project, next.trim() || null)
+                    }}><FolderInput />Move</button>
+                    <button className="text-button icon-text-button" onClick={() => void organizeProject(project, project.folder || null, !project.archived)}>{project.archived ? <ArchiveRestore /> : <Archive />}{project.archived ? 'Restore' : 'Archive'}</button>
+                    <button className="danger-link icon-text-button" onClick={() => setPendingDelete(project)}><Trash2 />Delete</button>
+                  </div>
                 </div>
               </article>
             ))}
@@ -159,10 +221,21 @@ export default function Dashboard({ token, onSignOut }: Props) {
         {nextPage !== null && <button className="text-button" onClick={() => void loadMoreProjects()}>Load more projects</button>}
         {templatesOpen && <div className="template-backdrop" role="presentation" onMouseDown={() => setTemplatesOpen(false)}>
           <section className="template-dialog" role="dialog" aria-modal="true" aria-labelledby="template-title" onMouseDown={(event) => event.stopPropagation()}>
-            <header><div><p className="eyebrow">New project</p><h2 id="template-title">Choose an architecture template</h2></div><button className="text-button" onClick={() => setTemplatesOpen(false)}>Close</button></header>
+            <header><div><p className="eyebrow">New project</p><h2 id="template-title">Choose an architecture template</h2></div><button className="text-button icon-text-button" onClick={() => setTemplatesOpen(false)}><X />Close</button></header>
             <div className="template-grid">{architectureTemplates.map((template) => <button key={template.id} onClick={() => void createProject(template)}>
               <strong>{template.name}</strong><span>{template.description}</span><small>{template.nodes.length ? `${template.nodes.length} editable components` : 'Empty canvas'}</small>
             </button>)}</div>
+          </section>
+        </div>}
+        {pendingDelete && <div className="modal-backdrop" onMouseDown={() => !deleting && setPendingDelete(null)}>
+          <section className="delete-project-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-project-title" aria-describedby="delete-project-description" onMouseDown={(event) => event.stopPropagation()}>
+            <p className="eyebrow">Delete project</p>
+            <h2 id="delete-project-title">Delete “{pendingDelete.name}”?</h2>
+            <p id="delete-project-description">This permanently removes the document, diagram, and active share links. This action cannot be undone.</p>
+            <div className="delete-project-actions">
+              <button className="text-button" disabled={deleting} onClick={() => setPendingDelete(null)}>Cancel</button>
+              <button className="danger-button icon-text-button" disabled={deleting} onClick={() => void removeProject()}><Trash2 />{deleting ? 'Deleting…' : 'Delete project'}</button>
+            </div>
           </section>
         </div>}
       </section>

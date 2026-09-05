@@ -12,7 +12,15 @@ export default function ProjectSharingDialog({ token, projectId, onClose }: Prop
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    api.listShares(token, projectId).then(setShares).catch((error: Error) => setMessage(error.message))
+    let active = true
+    api.listShares(token, projectId).then((listed) => {
+      if (!active) return
+      setShares((current) => {
+        const currentIds = new Set(current.map((share) => share.id))
+        return [...current, ...listed.filter((share) => !currentIds.has(share.id))]
+      })
+    }).catch((error: Error) => { if (active) setMessage(error.message) })
+    return () => { active = false }
   }, [projectId, token])
 
   async function createShare() {
