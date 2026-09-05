@@ -23,7 +23,7 @@
     "@tiptap/extension-text-style": "^2.27.2",
     "@tiptap/react": "^2.27.2",
     "@tiptap/starter-kit": "^2.27.2",
-    "@xyflow/react": "^12.3.6",
+    "@xyflow/react": "^12.11.5",
     "aws-react-icons": "^3.3.0",
     "html-to-image": "^1.11.13",
     "lowlight": "^3.3.0",
