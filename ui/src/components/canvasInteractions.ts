@@ -1,4 +1,5 @@
 import { applyNodeChanges, type Edge, type Node, type NodeChange } from '@xyflow/react'
+import { fitDiagramBoundaries } from '../diagramLayout'
 
 export type Alignment = 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom'
 
@@ -37,12 +38,21 @@ export function applyGroupAwareNodeChanges(changes: NodeChange[], nodes: Node[])
     const moved = nodes.find((node) => node.id === change.id)
     if (moved?.data?.kind !== 'container') continue
     const delta = { x: change.position.x - moved.position.x, y: change.position.y - moved.position.y }
-    for (const child of nodes.filter((node) => node.data?.containerId === moved.id && !changedIds.has(node.id))) {
+    const descendants = nodes.filter((node) => {
+      let parentId = node.data?.containerId
+      while (parentId) {
+        if (parentId === moved.id) return true
+        parentId = nodes.find((candidate) => candidate.id === parentId)?.data?.containerId
+      }
+      return false
+    })
+    for (const child of descendants.filter((node) => !changedIds.has(node.id))) {
       expanded.push({ type: 'position', id: child.id, dragging: change.dragging, position: { x: child.position.x + delta.x, y: child.position.y + delta.y } })
       changedIds.add(child.id)
     }
   }
-  return applyNodeChanges(expanded, nodes)
+  const next = applyNodeChanges(expanded, nodes)
+  return changes.some((change) => change.type === 'position') && nodes.some((node) => node.data.boundaryType) ? fitDiagramBoundaries(next) : next
 }
 
 function nodeSize(node: Node) {
@@ -51,10 +61,15 @@ function nodeSize(node: Node) {
 
 export function assignNodeToContainingContainer(nodes: Node[], nodeId: string): Node[] {
   const moved = nodes.find((node) => node.id === nodeId)
-  if (!moved || moved.data?.kind === 'container') return nodes
+  if (!moved) return nodes
   const size = nodeSize(moved)
   const center = { x: moved.position.x + size.width / 2, y: moved.position.y + size.height / 2 }
   const containers = nodes.filter((node) => node.id !== nodeId && node.data?.kind === 'container').filter((node) => {
+    let parentId = node.data?.containerId
+    while (parentId) {
+      if (parentId === nodeId) return false
+      parentId = nodes.find((candidate) => candidate.id === parentId)?.data?.containerId
+    }
     const bounds = nodeSize(node)
     return center.x >= node.position.x && center.x <= node.position.x + bounds.width
       && center.y >= node.position.y && center.y <= node.position.y + bounds.height
@@ -77,6 +92,18 @@ export function reorderSelectedCanvasNodes(nodes: Node[], direction: 'front' | '
   const zValues = nodes.map((node) => Number(node.zIndex || 0))
   const zIndex = direction === 'front' ? Math.max(...zValues) + 1 : Math.min(...zValues) - 1
   return nodes.map((node) => node.selected ? { ...node, zIndex } : node)
+}
+
+export function equalizeSelectedCanvasNodes(nodes: Node[], dimension: 'width' | 'height'): Node[] {
+  const selected = nodes.filter((node) => node.selected && !node.data?.locked)
+  if (selected.length < 2) return nodes
+  const value = Math.max(...selected.map((node) => Number(node.measured?.[dimension] || node[dimension] || node.style?.[dimension] || 0)))
+  return nodes.map((node) => !selected.some((selectedNode) => selectedNode.id === node.id) ? node : {
+    ...node,
+    [dimension]: value,
+    style: { ...node.style, [dimension]: value },
+    data: { ...node.data, manualSize: true },
+  })
 }
 
 export function alignCanvasNodes(nodes: Node[], alignment: Alignment): Node[] {

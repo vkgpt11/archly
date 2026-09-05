@@ -19,6 +19,7 @@
         <jackson-bom.version>2.21.6</jackson-bom.version>
         <log4j2.version>2.25.5</log4j2.version>
         <postgresql.version>42.7.12</postgresql.version>
+        <tomcat.version>10.1.59</tomcat.version>
     </properties>
     <dependencies>
         <dependency>
