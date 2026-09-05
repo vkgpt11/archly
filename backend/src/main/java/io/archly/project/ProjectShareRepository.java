@@ -12,6 +12,7 @@ public interface ProjectShareRepository extends JpaRepository<ProjectShare, UUID
     Optional<ProjectShare> findByTokenHashAndRevokedFalse(String tokenHash);
     List<ProjectShare> findAllByProjectIdOrderByCreatedAtDesc(UUID projectId);
     Optional<ProjectShare> findByIdAndProjectId(UUID id, UUID projectId);
+    void deleteAllByProjectId(UUID projectId);
     long countByProjectIdAndRevokedFalseAndExpiresAtAfter(UUID projectId, Instant now);
     @Modifying
     @Query("delete from ProjectShare s where (s.revoked = true and s.revokedAt < :cutoff) or s.expiresAt < :cutoff")

@@ -1,0 +1,35 @@
+substitutions:
+  _API_URL: https://archly-api-imxryazwwq-de.a.run.app/api
+  _GOOGLE_CLIENT_ID: 222938267134-rcss0fnu7snhe4tmi1c1vlr9htoruif2.apps.googleusercontent.com
+
+steps:
+  - name: node:22
+    dir: ui
+    entrypoint: bash
+    env:
+      - VITE_API_URL=${_API_URL}
+      - VITE_GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}
+      - VITE_DEV_AUTH=false
+    args:
+      - -ceu
+      - |
+        npm ci
+        npm run build
+
+  - name: node:22
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        rm -rf deployment/gcp/site
+        cp -R ui/dist deployment/gcp/site
+        npx --yes firebase-tools@15.28.2 deploy \
+          --project archly-prod-123 \
+          --config deployment/gcp/firebase.json \
+          --only hosting,storage \
+          --non-interactive
+
+serviceAccount: projects/archly-prod-123/serviceAccounts/archly-deployer@archly-prod-123.iam.gserviceaccount.com
+
+options:
+  logging: CLOUD_LOGGING_ONLY

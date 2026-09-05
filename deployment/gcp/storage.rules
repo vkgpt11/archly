@@ -1,0 +1,10 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Image persistence is intentionally disabled until the backend-mediated
+    // upload flow, ownership checks, quotas, and deletion lifecycle exist.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
