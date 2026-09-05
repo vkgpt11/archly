@@ -234,7 +234,8 @@ V3 is ready for release when:
 
 ## 17. Out of scope unless separately approved
 
-- AI-generated diagrams or documentation.
+- AI-generated diagrams or documentation, except when separately approved and
+  delivered under [AI Diagram Generation Requirements](requirements-ai-diagram-generation.md).
 - Real-time multiplayer editing, comments, mentions, and notifications.
 - Enterprise SSO, organization administration, billing, and subscriptions.
 - Native desktop or mobile editing applications.

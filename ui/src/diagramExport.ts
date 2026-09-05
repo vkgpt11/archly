@@ -17,6 +17,10 @@ function download(data: string | Blob, filename: string, type?: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1_000)
 }
 
+export function downloadTextExport(text: string, name: string, extension: string) {
+  download(text, `${safeName(name)}.${extension}`, 'text/plain;charset=utf-8')
+}
+
 export function markdownFromHtml(html: string): string {
   const documentNode = new DOMParser().parseFromString(html, 'text/html')
   const escapeText = (value: string) => value.replace(/([\\`*_[\]<>#+.!|~-])/g, '\\$1')
@@ -162,14 +166,14 @@ async function withPortableEdgeGeometry<T>(element: HTMLElement, edges: Array<{ 
       edge,
     }]
   })
-  const arrows: SVGPolygonElement[] = []
+  const arrows: (SVGPolygonElement | SVGPolylineElement)[] = []
   for (const { path, hasStart, hasEnd, edge } of originals) {
     const length = path.getTotalLength()
     if (!length || !path.parentNode) continue
     const computed = getComputedStyle(path)
     const computedStroke = computed.stroke
     const stroke = edge?.style?.stroke || (computedStroke && computedStroke !== 'none' && computedStroke !== 'transparent' ? computedStroke : '#68708a')
-    const strokeWidth = Math.max(1.5, Number(edge?.style?.strokeWidth) || Number.parseFloat(computed.strokeWidth) || 1.5)
+    const strokeWidth = edge?.style?.strokeWidth !== undefined ? Math.max(0.5, Number(edge.style.strokeWidth) || 1.5) : Math.max(1.5, Number.parseFloat(computed.strokeWidth) || 1.5)
     path.setAttribute('fill', 'none')
     path.setAttribute('stroke', stroke)
     path.setAttribute('stroke-width', String(strokeWidth))
@@ -185,10 +189,12 @@ async function withPortableEdgeGeometry<T>(element: HTMLElement, edges: Array<{ 
       const angle = atStart
         ? Math.atan2(tip.y - inside.y, tip.x - inside.x) * 180 / Math.PI
         : Math.atan2(tip.y - inside.y, tip.x - inside.x) * 180 / Math.PI
-      const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon')
-      polygon.setAttribute('points', `0,0 ${-arrowLength},${-arrowHalfWidth} ${-arrowLength},${arrowHalfWidth}`)
+      const marker = (atStart ? edge?.markerStart : edge?.markerEnd) as { type?: string } | undefined
+      const open = marker?.type === 'arrow'
+      const polygon = document.createElementNS('http://www.w3.org/2000/svg', open ? 'polyline' : 'polygon')
+      polygon.setAttribute('points', open ? `${-arrowLength},${-arrowHalfWidth} 0,0 ${-arrowLength},${arrowHalfWidth}` : `0,0 ${-arrowLength},${-arrowHalfWidth} ${-arrowLength},${arrowHalfWidth}`)
       polygon.setAttribute('transform', `translate(${tip.x} ${tip.y}) rotate(${angle})`)
-      polygon.setAttribute('fill', stroke)
+      polygon.setAttribute('fill', open ? 'none' : stroke)
       polygon.setAttribute('stroke', stroke)
       polygon.setAttribute('stroke-width', String(Math.max(1, strokeWidth * .6)))
       polygon.setAttribute('stroke-linejoin', 'round')

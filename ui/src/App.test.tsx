@@ -84,11 +84,13 @@ describe('App', () => {
       'Local developer sign-in failed. Start the API with ARCHLY_AUTH_DEV_BYPASS=true and try again.')
   })
 
-  it('restores a cookie session after startup and clears it on sign out', async () => {
+  it('restores an authenticated cookie session after startup and clears it on sign out', async () => {
     apiMocks.restoreSession.mockResolvedValue({ email: 'owner@gmail.com', isAdmin: false })
     render(<App />)
+
     expect(await screen.findByRole('heading', { name: 'Restored dashboard' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+
     expect(await screen.findByRole('heading', { name: /build systems people understand/i })).toBeInTheDocument()
     expect(apiMocks.logout).toHaveBeenCalledOnce()
   })
