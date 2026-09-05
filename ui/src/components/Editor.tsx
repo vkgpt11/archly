@@ -12,7 +12,7 @@ import { common, createLowlight } from 'lowlight'
 import {
   Bold, Code2, Heading1, Heading2, Italic, Link2, List, ListOrdered,
   Highlighter, ImagePlus, Palette, Quote, Redo2, RotateCcw, SquareCode, Strikethrough, Undo2,
-  Download, Share2,
+  Download, Share2, Sparkles,
 } from 'lucide-react'
 import { ApiError, api } from '../api'
 import type { CanvasData, Project } from '../types'
@@ -28,9 +28,10 @@ const CanvasWorkspace = lazy(() => import('./CanvasWorkspace'))
 const ProjectSharingDialog = lazy(() => import('./ProjectSharingDialog'))
 const ProjectExportDialog = lazy(() => import('./ProjectExportDialog'))
 const SaveConflictDialog = lazy(() => import('./SaveConflictDialog'))
+const GenerateDiagramDialog = lazy(() => import('./GenerateDiagramDialog'))
 
 type View = 'canvas' | 'document' | 'split'
-type Props = { token?: string; shareToken?: string; initialProject: Project; onBack?: (project: Project) => void }
+type Props = { token?: string; shareToken?: string; initialProject: Project; onBack?: (project: Project) => void; userScope?: string }
 type SaveState = 'saved' | 'saving' | 'error' | 'offline' | 'conflict'
 type SaveConflict = { local: ProjectDraft; server: Project }
 
@@ -112,7 +113,7 @@ function readScreenshot(file: File): Promise<string> {
   })
 }
 
-export default function Editor({ token = '', shareToken, initialProject, onBack }: Props) {
+export default function Editor({ token = '', shareToken, initialProject, onBack, userScope }: Props) {
   const tabId = useRef(currentTabId()).current
   const [recovery] = useState(() => {
     const draft = loadDraft(initialProject.id, tabId)
@@ -154,6 +155,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
   const [imageError, setImageError] = useState('')
   const [shareOpen, setShareOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const [generateOpen, setGenerateOpen] = useState(false)
   const [canvasLoadError, setCanvasLoadError] = useState(canvasLoad.error)
   const [saveState, setSaveState] = useState<SaveState>(recovery.mode === 'conflict' ? 'conflict' : recovery.mode === 'resume' ? 'saving' : 'saved')
   const [conflict, setConflict] = useState<SaveConflict | null>(() => recovery.mode === 'conflict' ? { local: recovery.draft!, server: initialProject } : null)
@@ -453,6 +455,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
           ))}
         </div>
         <div className="editor-header-right">
+          {!shareToken && <button className="header-action generate-action" onClick={() => setGenerateOpen(true)} aria-label="Generate architecture diagram"><Sparkles />Generate</button>}
           {!shareToken && <button className="header-action" onClick={() => setShareOpen(true)} aria-label="Share project"><Share2 />Share</button>}
           <button className="header-action" onClick={() => setExportOpen(true)} aria-label="Export project"><Download />Export</button>
           <ThemeToggle />
@@ -546,12 +549,20 @@ export default function Editor({ token = '', shareToken, initialProject, onBack 
         )}
         {showCanvas && (
           <section className="canvas-panel" style={view === 'split' ? { flexBasis: `${100 - documentWidth}%` } : undefined}>
-            <Suspense fallback={<p className="muted">Loading canvas…</p>}><CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} viewport={viewport} onViewportChange={setViewport} diagramCode={diagramCode} onDiagramCodeChange={setDiagramCode} activeVariant={activeVariant} onActiveVariantChange={setActiveVariant} diagramModules={diagramModules} onDiagramModulesChange={setDiagramModules} activeView={activeView} onActiveViewChange={setActiveView} diagramViewStates={diagramViewStates} onDiagramViewStatesChange={setDiagramViewStates} /></Suspense>
+            <Suspense fallback={<p className="muted">Loading canvas…</p>}><CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} viewport={viewport} onViewportChange={setViewport} diagramCode={diagramCode} onDiagramCodeChange={setDiagramCode} activeVariant={activeVariant} onActiveVariantChange={setActiveVariant} diagramModules={diagramModules} onDiagramModulesChange={setDiagramModules} activeView={activeView} onActiveViewChange={setActiveView} diagramViewStates={diagramViewStates} onDiagramViewStatesChange={setDiagramViewStates} userScope={userScope} /></Suspense>
           </section>
         )}
       </div>
       {shareOpen && <Suspense fallback={null}><ProjectSharingDialog token={token} projectId={project.id} onClose={() => setShareOpen(false)} /></Suspense>}
       {exportOpen && <Suspense fallback={null}><ProjectExportDialog project={latestProject.current} nodes={nodes} edges={edges} viewport={viewport} activeVariant={activeVariant} onClose={() => setExportOpen(false)} /></Suspense>}
+      {generateOpen && <Suspense fallback={null}><GenerateDiagramDialog token={token} onClose={() => setGenerateOpen(false)} onGenerated={(canvas) => {
+        setNodes(canvas.nodes)
+        setEdges(canvas.edges)
+        setViewport(canvas.viewport || { x: 0, y: 0, zoom: 1 })
+        setDiagramCode('')
+        setView('canvas')
+        setGenerateOpen(false)
+      }} /></Suspense>}
       {conflict && <Suspense fallback={null}><SaveConflictDialog conflict={conflict} onRetry={retryStaleSave} onUseServer={useServerVersion} onKeepLocal={keepLocalVersion} /></Suspense>}
     </main>
   )

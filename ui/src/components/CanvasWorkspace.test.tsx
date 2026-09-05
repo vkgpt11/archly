@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import CanvasWorkspace from './CanvasWorkspace'
-import { alignCanvasNodes, applyGroupAwareNodeChanges, arrangeCanvasNodes, assignNodeToContainingContainer, distributeCanvasNodes, moveSelectedCanvasNodes, reorderSelectedCanvasNodes, selectPersistentGroup } from './canvasInteractions'
+import { alignCanvasNodes, applyGroupAwareNodeChanges, arrangeCanvasNodes, assignNodeToContainingContainer, distributeCanvasNodes, equalizeSelectedCanvasNodes, moveSelectedCanvasNodes, reorderSelectedCanvasNodes, selectPersistentGroup } from './canvasInteractions'
 import { clearNodeSelection, selectOnlyEdge } from './canvasSelection'
 import { getComponentSize, getEdgeLabelWidth, truncateCanvasText } from './canvasSizing'
 import { useState } from 'react'
@@ -387,7 +387,8 @@ describe('CanvasWorkspace', () => {
 
   it('edits a boundary title and appearance', () => {
     render(<Harness />)
-    fireEvent.click(screen.getByRole('button', { name: 'Add container' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More creation actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Container' }))
     fireEvent.click(screen.getByRole('button', { name: 'Properties' }))
     const inspector = screen.getByRole('complementary', { name: 'Properties inspector' })
     fireEvent.change(within(inspector).getByLabelText('Component property title'), { target: { value: 'Production VPC' } })
@@ -398,6 +399,37 @@ describe('CanvasWorkspace', () => {
     expect(screen.getByLabelText('Component name')).toHaveValue('Production VPC')
     expect(boundary).toHaveClass('architecture-node-container')
     expect(boundary).toHaveStyle({ background: '#102030', borderColor: '#405060', color: '#f0f1f2' })
+  })
+
+  it('organizes secondary creation actions in More and accepts managed canvas images', () => {
+    render(<Harness />)
+    expect(screen.queryByRole('menu', { name: 'More creation actions' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'More creation actions' }))
+    expect(screen.getByRole('menuitem', { name: 'Text' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Note' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Container' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Upload canvas image')).toHaveAttribute('accept', 'image/png,image/jpeg,image/webp')
+  })
+
+  it('exposes editable positions without disabling automatic sizing', () => {
+    render(<SelectedComponentHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Properties' }))
+    expect(screen.getByLabelText('Component X position')).toHaveValue(0)
+    expect(screen.getByLabelText('Component Y position')).toHaveValue(0)
+    fireEvent.change(screen.getByLabelText('Component X position'), { target: { value: '125' } })
+    fireEvent.change(screen.getByLabelText('Component property title'), { target: { value: 'A longer service title' } })
+    expect(screen.getByLabelText('Component name').closest('.react-flow__node')).toHaveStyle({ width: '82px' })
+  })
+
+  it('equalizes selected element dimensions as one durable mutation', () => {
+    const nodes = [
+      { id: 'a', position: { x: 0, y: 0 }, selected: true, data: {}, style: { width: 60, height: 40 } },
+      { id: 'b', position: { x: 100, y: 0 }, selected: true, data: {}, style: { width: 100, height: 70 } },
+    ] as Node[]
+    const equalWidth = equalizeSelectedCanvasNodes(nodes, 'width')
+    expect(equalWidth.map((node) => node.style?.width)).toEqual([100, 100])
+    expect(equalWidth.every((node) => node.data.manualSize)).toBe(true)
+    expect(equalizeSelectedCanvasNodes(nodes, 'height').map((node) => node.style?.height)).toEqual([70, 70])
   })
 
   it('adds a library component by dragging it onto the canvas', () => {

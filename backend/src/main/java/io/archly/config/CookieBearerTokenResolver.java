@@ -7,14 +7,16 @@ import org.springframework.security.oauth2.server.resource.web.DefaultBearerToke
 
 final class CookieBearerTokenResolver implements BearerTokenResolver {
     static final String COOKIE_NAME = "ARCHLY_AUTH";
-    private final DefaultBearerTokenResolver header = new DefaultBearerTokenResolver();
+    private final DefaultBearerTokenResolver authorizationHeader = new DefaultBearerTokenResolver();
 
-    @Override public String resolve(HttpServletRequest request) {
-        String token = header.resolve(request);
-        if (token != null) return token;
+    @Override
+    public String resolve(HttpServletRequest request) {
+        String headerToken = authorizationHeader.resolve(request);
+        if (headerToken != null) return headerToken;
         if (request.getCookies() == null) return null;
-        for (Cookie cookie : request.getCookies())
+        for (Cookie cookie : request.getCookies()) {
             if (COOKIE_NAME.equals(cookie.getName()) && !cookie.getValue().isBlank()) return cookie.getValue();
+        }
         return null;
     }
 }

@@ -39,6 +39,14 @@ npm run dev
 
 Open `http://localhost:5173`.
 
+### AI diagram generation
+
+Set `ARCHLY_AI_ENCRYPTION_KEY` to a base64-encoded 32-byte key on the backend.
+Users can then save their own OpenAI model and API key under **Profile →
+Settings → AI provider**. Personal API keys are encrypted at rest and are never
+returned to the browser. The compatible Responses API endpoint can be
+overridden globally with `OPENAI_BASE_URL`.
+
 ### Local authentication bypass
 
 For local debugging without Google, start the backend with `ARCHLY_AUTH_DEV_BYPASS=true` and the UI with `VITE_DEV_AUTH=true`. This exposes a **Continue as local developer** button and accepts only the fixed local token used by that button. Both flags default to `false` and must never be enabled in a deployed environment.
