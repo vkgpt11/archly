@@ -20,6 +20,7 @@ services:
       DATABASE_USERNAME: archly
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-archly-local-password}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      ARCHLY_AUTH_DEV_BYPASS: ${ARCHLY_AUTH_DEV_BYPASS:-false}
       UI_ORIGINS: http://localhost:8088,http://127.0.0.1:8088
     depends_on:
       database:
@@ -36,6 +37,7 @@ services:
       args:
         VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
         VITE_API_URL: /api
+        VITE_DEV_AUTH: ${VITE_DEV_AUTH:-false}
     ports:
       - "8088:80"
     depends_on:

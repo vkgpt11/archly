@@ -8,11 +8,25 @@ updates:
     groups:
       development-tooling:
         dependency-type: development
+    ignore:
+      # Major UI/tooling releases have coupled peer requirements and need planned migrations.
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
   - package-ecosystem: maven
     directory: /backend
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # Spring Boot major releases move packages and require an explicit migration.
+      - dependency-name: org.springframework.boot:spring-boot-starter-parent
+        update-types:
+          - version-update:semver-major
+      # Springdoc major releases track Spring Boot major compatibility.
+      - dependency-name: org.springdoc:springdoc-openapi-starter-webmvc-ui
+        update-types:
+          - version-update:semver-major
   - package-ecosystem: github-actions
     directory: /
     schedule:

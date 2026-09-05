@@ -2,6 +2,9 @@
 node_modules/
 dist/
 .vite/
+test-results/
+playwright-report/
+deployment/gcp/site/
 
 # Java
 target/
@@ -19,6 +22,7 @@ backend/data/
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 # Operating system
 .DS_Store

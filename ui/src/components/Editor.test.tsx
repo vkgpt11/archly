@@ -182,8 +182,9 @@ describe('Editor conflict recovery', () => {
     expect(await screen.findByRole('dialog', { name: 'Share project' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Create link' }))
     expect(await screen.findByLabelText('New share link')).toHaveValue(`${window.location.origin}/share/public-token`)
-    fireEvent.click(screen.getByRole('button', { name: 'Revoke' }))
-    expect(apiMocks.revokeShare).toHaveBeenCalledWith('token', initialProject.id, 'share-1')
+    fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }))
+    await waitFor(() => expect(apiMocks.revokeShare).toHaveBeenCalledWith('token', initialProject.id, 'share-1'))
+    expect(await screen.findByText('Revoked')).toBeInTheDocument()
   })
 
   it('offers every required export target and selection-only mode', async () => {
