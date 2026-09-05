@@ -18,11 +18,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.jwt.JwtValidationException;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.util.List;
+import java.time.Instant;
+import jakarta.servlet.http.Cookie;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -32,11 +35,30 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 class ProjectControllerTest {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper objectMapper;
-    @MockBean JwtDecoder jwtDecoder;
+    @MockitoBean JwtDecoder jwtDecoder;
 
     @Test
     void requiresAuthentication() throws Exception {
         mvc.perform(get("/api/projects")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void createsAndListsPersistentProjectFolders() throws Exception {
+        var identity = jwt().jwt(token -> token.claim("email", "folders@gmail.com"));
+        mvc.perform(post("/api/project-folders").with(identity)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Production\"}"))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.name").value("Production"));
+
+        mvc.perform(get("/api/project-folders").with(identity))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].name").value("Production"));
+
+        mvc.perform(post("/api/project-folders").with(identity)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"production\"}"))
+            .andExpect(status().isConflict());
     }
 
     @Test
@@ -58,7 +80,27 @@ class ProjectControllerTest {
         mvc.perform(get("/api/auth/session")
                 .with(jwt().jwt(token -> token.claim("email", "owner@gmail.com"))))
             .andExpect(status().isOk())
+            .andExpect(header().string("Set-Cookie", org.hamcrest.Matchers.containsString("ARCHLY_AUTH=")))
+            .andExpect(header().string("Set-Cookie", org.hamcrest.Matchers.containsString("HttpOnly")))
             .andExpect(jsonPath("$.email").value("owner@gmail.com"));
+    }
+
+    @Test
+    void restoresAuthenticationFromHttpOnlyCookieAndClearsItOnLogout() throws Exception {
+        Instant now = Instant.now();
+        Jwt cookieIdentity = Jwt.withTokenValue("cookie-token")
+            .header("alg", "test").subject("cookie-subject")
+            .claim("email", "cookie@gmail.com").issuedAt(now).expiresAt(now.plusSeconds(600)).build();
+        when(jwtDecoder.decode("cookie-token")).thenReturn(cookieIdentity);
+
+        mvc.perform(get("/api/projects").cookie(new Cookie("ARCHLY_AUTH", "cookie-token")))
+            .andExpect(status().isOk());
+
+        mvc.perform(post("/api/auth/logout").cookie(new Cookie("ARCHLY_AUTH", "cookie-token")))
+            .andExpect(status().isNoContent())
+            .andExpect(header().string("Set-Cookie", org.hamcrest.Matchers.allOf(
+                org.hamcrest.Matchers.containsString("ARCHLY_AUTH="),
+                org.hamcrest.Matchers.containsString("Max-Age=0"))));
     }
 
     @Test
@@ -68,7 +110,8 @@ class ProjectControllerTest {
                 .header("Access-Control-Request-Method", "POST")
                 .header("Access-Control-Request-Headers", "authorization,content-type"))
             .andExpect(status().isOk())
-            .andExpect(header().string("Access-Control-Allow-Origin", "http://127.0.0.1:5173"));
+            .andExpect(header().string("Access-Control-Allow-Origin", "http://127.0.0.1:5173"))
+            .andExpect(header().string("Access-Control-Allow-Credentials", "true"));
     }
 
     @Test

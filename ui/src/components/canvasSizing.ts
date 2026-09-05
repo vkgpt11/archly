@@ -1,4 +1,4 @@
-export type ArchitectureKind = 'service' | 'web' | 'mobile' | 'database' | 'cache' | 'queue' | 'storage' | 'external' | 'actor' | 'container' | 'note' | 'text' | 'custom'
+export type ArchitectureKind = 'service' | 'web' | 'mobile' | 'database' | 'cache' | 'queue' | 'storage' | 'external' | 'actor' | 'container' | 'note' | 'text' | 'image' | 'custom'
 
 export const COMPONENT_TITLE_LIMIT = 50
 
@@ -13,6 +13,7 @@ export function getEdgeLabelWidth(label: string) {
 
 export function getComponentSize(label: string, kind: ArchitectureKind) {
   if (kind === 'container') return { width: 360, height: 240 }
+  if (kind === 'image') return { width: 240, height: 160 }
   const visibleLabel = truncateCanvasText(label.trim(), COMPONENT_TITLE_LIMIT)
   const sizedLabel = kind !== 'text' && kind !== 'note' ? visibleLabel.replace(/\s*[\r\n]+\s*/g, ' ') : visibleLabel
   const labelLines = sizedLabel.split(/\r?\n/)
