@@ -83,6 +83,10 @@ import DiagramLayoutPanel from './DiagramLayoutPanel'
 import { descendantIds, fitDiagramBoundaries } from '../diagramLayout'
 import { boundaryTypes, validateBoundaries } from '../diagramBoundaries'
 import { connectionMetadata, connectionProtocols } from '../diagramConnections'
+import { compileVariantSource } from '../diagramVariants'
+import DiagramCodeEditor from './DiagramCodeEditor'
+import type { DiagramModule } from '../diagramImports'
+import { applyViewState, compileDiagramViews, type DiagramViewState } from '../diagramViews'
 
 type CanvasTool = 'select' | 'pan' | 'connect'
 
@@ -106,6 +110,13 @@ type ArchitectureNodeData = {
   boundaryType?: string
   boundaryIdentifier?: string
   provider?: string
+  diagramViewKind?: string
+  dataClassification?: string
+  dataStore?: boolean
+  processingStep?: string
+  trustBoundary?: string
+  sequenceNotes?: string[]
+  sequenceActivations?: { action: string; order: number }[]
   imageSrc?: string
   alt?: string
   collapsed?: boolean
@@ -131,6 +142,14 @@ type Props = {
   onViewportChange?: (viewport: Viewport) => void
   diagramCode?: string
   onDiagramCodeChange?: (source: string) => void
+  activeVariant?: string
+  onActiveVariantChange?: (variant: string) => void
+  diagramModules?: DiagramModule[]
+  onDiagramModulesChange?: (modules: DiagramModule[]) => void
+  activeView?: string
+  onActiveViewChange?: (view: string) => void
+  diagramViewStates?: Record<string, DiagramViewState>
+  onDiagramViewStatesChange?: (states: Record<string, DiagramViewState>) => void
   userScope?: string
 }
 
@@ -291,6 +310,8 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
           rows={Math.min(2, Math.max(1, Math.round((getComponentSize(label, kind).height - 42) / 12) + 1))} /> : <strong>{truncateCanvasText(data.label || (kind === 'image' ? data.alt : '') || 'Untitled component', COMPONENT_TITLE_LIMIT)}</strong>}
         {kind === 'container' && data.collapsed && <small>{String(data.hiddenCount || 0)} hidden</small>}
       </div>
+      {data.diagramViewKind === 'dataflow' && <small className="view-node-metadata">{[data.dataClassification, data.dataStore ? 'data store' : '', data.processingStep, data.trustBoundary].filter(Boolean).join(' · ')}</small>}
+      {data.diagramViewKind === 'sequence' && Boolean(data.sequenceNotes?.length || data.sequenceActivations?.length) && <small className="view-node-metadata">{[...(data.sequenceNotes || []), ...(data.sequenceActivations || []).map((item) => item.action)].join(' · ')}</small>}
       {kind !== 'text' && kind !== 'note' && kind !== 'container' && kind !== 'image' && (
         <>
           <BidirectionalHandle position={Position.Left} id="left" />
@@ -318,6 +339,9 @@ function EditableConnectionEdge(props: EdgeProps<Edge>) {
       ? getBezierPath(pathArgs)
       : getSmoothStepPath({ ...pathArgs, borderRadius: routing === 'orthogonal' ? 0 : 5 })
   const label = String(props.label || '')
+  const sequenceLabel = props.data?.sequenceOrder
+    ? `${props.data.sequenceOrder}. ${props.data.messageType === 'return' ? 'return ' : props.data.async ? 'async ' : ''}${label}${props.data.alternative ? ` [${props.data.alternative}]` : ''}`
+    : label
 
   function selectThisEdge() {
     setNodes(clearNodeSelection)
@@ -330,7 +354,7 @@ function EditableConnectionEdge(props: EdgeProps<Edge>) {
       <input
         className={`edge-inline-label nodrag nopan${props.selected ? ' selected' : ''}`}
         aria-label="Line text"
-        value={label}
+        value={props.selected ? label : sequenceLabel}
         onFocus={() => { selectThisEdge(); if (!editing.current) history.remember(); editing.current = true }}
         onPointerDown={(event) => { event.stopPropagation(); selectThisEdge() }}
         onChange={(event) => updateEdge(props.id, { label: event.target.value })}
@@ -338,7 +362,7 @@ function EditableConnectionEdge(props: EdgeProps<Edge>) {
         placeholder="Add label"
         style={{
           transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-          width: `${getEdgeLabelWidth(label)}px`,
+          width: `${getEdgeLabelWidth(props.selected ? label : sequenceLabel)}px`,
         }}
       />
     </EdgeLabelRenderer>}
@@ -347,6 +371,8 @@ function EditableConnectionEdge(props: EdgeProps<Edge>) {
 
 const NODE_TYPES = { architecture: ArchitectureNode }
 const EDGE_TYPES = { editable: EditableConnectionEdge }
+const EMPTY_DIAGRAM_MODULES: DiagramModule[] = []
+const EMPTY_VIEW_STATES: Record<string, DiagramViewState> = {}
 const supportedKindNames = new Set(['service', 'web', 'mobile', 'database', 'cache', 'queue', 'storage', 'external', 'actor', 'container', 'note', 'text', 'image', 'custom'])
 
 function normalizedNode(node: Node): Node {
@@ -359,7 +385,7 @@ function normalizedNode(node: Node): Node {
   }
 }
 
-function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onViewportChange, diagramCode: initialDiagramCode = '', onDiagramCodeChange, userScope }: Props) {
+function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onViewportChange, diagramCode: initialDiagramCode = '', onDiagramCodeChange, activeVariant: initialActiveVariant = '', onActiveVariantChange, diagramModules: initialDiagramModules = EMPTY_DIAGRAM_MODULES, onDiagramModulesChange, activeView: initialActiveView = '', onActiveViewChange, diagramViewStates = EMPTY_VIEW_STATES, onDiagramViewStatesChange, userScope }: Props) {
   const flow = useReactFlow()
   const [tool, setTool] = useState<CanvasTool>('select')
   const [libraryOpen, setLibraryOpen] = useState(false)
@@ -369,6 +395,10 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
   const [codeOpen, setCodeOpen] = useState(false)
   const [layoutOpen, setLayoutOpen] = useState(false)
   const [diagramCode, setDiagramCode] = useState(initialDiagramCode)
+  const [activeVariant, setActiveVariant] = useState(initialActiveVariant)
+  const [diagramModules, setDiagramModules] = useState(initialDiagramModules)
+  const [modulesOpen, setModulesOpen] = useState(false)
+  const [activeView, setActiveView] = useState(initialActiveView)
   const [codeError, setCodeError] = useState('')
   const [mutationError, setMutationError] = useState('')
   const [livePreview, setLivePreview] = useState(false)
@@ -396,14 +426,25 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
   useEffect(() => { nodesRef.current = nodes }, [nodes])
   useEffect(() => { edgesRef.current = edges }, [edges])
   useEffect(() => { setDiagramCode(initialDiagramCode) }, [initialDiagramCode])
+  useEffect(() => { setActiveVariant(initialActiveVariant) }, [initialActiveVariant])
+  useEffect(() => { setDiagramModules(initialDiagramModules) }, [initialDiagramModules])
+  useEffect(() => { setActiveView(initialActiveView) }, [initialActiveView])
+  const updateModules = (next: DiagramModule[]) => { setDiagramModules(next); onDiagramModulesChange?.(next); setCodeError('') }
   useEffect(() => {
     const generated = diagramToCode(nodes, edges)
     if (generated === canvasCodeSignature.current) return
     canvasCodeSignature.current = generated
+    if (/^\s*(?:variant|view)\s/m.test(diagramCode)) return
     setDiagramCode(generated)
     onDiagramCodeChange?.(generated)
     setCodeError('')
-  }, [edges, nodes, onDiagramCodeChange])
+  }, [diagramCode, edges, nodes, onDiagramCodeChange])
+  const variants = useMemo(() => {
+    try { return compileVariantSource(diagramCode).variants.map((item) => item.name) } catch { return [] }
+  }, [diagramCode])
+  const views = useMemo(() => {
+    try { return compileDiagramViews(diagramCode).views } catch { return [] }
+  }, [diagramCode])
   useEffect(() => {
     if (nodes.some((node) => node.type !== 'architecture')) setNodes((current) => current.map(normalizedNode))
   }, [nodes, setNodes])
@@ -529,10 +570,10 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
 
   function drawFromCode() {
     try {
-      const result = parseDiagramCode(diagramCode)
+      const result = parseDiagramCode(diagramCode, activeVariant || undefined, diagramModules, activeView || undefined)
       remember()
       canvasCodeSignature.current = diagramToCode(result.nodes, result.edges)
-      setNodes(result.nodes)
+      setNodes(applyViewState(result.nodes, diagramViewStates[activeView]))
       setEdges(result.edges)
       setCodeError('')
       window.setTimeout(() => flow.fitView({ padding: 0.2 }), 0)
@@ -553,6 +594,34 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
     setCodeError('')
   }
 
+  function selectVariant(value: string) {
+    try {
+      const result = parseDiagramCode(diagramCode, value || undefined, diagramModules, activeView || undefined)
+      remember()
+      canvasCodeSignature.current = diagramToCode(result.nodes, result.edges)
+      setNodes(applyViewState(result.nodes, diagramViewStates[activeView]))
+      setEdges(result.edges)
+      setActiveVariant(value)
+      onActiveVariantChange?.(value)
+      setCodeError('')
+      window.setTimeout(() => flow.fitView({ padding: 0.2 }), 0)
+    } catch (error) {
+      setCodeError(error instanceof Error ? error.message : 'Could not activate environment variant')
+    }
+  }
+
+  function selectView(value: string) {
+    try {
+      const currentStates = activeView ? { ...diagramViewStates, [activeView]: { positions: Object.fromEntries(nodesRef.current.map((node) => [node.id, node.position])), ...(viewport ? { viewport } : {}) } } : diagramViewStates
+      const result = parseDiagramCode(diagramCode, activeVariant || undefined, diagramModules, value || undefined)
+      const state = currentStates[value]
+      remember(); setNodes(applyViewState(result.nodes, state)); setEdges(result.edges)
+      setActiveView(value); onActiveViewChange?.(value); onDiagramViewStatesChange?.(currentStates); setCodeError('')
+      if (state?.viewport) { onViewportChange?.(state.viewport); window.setTimeout(() => flow.setViewport(state.viewport!), 0) }
+      else window.setTimeout(() => flow.fitView({ padding: 0.2 }), 0)
+    } catch (error) { setCodeError(error instanceof Error ? error.message : 'Could not activate diagram view') }
+  }
+
   function insertTemplateExample() {
     let name = 'ServiceStack'
     let suffix = 2
@@ -568,9 +637,9 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
     if (!codeOpen || !livePreview) return
     const timer = window.setTimeout(() => {
       try {
-        const result = parseDiagramCode(diagramCode)
+        const result = parseDiagramCode(diagramCode, activeVariant || undefined, diagramModules, activeView || undefined)
         canvasCodeSignature.current = diagramToCode(result.nodes, result.edges)
-        setNodes(result.nodes)
+        setNodes(applyViewState(result.nodes, diagramViewStates[activeView]))
         setEdges(result.edges)
         setCodeError('')
         window.setTimeout(() => flow.fitView({ padding: 0.2 }), 0)
@@ -579,7 +648,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
       }
     }, 500)
     return () => window.clearTimeout(timer)
-  }, [codeOpen, diagramCode, flow, livePreview, setEdges, setNodes])
+  }, [activeVariant, activeView, codeOpen, diagramCode, diagramModules, diagramViewStates, flow, livePreview, setEdges, setNodes])
 
   function duplicateSelectedEdge() {
     if (!selectedEdge) return
@@ -851,6 +920,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
   return (
     <div className={`canvas-workspace${tool === 'connect' ? ' connect-mode' : ''}`}>
       {mutationError && <p role="alert" className="diagram-code-error">{mutationError}</p>}
+      <div className="diagram-environment-badge" aria-label="Active environment">Environment: {activeVariant || 'Base'}</div>
       <CanvasHistoryContext.Provider value={historyApi}>
       <ReactFlow
         nodes={renderedNodes}
@@ -886,7 +956,10 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
           setGuides({})
           setNodes((current) => {
             const assigned = assignNodeToContainingContainer(current, node.id).map((item) => ({ ...item, data: { ...item.data } }))
-            try { validateBoundaries(assigned); return fitDiagramBoundaries(assigned) } catch { return fitDiagramBoundaries(current) }
+            let next: Node[]
+            try { validateBoundaries(assigned); next = fitDiagramBoundaries(assigned) } catch { next = fitDiagramBoundaries(current) }
+            if (activeView && onDiagramViewStatesChange) onDiagramViewStatesChange({ ...diagramViewStates, [activeView]: { positions: Object.fromEntries(next.map((item) => [item.id, item.position])), ...(viewport ? { viewport } : {}) } })
+            return next
           })
         }}
         onDragOver={(event) => { if (event.dataTransfer.types.includes('application/x-archly-component')) event.preventDefault() }}
@@ -898,7 +971,13 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
           const position = flow.screenToFlowPosition({ x: event.clientX, y: event.clientY })
           addComponent(item.kind, item.iconId, Number.isFinite(position.x) && Number.isFinite(position.y) ? position : { x: 0, y: 0 })
         }}
-        onViewportChange={(nextViewport) => { setZoom(Math.round(nextViewport.zoom * 100)); onViewportChange?.(nextViewport) }}
+        onViewportChange={(nextViewport) => {
+          setZoom(Math.round(nextViewport.zoom * 100)); onViewportChange?.(nextViewport)
+          if (activeView && onDiagramViewStatesChange) {
+            const next = { positions: Object.fromEntries(nodesRef.current.map((node) => [node.id, node.position])), viewport: nextViewport }
+            if (JSON.stringify(diagramViewStates[activeView]) !== JSON.stringify(next)) onDiagramViewStatesChange({ ...diagramViewStates, [activeView]: next })
+          }
+        }}
         panOnDrag={tool === 'pan' ? true : [1]}
         nodesDraggable={tool !== 'pan'}
         nodesConnectable={tool === 'connect' || tool === 'select'}
@@ -978,13 +1057,27 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
       {layoutOpen && <DiagramLayoutPanel nodes={nodes} edges={edges} apply={(next) => { remember(); setNodes(next) }} close={() => { setLayoutOpen(false); setCodeOpen(true) }} />}
       {codeOpen && <aside className="diagram-code-panel" aria-label="Diagram as code editor">
         <header><div><strong>Diagram as code</strong><span>Define components and connections</span></div><button onClick={() => setCodeOpen(false)} aria-label="Close diagram code"><X /></button></header>
+        <label>Environment<select aria-label="Diagram environment" value={activeVariant} onChange={(event) => selectVariant(event.target.value)}><option value="">Base</option>{variants.map((variant) => <option key={variant} value={variant}>{variant}</option>)}</select></label>
+        <label>View<select aria-label="Diagram view" value={activeView} onChange={(event) => selectView(event.target.value)}><option value="">Shared model</option>{views.map((view) => <option key={view.name} value={view.name}>{view.name} ({view.kind})</option>)}</select></label>
         <label className="diagram-live-preview"><input type="checkbox" checked={livePreview} onChange={(event) => setLivePreview(event.target.checked)} />Live preview</label>
         <button className="diagram-code-reference-toggle" onClick={insertTemplateExample}>Insert template example</button>
         <button className="diagram-code-reference-toggle" onClick={() => { setCodeOpen(false); setPropertiesOpen(false); setLayoutOpen(true) }}>Automatic layout</button>
+        <button className="diagram-code-reference-toggle" aria-expanded={modulesOpen} onClick={() => setModulesOpen((open) => !open)}><FileCode2 />Project modules ({diagramModules.length}) <ChevronDown /></button>
+        {modulesOpen && <section className="diagram-module-editor" aria-label="Project diagram modules">
+          <p>Modules belong to this project. Prefix declarations with <code>export</code>, then import selected symbols by stable module ID.</p>
+          {diagramModules.map((module, index) => <fieldset key={`${index}-${module.id}`}>
+            <legend>Module {index + 1}</legend>
+            <label>Module ID<input aria-label={`Module ${index + 1} ID`} value={module.id} onChange={(event) => updateModules(diagramModules.map((item, itemIndex) => itemIndex === index ? { ...item, id: event.target.value } : item))} /></label>
+            <label>Version<input aria-label={`Module ${index + 1} version`} value={module.version} onChange={(event) => updateModules(diagramModules.map((item, itemIndex) => itemIndex === index ? { ...item, version: event.target.value } : item))} /></label>
+            <label>Source<textarea aria-label={`Module ${index + 1} source`} rows={7} value={module.source} onChange={(event) => updateModules(diagramModules.map((item, itemIndex) => itemIndex === index ? { ...item, source: event.target.value } : item))} /></label>
+            <button onClick={() => updateModules(diagramModules.filter((_, itemIndex) => itemIndex !== index))}>Delete module</button>
+          </fieldset>)}
+          <button onClick={() => updateModules([...diagramModules, { id: `modules/module-${diagramModules.length + 1}`, version: '1', source: 'export service shared "Shared service"' }])}><Plus /> Add module</button>
+        </section>}
         {/^\s*template\s/m.test(diagramCode) && <p className="diagram-code-help">Canvas edits expand template instances into ordinary component declarations.</p>}
         <button className="diagram-code-reference-toggle" aria-expanded={codeReferenceOpen} onClick={() => setCodeReferenceOpen((open) => !open)}><Library />Component reference <ChevronDown /></button>
         {codeReferenceOpen && <section className="diagram-code-reference" aria-label="Component shorthand reference">
-          <p>Use account, subscription, project, region, zone, vpc, vnet, subnet, cluster, or namespace blocks for boundaries. Layout blocks accept direction, horizontal-spacing, vertical-spacing, rank-separation, and routing. Style blocks accept fill, border, text, icon, shape, opacity, border-width, width, height, and padding. Declare named connections with connection ID a -&gt; b; use metadata-edge ID for protocol, port, async, encrypted, direction, and description. Export offers Mermaid, PlantUML, D2, and metadata with compatibility warnings.</p>
+          <p>Use account, subscription, project, region, zone, vpc, vnet, subnet, cluster, or namespace blocks for boundaries. Layout blocks accept direction, horizontal-spacing, vertical-spacing, rank-separation, and routing. Style blocks accept fill, border, text, icon, shape, opacity, border-width, width, height, and padding. Declare named connections with connection ID a -&gt; b; use metadata-edge ID for protocol, port, async, encrypted, direction, and description. Variant blocks accept add, override, override-edge, remove, and remove-edge. Export offers Mermaid, PlantUML, D2, and metadata with compatibility warnings.</p>
           <input aria-label="Search component shorthands" placeholder="Search shorthands" value={codeReferenceSearch} onChange={(event) => setCodeReferenceSearch(event.target.value)} />
           <div>{componentDefinitions.filter((item) => item.iconId && `${item.iconId} ${item.label} ${item.category}`.toLowerCase().includes(codeReferenceSearch.toLowerCase())).map((item) => {
             const shorthand = supportedKindNames.has(item.iconId!) ? `icon-${item.iconId}` : item.iconId!
@@ -993,7 +1086,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
         </section>}
         <div className="diagram-code-input">
           <div className="diagram-code-lines" ref={codeLineNumbers} aria-hidden="true">{diagramCode.split('\n').map((_, index) => <span className={Number(codeError.match(/^Line (\d+)/)?.[1]) === index + 1 ? 'error' : ''} key={index}>{index + 1}</span>)}</div>
-          <textarea aria-label="Diagram code" value={diagramCode} onChange={(event) => { setDiagramCode(event.target.value); onDiagramCodeChange?.(event.target.value); setCodeError('') }} onKeyDown={(event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); drawFromCode() } }} onScroll={(event) => { if (codeLineNumbers.current) codeLineNumbers.current.scrollTop = event.currentTarget.scrollTop }} spellCheck={false} />
+          <DiagramCodeEditor value={diagramCode} diagnostic={codeError} onRun={drawFromCode} onChange={(next) => { setDiagramCode(next); onDiagramCodeChange?.(next); setCodeError(''); try { const available = compileVariantSource(next).variants.map((item) => item.name); if (activeVariant && !available.includes(activeVariant)) { setActiveVariant(''); onActiveVariantChange?.('') } } catch { /* Draw reports source diagnostics. */ } }} onScroll={(top) => { if (codeLineNumbers.current) codeLineNumbers.current.scrollTop = top }} />
         </div>
         {codeError ? <p className="diagram-code-error" role="alert">{codeError}</p> : <p className="diagram-code-help"><code>region east "us-east-1" {'{'}</code><br /><code>&nbsp;&nbsp;aws-lambda api "API"</code><br /><code>{'}'}</code><br /><code>api.right -&gt; db.left : "reads"</code></p>}
         <button className="diagram-code-draw" aria-label="Draw diagram" onClick={drawFromCode}><Sparkles />Draw diagram <kbd aria-hidden="true">Ctrl ↵</kbd></button>

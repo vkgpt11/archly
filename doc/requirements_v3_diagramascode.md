@@ -1,6 +1,6 @@
 # Archly V3 Diagram-as-Code Requirements
 
-Status: Five feature implementations complete locally; release verification pending
+Status: Core Must requirements through project imports and code intelligence complete; release verification pending
 
 Version: 3.0
 
@@ -50,6 +50,13 @@ deployment claim.
 | V3-DAC-TPL-008 | Could | A maintained project template library exposes previews, categories, version information, and compatibility metadata. |
 
 ## 3. Environment variants
+
+Implementation status: **Done — Must requirements ENV-001–006**. Named variants
+support component and connection overrides, replica counts, explicit additions
+and removals, an accessible selector and canvas badge, persistence of the source
+and active variant, environment-aware metadata exports, and line/variant-specific
+diagnostics that preserve the last valid rendering. Visual comparison (ENV-007)
+remains coupled to the unimplemented version-comparison capability in Section 12.
 
 | ID | Priority | Requirement |
 | --- | --- | --- |
@@ -144,8 +151,16 @@ baseline for this section.
 
 ## 8. Variables and imports
 
-String variables within one source file already exist. The remaining work adds
-safe composition across sources.
+Implementation status: **Done — Must requirements IMP-001–006**. Variables are
+type-checked as string, number, boolean, colour, or bounded string lists. A
+project can persist up to 100 versioned modules in its authorized canvas payload;
+imports select only explicitly exported variables, templates, style classes, and
+component contracts. Resolution reports missing modules, duplicate symbols,
+exact-version mismatches, and complete dependency cycles. Module identifiers are
+strict project-relative IDs: URLs, filesystem paths, and traversal are rejected,
+and resolution performs no network or filesystem access. Cross-module editor
+navigation and reproducible version locking beyond exact imports (IMP-007–008)
+remain follow-ups.
 
 | ID | Priority | Requirement |
 | --- | --- | --- |
@@ -159,6 +174,17 @@ safe composition across sources.
 | V3-DAC-IMP-008 | Should | A project records the exact compatible module version used for reproducible rendering. |
 
 ## 9. Sequence and data-flow views
+
+Implementation status: **Done — Must requirements VIEW-001–006**. Projects can
+define named data-flow and sequence views over the shared component model.
+Data-flow views filter components/connections and annotate classification,
+storage, processing, and trust boundaries. Sequence views support participants,
+ordered synchronous/asynchronous messages, returns, activation events, notes,
+and nested alternative groups. Shared-symbol rename covers every view; each view
+persists independent node positions and viewport. Cross-view reference errors
+identify the source line and named view while the canvas keeps its last valid
+render. Derived-view creation and export labelling (VIEW-007–008) remain
+follow-ups.
 
 | ID | Priority | Requirement |
 | --- | --- | --- |
@@ -189,6 +215,16 @@ safe composition across sources.
 
 Existing line numbers, searchable component reference, component insertion, and
 line-specific parser errors are the baseline for this section.
+
+Implementation status: **Done — Must requirements IDE-001–007**, plus the command
+palette (IDE-009). The editor highlights all language token classes and invalid
+lines; completes declarations, catalog shorthands, symbols, properties, enums,
+templates and import keywords; exposes cursor/hover information; navigates to
+definitions and references; safely renames non-string/non-comment symbol tokens;
+formats documents or selections while preserving comments; and exposes bounded,
+keyboard-accessible diagnostics and deterministic quick fixes. Advanced bracket
+matching, folding, comment toggling and multi-cursor behavior (IDE-008) remain a
+follow-up rather than replacing the browser's native text-selection behavior.
 
 | ID | Priority | Requirement |
 | --- | --- | --- |
@@ -243,7 +279,7 @@ PlantUML 1.2026.7 syntax checker, and D2 0.8.2 SVG compiler accepted a generated
 fixture covering nested boundaries, custom fill, Unicode/escaped labels,
 parallel connections and directed/bidirectional/undirected connections.
 
-Verification for this five-feature batch: **171 unit/component tests passed;
+Verification for the preceding five-feature batch: **171 unit/component tests passed;
 10 Playwright journeys passed; lint and production build passed**. Browser
 coverage includes preview/cancel, saved source reopening, metadata exports,
 SVG/PNG, and the existing 300-node/500-edge performance fixture. This is local

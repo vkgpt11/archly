@@ -14,7 +14,7 @@ const mermaidLabel = (value: unknown) => String(value ?? '').replace(/[^\p{L}\p{
 const plantLabel = (value: unknown) => String(value ?? '').replace(/[^\p{L}\p{N} .,!?_-]/gu, (char) => `<U+${char.codePointAt(0)!.toString(16).padStart(4, '0')}>`)
 const safeColor = (value: unknown) => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value : undefined
 
-export function buildInterchange(format: InterchangeFormat, originalNodes: Node[], originalEdges: Edge[], selectionOnly = false): InterchangeResult {
+export function buildInterchange(format: InterchangeFormat, originalNodes: Node[], originalEdges: Edge[], selectionOnly = false, environment?: string): InterchangeResult {
   const selected = new Set(originalNodes.filter((node) => node.selected).map((node) => node.id))
   if (selectionOnly) originalEdges.filter((edge) => edge.selected).forEach((edge) => { selected.add(edge.source); selected.add(edge.target) })
   const nodes = (selectionOnly ? originalNodes.filter((node) => selected.has(node.id)) : originalNodes).map((node) => ({ ...node, data: { ...node.data } })).sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
@@ -26,7 +26,7 @@ export function buildInterchange(format: InterchangeFormat, originalNodes: Node[
   if (edges.length !== originalEdges.length && !selectionOnly) warnings.push('Dangling connections are excluded from the rendered graph; original connections remain in metadata.')
   nodes.forEach((node) => { if (!ids.has(String(node.data.containerId))) delete node.data.containerId })
   const durable = JSON.parse(serializeCanvas(nodes, edges)) as { nodes: Node[]; edges: Edge[] }
-  const metadata = { format: 'archly-interchange', version: 1, view: 'architecture', environment: null, provenance: { generator: 'Archly', source: 'canvas' }, validation: { status: 'not-run', diagnostics: [] }, ...durable, ...(warnings.length ? { originalConnections: originalEdges } : {}) }
+  const metadata = { format: 'archly-interchange', version: 1, view: 'architecture', environment: environment || null, provenance: { generator: 'Archly', source: 'canvas' }, validation: { status: 'not-run', diagnostics: [] }, ...durable, ...(warnings.length ? { originalConnections: originalEdges } : {}) }
   if (format === 'metadata') return { text: `${json(metadata)}\n`, extension: 'archly-metadata.json', warnings }
   warnings.push('Only labels, hierarchy, connection direction and basic colours are rendered in this format. Exact positions, icons, port handles, routing, advanced styles, and semantic metadata are preserved in the embedded Archly metadata comment, not in the destination rendering.')
   const prefix = format === 'mermaid' ? '%%' : format === 'plantuml' ? "'" : '#'

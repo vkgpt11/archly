@@ -41,17 +41,57 @@ Regions and containers may be nested. Moving an outer boundary moves all nested 
 ## Variables and appearance
 
 ```text
-let apiLabel = "Orders API"
+let apiLabel: string = "Orders API"
+let replicas: number = 3
+let enabled: boolean = true
+let brand: colour = "#112233"
+let zones: list = ["us-east-1a", "us-east-1b"]
 
-service api "${apiLabel}"
+service api "${apiLabel} (${replicas} replicas)"
 database db "Orders DB"
 api -> db : "SQL"
 
-style api fill=#112233 border=#445566 text=#ddeeff description="Handles orders"
+style api fill=${brand} border=#445566 text=#ddeeff description="Handles orders"
 style-edge api->db color=#ff5500 line=dashed routing=straight
 ```
 
-Colors use six-digit hexadecimal values. Edge routing is `straight`, `default`, or `smoothstep`. Notes and annotations use the normal `note` and `text` component types.
+Supported variable types are `string`, `number`, `boolean`, `colour`, and a list
+of at most 100 strings. Untyped variables remain compatible as strings. Values
+inside quoted text are escaped; values substituted outside quotes must contain
+only identifier-safe characters. Colors use six-digit hexadecimal values. Edge
+routing is `straight`, `default`, or `smoothstep`. Notes and annotations use the
+normal `note` and `text` component types.
+
+### Project-owned modules
+
+Open **Project modules** in the diagram-code panel to add a stable module ID,
+numeric version, and source. Only declarations prefixed with `export` are visible:
+
+```text
+# module ID: modules/platform, version: 1.2.0
+export let brand: colour = "#336699"
+export service gateway "Gateway"
+export class node shared {
+  fill: "#336699"
+}
+export template Worker(name) {
+  service worker "${name}"
+}
+```
+
+Import only the required symbols and, when needed, require its exact version:
+
+```text
+import { brand, gateway, shared, Worker } from "modules/platform" version "1.2.0"
+use Worker jobs(name="Jobs")
+style gateway class=shared border=${brand}
+```
+
+Modules are stored within the current project and inherit its owner/share access
+rules. URLs, absolute paths, `..`, and filesystem traversal are rejected. Import
+resolution performs no network or local filesystem access. Missing modules,
+private symbols, duplicates, version mismatches, and complete dependency cycles
+are reported without replacing the last valid canvas.
 
 ## Exact positions
 
@@ -98,6 +138,91 @@ As with other source constructs, a subsequent visual canvas edit generates
 expanded component declarations; it does not retain linked template instances.
 Selection-to-template extraction and a managed template library are not yet
 available.
+
+### Sequence and data-flow views
+
+Views reuse the project's shared components without duplicating definitions.
+Select the active view from the **View** menu in the diagram-code panel.
+
+```text
+service client "Client"
+service api "Orders API"
+database db "Orders DB"
+
+view dataflow sensitive-data {
+  include api db
+  data api classification=confidential processing="validate" trust-boundary=internal
+  data db classification=restricted store=true
+}
+
+view sequence create-order {
+  participant client
+  participant api
+  participant db
+  message client -> api : "Create order" sync
+  activate api
+  alt "valid order" {
+    message api -> db : "Insert" async
+    return db -> api : "Created"
+  }
+  note api "Validates the request"
+  deactivate api
+}
+```
+
+Data-flow views accept `include`, `exclude`, and `data` annotations with
+`classification`, `store`, `processing`, and `trust-boundary`. Sequence views
+accept participants, ordered `message` and `return` lines, `sync` or `async`,
+activation/deactivation, notes, and nested `alt` groups. Renaming a shared
+component updates all view references. Each view stores its own positions and
+viewport; invalid references report the source line and view name without
+replacing the last valid canvas.
+
+### Environment variants
+
+Define a base architecture once, then add named environment blocks:
+
+```text
+service api "Base API"
+database db "Primary database"
+connection query api -> db : "Query"
+
+variant development {
+  override api label="Development API" icon=redis fill=#ddeeff replica-count=2
+  override-edge query protocol=HTTP port=8080 encrypted=false direction=bidirectional
+  add cache local "Local cache"
+  add connection warm api -> local : "Warm cache"
+}
+
+variant production {
+  override api label="Production API" icon=aws-lambda replica-count=6
+  override-edge query protocol=HTTPS port=443 encrypted=true
+  remove db
+  add aws-rds replica "Read replica"
+  add connection production-query api -> replica : "Query"
+}
+```
+
+Use the **Environment** selector in the diagram-code editor. The current choice
+is displayed on the canvas as `Environment: NAME`; Base applies no variant.
+The source and active environment are saved with the project and restored when
+it is reopened. Text metadata exports set their `environment` field to the
+active name.
+
+Variant statements are `override COMPONENT key=value…`, `override-edge EDGE
+key=value…`, `remove COMPONENT`, `remove-edge EDGE`, and `add DECLARATION`.
+Removing a boundary also removes descendants and their connections. Named edge
+IDs are required to override or remove a connection. A boundary addition starts
+with `add`; declarations inside that boundary use ordinary syntax. Variant names
+and referenced component/connection IDs are stable identifiers.
+
+Component overrides accept kind, label, icon, replica-count, and every supported
+node style property. Replica count is an integer from 1–10,000. Connection
+overrides accept label, protocol, port, async, encrypted, direction, description,
+and every supported edge style property. Values containing spaces must be
+quoted. Invalid active overrides report both their exact source line and variant
+name without changing the active environment or last valid canvas. Inactive
+variant declarations remain isolated from the base diagram.
 
 ### Rendering
 
@@ -192,10 +317,43 @@ Importing destination syntax into Archly is not implemented.
 Metadata schema version 1 contains `format`, `version`, `schemaVersion`, `view`,
 `environment`, `provenance`, `validation`, `nodes`, and `edges`. Node data retains
 boundary semantics; edge data retains protocol/security metadata. `view` is
-currently architecture, environment is null (variants are not implemented),
-and validation status is `not-run` rather than an invented policy result.
+currently architecture, environment is the active variant or null for Base, and
+validation status is `not-run` rather than an invented policy result.
 Output is UTF-8, LF, deterministic and sorted by stable IDs. Selection export
 includes endpoints of selected connections and removes parents outside scope.
+
+### Code intelligence
+
+The editor highlights keywords, identifiers, strings, numbers, comments,
+properties, operators, and invalid tokens. Place the caret on a component,
+connection, template, variable, style, variant, view, or imported symbol to see
+its kind and definition line. Moving the pointer over text also updates this
+symbol information.
+
+The **Complete**, **Definition**, **References**, **Rename**, **Format**, and
+**Commands** buttons are keyboard accessible. Supported shortcuts:
+
+- `Ctrl+Space` / `Cmd+Space`: contextual completion.
+- `F12`: go to definition.
+- `Shift+F12`: find references.
+- `F2`: rename the selected symbol atomically.
+- `Shift+Alt+F`: format the document; use the Format selection command for a selection.
+- `Ctrl+Shift+P` / `Cmd+Shift+P`: diagram command palette.
+- `Ctrl+Enter` / `Cmd+Enter`: draw the diagram.
+- `Escape`: close completion, references, rename, or command UI.
+
+Completion includes declarations, component shorthands, in-scope symbols,
+style/metadata properties, enum values, templates, and import language keywords.
+Rename changes identifier tokens only: identical text in comments and quoted
+labels is preserved. Names must start with a letter and contain only letters,
+numbers, underscores, or hyphens. Formatting is deterministic, normalizes block
+indentation and connection spacing, and preserves comments.
+
+When a parser diagnostic has a safe deterministic correction, a **Quick fix**
+button appears. For example, an unknown component can be declared as a service,
+or an unsupported component type can be changed to `service`. Applying a fix
+changes source only; draw or live preview still uses the normal parser and keeps
+the last valid canvas if another error remains.
 
 ### Drawing and errors
 
