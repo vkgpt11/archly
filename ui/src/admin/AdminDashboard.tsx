@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError, api, type AdminPeriod, type AdminSummary, type AdminTimeSeries, type AdminUserPage } from '../api'
 import UserMenu from '../components/UserMenu'
+import AiSettingsDialog from '../components/AiSettingsDialog'
 import type { AuthSession } from '../api'
 import { Download, RefreshCw } from 'lucide-react'
 
@@ -25,6 +26,7 @@ export default function AdminDashboard({ token, user = { email: 'developer@gmail
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [userPage, setUserPage] = useState(0)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   async function exportCsv() {
     try {
@@ -58,7 +60,7 @@ export default function AdminDashboard({ token, user = { email: 'developer@gmail
     <header className="topbar">
       <button className="brand" onClick={onBack} aria-label="Back to projects"><span>A</span> Archly</button>
       <p className="admin-title">Administration</p>
-      <UserMenu token={token} user={user} adminMode onSwitchMode={onBack} onSignOut={onSignOut} />
+      <UserMenu user={user} adminMode onSwitchMode={onBack} onOpenSettings={() => setSettingsOpen(true)} onSignOut={onSignOut} />
     </header>
     <section className="admin-content">
       <div className="dashboard-heading"><div><p className="eyebrow">Product analytics</p><h1>Usage overview</h1><p className="muted">Aggregate activity in UTC. Project content is never collected.</p></div>
@@ -87,6 +89,7 @@ export default function AdminDashboard({ token, user = { email: 'developer@gmail
         </section>
       </>}
     </section>
+    <AiSettingsDialog token={token} open={settingsOpen} onClose={() => setSettingsOpen(false)} />
   </main>
 }
 

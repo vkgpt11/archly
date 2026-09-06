@@ -11,7 +11,10 @@ export type AdminSummary = {
 }
 export type AdminTimeSeries = { metric: string; timezone: 'UTC'; buckets: { date: string; value: number }[] }
 export type AdminUserPage = { items: { id: string; maskedEmail: string; firstLoginAt: string; lastLoginAt: string; projectCount: number }[]; page: number; size: number; totalItems: number; totalPages: number }
-export type LlmSettings = { provider: 'OPENAI'; model: string; hasApiKey: boolean; credentialStorageAvailable: boolean }
+export type LlmSettings = {
+  provider: 'OPENAI'; model: string; hasApiKey: boolean; credentialStorageAvailable: boolean
+  apiKeyHint: string | null; updatedAt: string | null; lastSuccessfulUseAt: string | null; lastErrorCode: string | null
+}
 
 const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
 
@@ -116,12 +119,14 @@ export const api = {
   adminTimeSeries: (token: string, metric: string, period: AdminPeriod) => request<AdminTimeSeries>(token, `/admin/metrics/timeseries?metric=${encodeURIComponent(metric)}&period=${period}`),
   adminUsers: (token: string, page = 0, size = 25) => request<AdminUserPage>(token, `/admin/users?page=${page}&size=${size}`),
   adminCsv: (token: string, period: AdminPeriod) => download(token, `/admin/metrics/export?period=${period}`),
-  generateDiagram: (token: string, prompt: string) =>
+  generateDiagram: (token: string, prompt: string, context: { currentCanvas?: string; documentation?: string; catalogue?: string; mode?: string; selectedSubsystem?: string } = {}) =>
     longRequest<{ canvas: CanvasData; summary: string }>(token, '/ai/diagrams/generate', {
-      method: 'POST', body: JSON.stringify({ prompt }),
+      method: 'POST', body: JSON.stringify({ prompt, ...context }),
     }),
   getLlmSettings: (token: string) => request<LlmSettings>(token, '/profile/llm'),
   saveLlmSettings: (token: string, provider: 'OPENAI', model: string, apiKey?: string) =>
     request<LlmSettings>(token, '/profile/llm', { method: 'PUT', body: JSON.stringify({ provider, model, apiKey: apiKey || null }) }),
   deleteLlmSettings: (token: string) => request<void>(token, '/profile/llm', { method: 'DELETE' }),
+  testLlmSettings: (token: string, model: string, apiKey?: string) =>
+    longRequest<{ ok: boolean }>(token, '/profile/llm/test', { method: 'POST', body: JSON.stringify({ model, apiKey: apiKey || null }) }),
 }

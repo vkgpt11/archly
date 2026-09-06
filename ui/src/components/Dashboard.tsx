@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { ApiError, api } from '../api'
 import type { Project, ProjectPage, ProjectSummary } from '../types'
 import UserMenu from './UserMenu'
+import AiSettingsDialog from './AiSettingsDialog'
 import type { AuthSession } from '../api'
 import { architectureTemplates, templateCanvas, type ArchitectureTemplate } from '../architectureTemplates'
 import { Archive, ArchiveRestore, Copy, Folder, FolderInput, FolderPlus, Plus, Trash2, X } from 'lucide-react'
@@ -29,6 +30,7 @@ export default function Dashboard({ token, isAdmin = false, user, onSignOut }: P
   const [pendingDelete, setPendingDelete] = useState<ProjectSummary | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [adminOpen, setAdminOpen] = useState(() => window.location.hash === '#/admin')
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   useEffect(() => {
     const syncAdminRoute = () => setAdminOpen(window.location.hash === '#/admin')
@@ -149,16 +151,19 @@ export default function Dashboard({ token, isAdmin = false, user, onSignOut }: P
     && `${project.name} ${project.folder || ''}`.toLowerCase().includes(search.trim().toLowerCase()))
 
   if (selected) {
-    return (
+    return (<>
       <Suspense fallback={<main className="shared-error"><p>Loading editor…</p></main>}><Editor
         token={token}
         userScope={signedInUser.email}
         initialProject={selected}
+        onOpenAiSettings={() => setSettingsOpen(true)}
         onBack={(updated) => {
           setProjects((current) => current.map((item) => item.id === updated.id ? updated : item))
           setSelected(null)
         }}
       /></Suspense>
+      <AiSettingsDialog token={token} open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      </>
     )
   }
 
@@ -170,8 +175,7 @@ export default function Dashboard({ token, isAdmin = false, user, onSignOut }: P
     <main className="dashboard-shell">
       <header className="topbar">
         <a className="brand" href="#" aria-label="Archly home"><span>A</span> Archly</a>
-        {isAdmin && <button className="text-button admin-shortcut" onClick={() => { window.location.hash = '#/admin'; setAdminOpen(true) }}>Administration</button>}
-        <UserMenu token={token} user={signedInUser} onSignOut={onSignOut} onSwitchMode={isAdmin ? () => { window.location.hash = '#/admin'; setAdminOpen(true) } : undefined} />
+        <UserMenu user={signedInUser} onOpenSettings={() => setSettingsOpen(true)} onSignOut={onSignOut} onSwitchMode={isAdmin ? () => { window.location.hash = '#/admin'; setAdminOpen(true) } : undefined} />
       </header>
       <section className="dashboard-content">
         <div className="dashboard-heading">
@@ -239,6 +243,7 @@ export default function Dashboard({ token, isAdmin = false, user, onSignOut }: P
           </section>
         </div>}
       </section>
+      <AiSettingsDialog token={token} open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </main>
   )
 }

@@ -24,6 +24,7 @@ import {
 } from '../projectPersistence'
 import ThemeToggle from './ThemeToggle'
 import { useProjectCrossTabSync } from './useProjectCrossTabSync'
+import { canvasContext, selectedSubsystem } from '../aiDiagram'
 
 const CanvasWorkspace = lazy(() => import('./CanvasWorkspace'))
 const ProjectSharingDialog = lazy(() => import('./ProjectSharingDialog'))
@@ -32,7 +33,7 @@ const SaveConflictDialog = lazy(() => import('./SaveConflictDialog'))
 const GenerateDiagramDialog = lazy(() => import('./GenerateDiagramDialog'))
 
 type View = 'canvas' | 'document' | 'split'
-type Props = { token?: string; shareToken?: string; initialProject: Project; onBack?: (project: Project) => void; userScope?: string }
+type Props = { token?: string; shareToken?: string; initialProject: Project; onBack?: (project: Project) => void; userScope?: string; onOpenAiSettings?: () => void }
 type SaveState = 'saved' | 'saving' | 'error' | 'offline' | 'conflict'
 type SaveConflict = { local: ProjectDraft; server: Project }
 
@@ -114,7 +115,7 @@ function readScreenshot(file: File): Promise<string> {
   })
 }
 
-export default function Editor({ token = '', shareToken, initialProject, onBack, userScope }: Props) {
+export default function Editor({ token = '', shareToken, initialProject, onBack, userScope, onOpenAiSettings = () => {} }: Props) {
   const tabId = useRef(currentTabId()).current
   const [recovery] = useState(() => {
     const draft = loadDraft(initialProject.id, tabId)
@@ -558,7 +559,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack,
       </div>
       {shareOpen && <Suspense fallback={null}><ProjectSharingDialog token={token} projectId={project.id} onClose={() => setShareOpen(false)} /></Suspense>}
       {exportOpen && <Suspense fallback={null}><ProjectExportDialog project={latestProject.current} nodes={nodes} edges={edges} viewport={viewport} activeVariant={activeVariant} onClose={() => setExportOpen(false)} /></Suspense>}
-      {generateOpen && <Suspense fallback={null}><GenerateDiagramDialog token={token} onClose={() => setGenerateOpen(false)} onGenerated={(canvas) => {
+      {generateOpen && <Suspense fallback={null}><GenerateDiagramDialog token={token} context={{ currentCanvas: canvasContext(nodes, edges), selectedSubsystem: selectedSubsystem(nodes, edges), hasSelection: nodes.some(node => node.selected), documentation: project.markdown.slice(0, 100_000) }} onClose={() => setGenerateOpen(false)} onOpenSettings={onOpenAiSettings} onGenerated={(canvas) => {
         setNodes(canvas.nodes)
         setEdges(canvas.edges)
         setViewport(canvas.viewport || { x: 0, y: 0, zoom: 1 })
