@@ -51,22 +51,23 @@ deployment claim.
 
 ## 3. Environment variants
 
-Implementation status: **Done — Must requirements ENV-001–006**. Named variants
+Implementation status: **Done — Must requirements ENV-001–006**, plus ENV-007.
+Named variants
 support component and connection overrides, replica counts, explicit additions
 and removals, an accessible selector and canvas badge, persistence of the source
 and active variant, environment-aware metadata exports, and line/variant-specific
 diagnostics that preserve the last valid rendering. Visual comparison (ENV-007)
-remains coupled to the unimplemented version-comparison capability in Section 12.
+is available through the shared version-comparison capability in Section 12.
 
-| ID | Priority | Requirement |
-| --- | --- | --- |
-| V3-DAC-ENV-001 | Must | A source file can define a base architecture and named variants such as development, staging, and production. |
-| V3-DAC-ENV-002 | Must | A variant can override component type, label, icon, style, metadata, replica count, and connection properties without duplicating the base definition. |
-| V3-DAC-ENV-003 | Must | A variant can add or remove components and connections explicitly. |
-| V3-DAC-ENV-004 | Must | The editor provides an accessible variant selector and clearly identifies the active variant on the canvas and in exports. |
-| V3-DAC-ENV-005 | Must | Saving and reopening a project preserves every variant and the last active variant. |
-| V3-DAC-ENV-006 | Must | An invalid override or reference reports its variant and exact source line while retaining the last valid rendering. |
-| V3-DAC-ENV-007 | Should | Users can compare two variants visually using the version-comparison capability in Section 12. |
+| ID | Priority | Status | Requirement |
+| --- | --- | --- | --- |
+| V3-DAC-ENV-001 | Must | Done | A source file can define a base architecture and named variants such as development, staging, and production. |
+| V3-DAC-ENV-002 | Must | Done | A variant can override component type, label, icon, style, metadata, replica count, and connection properties without duplicating the base definition. |
+| V3-DAC-ENV-003 | Must | Done | A variant can add or remove components and connections explicitly. |
+| V3-DAC-ENV-004 | Must | Done | The editor provides an accessible variant selector and clearly identifies the active variant on the canvas and in exports. |
+| V3-DAC-ENV-005 | Must | Done | Saving and reopening a project preserves every variant and the last active variant. |
+| V3-DAC-ENV-006 | Must | Done | An invalid override or reference reports its variant and exact source line while retaining the last valid rendering. |
+| V3-DAC-ENV-007 | Should | Done | Users can compare two variants visually using the version-comparison capability in Section 12. |
 
 ## 4. Rich styling
 
@@ -207,19 +208,20 @@ canvas selection for affected elements. Source-level `rule` directives configure
 severity or explicit suppressions with reasons. Exported Archly metadata carries
 validation status and diagnostics, and `npm run validate:diagram -- <export>`
 provides a headless CI check for blocking exported violations. Quick fixes
-(RUL-008) and organization rule packs (RUL-009) remain follow-ups.
+(RUL-008) are available in the editor; organization rule packs (RUL-009)
+remain a follow-up.
 
-| ID | Priority | Requirement |
-| --- | --- | --- |
-| V3-DAC-RUL-001 | Must | The DSL supports built-in architecture rules with documented identifiers, severity, scope, and configuration. |
-| V3-DAC-RUL-002 | Must | Initial rules include no-public-database, services-must-use-tls, no-cross-boundary-connection-without-encryption, and no-orphan-component. |
-| V3-DAC-RUL-003 | Must | Rule violations appear in an accessible problems panel, on the relevant source range, and on affected canvas elements. |
-| V3-DAC-RUL-004 | Must | A violation contains rule ID, severity, message, affected symbols, source location, and remediation guidance. |
-| V3-DAC-RUL-005 | Must | Validation runs after a bounded debounce and cannot replace or corrupt the last valid canvas. |
-| V3-DAC-RUL-006 | Must | Projects can configure rule severity or an explicit, documented suppression with a reason. |
-| V3-DAC-RUL-007 | Must | CI can validate exported source headlessly and return a non-zero status for configured blocking violations. |
-| V3-DAC-RUL-008 | Should | Safe deterministic corrections are exposed as editor quick fixes and one undoable canvas operation. |
-| V3-DAC-RUL-009 | Could | Administrators can publish versioned organization rule packs without accessing project contents. |
+| ID | Priority | Status | Requirement |
+| --- | --- | --- | --- |
+| V3-DAC-RUL-001 | Must | Done | The DSL supports built-in architecture rules with documented identifiers, severity, scope, and configuration. |
+| V3-DAC-RUL-002 | Must | Done | Initial rules include no-public-database, services-must-use-tls, no-cross-boundary-connection-without-encryption, and no-orphan-component. |
+| V3-DAC-RUL-003 | Must | Done | Rule violations appear in an accessible problems panel, on the relevant source range, and on affected canvas elements. |
+| V3-DAC-RUL-004 | Must | Done | A violation contains rule ID, severity, message, affected symbols, source location, and remediation guidance. |
+| V3-DAC-RUL-005 | Must | Done | Validation runs after a bounded debounce and cannot replace or corrupt the last valid canvas. |
+| V3-DAC-RUL-006 | Must | Done | Projects can configure rule severity or an explicit, documented suppression with a reason. |
+| V3-DAC-RUL-007 | Must | Done | CI can validate exported source headlessly and return a non-zero status for configured blocking violations. |
+| V3-DAC-RUL-008 | Should | Done | Safe deterministic corrections are exposed as editor quick fixes and one undoable canvas operation. |
+| V3-DAC-RUL-009 | Could | — | Administrators can publish versioned organization rule packs without accessing project contents. |
 
 ## 11. Code intelligence
 
@@ -258,8 +260,8 @@ follow-up rather than replacing the browser's native text-selection behavior.
 | V3-DAC-DIF-004 | Must | Done | The UI provides an accessible change list linked bidirectionally to highlighted source and canvas elements. |
 | V3-DAC-DIF-005 | Must | Done | Colours are supplemented with labels, icons, or patterns so comparison does not rely on colour alone. |
 | V3-DAC-DIF-006 | Must | Done | Large comparisons are bounded, cancellable, and do not mutate autosave state. |
-| V3-DAC-DIF-007 | Should | Users can filter by change type, component type, boundary, and severity of affected validation rules. |
-| V3-DAC-DIF-008 | Could | A comparison can be exported as a read-only report with source revision identifiers. |
+| V3-DAC-DIF-007 | Should | Done | Users can filter by change type, component type, boundary, and severity of affected validation rules. |
+| V3-DAC-DIF-008 | Could | Done | A comparison can be exported as a read-only report with source revision identifiers. |
 
 ## 13. Infrastructure import
 

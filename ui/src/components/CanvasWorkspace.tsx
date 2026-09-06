@@ -8,7 +8,7 @@ import {
   AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical,
   AlignHorizontalDistributeCenter, AlignStartHorizontal, AlignStartVertical, AlignVerticalDistributeCenter, AppWindow, Box, Boxes,
   Activity, ArrowLeft, ArrowRight, Bell, BellRing, Bot, BrainCircuit, Braces, ChevronDown, CircuitBoard, Code2,
-  Cloud, Cog, Container, Copy, Cpu, Database, DatabaseZap, Expand, ExternalLink, FileCode2, FileText, Fingerprint,
+  Cloud, Cog, Container, Copy, Cpu, Database, DatabaseZap, Download, Expand, ExternalLink, FileCode2, FileText, Fingerprint,
   Focus, Gauge, GitBranch, Globe2, Grid3X3, Hand, Group, Image, Library, ListTree, LocateFixed, Lock, Magnet, MessageSquareText, MoreHorizontal,
   Mail, Minus, MousePointer2, Network, Plus, Redo2, ScrollText, Search, Server, ShieldCheck, Shuffle,
   ScanSearch, Shapes, Smartphone, Sparkles, Spline, Trash2, Undo2, Unlock, UserCheck, UserRound, Warehouse,
@@ -412,6 +412,10 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
   const [diagramSnapshots, setDiagramSnapshots] = useState(initialDiagramSnapshots)
   const [comparisonOpen, setComparisonOpen] = useState(false)
   const [comparisonName, setComparisonName] = useState(comparisonBaseline?.name || '')
+  const [comparisonKindFilter, setComparisonKindFilter] = useState<'all' | DiagramDiffItem['kind']>('all')
+  const [comparisonElementFilter, setComparisonElementFilter] = useState<'all' | DiagramDiffItem['elementType']>('all')
+  const [comparisonBoundaryFilter, setComparisonBoundaryFilter] = useState<'all' | 'boundary' | 'outside'>('all')
+  const [comparisonSeverityFilter, setComparisonSeverityFilter] = useState<'all' | 'error' | 'warning' | 'info'>('all')
   const [codeError, setCodeError] = useState('')
   const [mutationError, setMutationError] = useState('')
   const [livePreview, setLivePreview] = useState(false)
@@ -457,6 +461,12 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
   const variants = useMemo(() => {
     try { return compileVariantSource(diagramCode).variants.map((item) => item.name) } catch { return [] }
   }, [diagramCode])
+  const variantSnapshots = useMemo(() => variants.flatMap((variant) => {
+    try {
+      const result = parseDiagramCode(diagramCode, variant, diagramModules, activeView || undefined)
+      return [{ name: `Variant: ${variant}`, nodes: result.nodes, edges: result.edges, diagramCode, createdAt: new Date(0).toISOString() } satisfies DiagramSnapshot]
+    } catch { return [] }
+  }), [activeView, diagramCode, diagramModules, variants])
   const views = useMemo(() => {
     try { return compileDiagramViews(diagramCode).views } catch { return [] }
   }, [diagramCode])
@@ -465,7 +475,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
   }, [diagramCode, edges, nodes])
   const activeRuleViolations = useMemo(() => ruleViolations.filter((violation) => !violation.suppressed), [ruleViolations])
   const ruleProblemLines = useMemo(() => new Set(activeRuleViolations.map((violation) => violation.location.line)), [activeRuleViolations])
-  const comparisonSources = useMemo(() => [comparisonBaseline, ...diagramSnapshots].filter((item): item is DiagramSnapshot => Boolean(item)), [comparisonBaseline, diagramSnapshots])
+  const comparisonSources = useMemo(() => [comparisonBaseline, ...diagramSnapshots, ...variantSnapshots].filter((item): item is DiagramSnapshot => Boolean(item)), [comparisonBaseline, diagramSnapshots, variantSnapshots])
   const activeComparison = comparisonSources.find((item) => item.name === comparisonName)
   const comparison = useMemo(() => comparisonOpen && activeComparison
     ? compareDiagramSnapshots(activeComparison, { nodes, edges }, diagramCode)
@@ -476,6 +486,22 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
     return map
   }, [comparison])
   const diffProblemLines = useMemo(() => new Set((comparison?.items || []).map((item) => item.sourceLine).filter((line): line is number => Number.isInteger(line))), [comparison])
+  const filteredComparisonItems = useMemo(() => {
+    if (!comparison) return []
+    const severityByElement = new Map<string, string>()
+    for (const violation of activeRuleViolations) for (const id of violation.affectedSymbols) severityByElement.set(id, violation.severity)
+    return comparison.items.filter((item) => {
+      if (comparisonKindFilter !== 'all' && item.kind !== comparisonKindFilter) return false
+      if (comparisonElementFilter !== 'all' && item.elementType !== comparisonElementFilter) return false
+      if (comparisonBoundaryFilter !== 'all') {
+        const node = nodes.find((candidate) => candidate.id === item.elementId)
+        const boundary = Boolean(node && (node.data?.kind === 'container' || node.data?.containerId))
+        if ((comparisonBoundaryFilter === 'boundary') !== boundary) return false
+      }
+      if (comparisonSeverityFilter !== 'all' && severityByElement.get(item.elementId) !== comparisonSeverityFilter) return false
+      return true
+    })
+  }, [activeRuleViolations, comparison, comparisonBoundaryFilter, comparisonElementFilter, comparisonKindFilter, comparisonSeverityFilter, nodes])
   useEffect(() => {
     if (nodes.some((node) => node.type !== 'architecture')) setNodes((current) => current.map(normalizedNode))
   }, [nodes, setNodes])
@@ -958,6 +984,22 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
     if (item.sourceLine) setCodeOpen(true)
   }
 
+  const exportComparisonReport = () => {
+    if (!comparison || !activeComparison) return
+    const report = {
+      format: 'archly-diagram-diff', version: 1,
+      baseline: { name: activeComparison.name, revision: activeComparison.revision || null, createdAt: activeComparison.createdAt },
+      generatedAt: new Date().toISOString(),
+      changes: filteredComparisonItems,
+    }
+    const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' }))
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `${activeComparison.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'diagram'}-comparison.json`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
   const renderedNodes = useMemo(() => nodes.map((node) => {
     let parentId = node.data?.containerId
     let hidden = false
@@ -1171,12 +1213,18 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
       {comparisonOpen && <aside className="diagram-comparison-panel" aria-label="Visual version comparison">
         <header><div><strong>Compare versions</strong><span>Review changes without changing the diagram</span></div><button onClick={() => setComparisonOpen(false)} aria-label="Close version comparison"><X /></button></header>
         <label>Compare current with<select aria-label="Comparison baseline" value={comparisonName} onChange={(event) => setComparisonName(event.target.value)}>{comparisonSources.map((item) => <option key={`${item.name}-${item.revision || ''}`} value={item.name}>{item.name}{item.revision ? ` (revision ${item.revision})` : ''}</option>)}</select></label>
-        <div className="diagram-comparison-actions"><button onClick={captureDiagramSnapshot}><Clock3 />Capture snapshot</button><button onClick={() => setComparisonOpen(false)}><X />Cancel</button></div>
+        <div className="diagram-comparison-actions"><button onClick={captureDiagramSnapshot}><Clock3 />Capture snapshot</button><button onClick={exportComparisonReport} disabled={!comparison}><Download />Export report</button><button onClick={() => setComparisonOpen(false)}><X />Cancel</button></div>
+        <div className="diagram-comparison-filters" aria-label="Comparison filters">
+          <label>Change type<select aria-label="Comparison change type" value={comparisonKindFilter} onChange={(event) => setComparisonKindFilter(event.target.value as typeof comparisonKindFilter)}><option value="all">All changes</option>{(['added', 'removed', 'moved', 'renamed', 'restyled', 'reparented', 'metadata'] as const).map((kind) => <option key={kind} value={kind}>{kind}</option>)}</select></label>
+          <label>Element<select aria-label="Comparison element type" value={comparisonElementFilter} onChange={(event) => setComparisonElementFilter(event.target.value as typeof comparisonElementFilter)}><option value="all">Components and connections</option><option value="component">Components</option><option value="connection">Connections</option></select></label>
+          <label>Boundary<select aria-label="Comparison boundary filter" value={comparisonBoundaryFilter} onChange={(event) => setComparisonBoundaryFilter(event.target.value as typeof comparisonBoundaryFilter)}><option value="all">Any boundary</option><option value="boundary">In a boundary</option><option value="outside">Outside boundaries</option></select></label>
+          <label>Rule severity<select aria-label="Comparison severity filter" value={comparisonSeverityFilter} onChange={(event) => setComparisonSeverityFilter(event.target.value as typeof comparisonSeverityFilter)}><option value="all">Any severity</option><option value="error">Errors</option><option value="warning">Warnings</option><option value="info">Info</option></select></label>
+        </div>
         {comparison?.truncated && <p className="diagram-comparison-warning" role="alert">This comparison was bounded because the diagram is very large. Refine the snapshot before trying again.</p>}
         <section className="diagram-change-list" aria-label="Diagram changes" role="list">
           {!comparison && <p className="muted">Choose a snapshot or opened revision.</p>}
-          {comparison && !comparison.items.length && !comparison.truncated && <p className="muted">No changes compared with {activeComparison?.name}.</p>}
-          {comparison?.items.map((item) => <button role="listitem" key={item.id} className={`diagram-change-item diff-${item.kind}`} onClick={() => selectComparisonItem(item)}>
+          {comparison && !filteredComparisonItems.length && !comparison.truncated && <p className="muted">No matching changes compared with {activeComparison?.name}.</p>}
+          {filteredComparisonItems.map((item) => <button role="listitem" key={item.id} className={`diagram-change-item diff-${item.kind}`} onClick={() => selectComparisonItem(item)}>
             <span className="diagram-change-kind">{item.kind}</span><strong>{item.label}</strong><span>{item.detail}</span>{item.sourceLine ? <small>Line {item.sourceLine} · Select on canvas</small> : <small>Select on canvas</small>}
           </button>)}
         </section>

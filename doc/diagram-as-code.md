@@ -392,7 +392,8 @@ the last valid canvas if another error remains.
 ### Visual version comparison
 
 Open **Compare diagram versions** from the canvas toolbar to compare the current
-model with an opened project revision or a named snapshot. **Capture snapshot**
+model with an opened project revision, a named snapshot, or a generated
+environment variant. **Capture snapshot**
 stores up to 20 durable, read-only baselines in the project. The comparison
 matches stable node and connection IDs and reports added, removed, moved,
 renamed, restyled, reparented, and metadata changes. Selecting a change focuses
@@ -400,6 +401,9 @@ the corresponding canvas element and opens the source editor when a source line
 is available. Change labels, badges, and patterned edge highlights supplement
 colour, so the result remains usable with colour-vision differences.
 
-Comparisons are calculated locally, capped for very large diagrams, and can be
-closed or cancelled. Opening or reviewing a comparison does not change the
-diagram, create an autosave, or modify the selected baseline.
+Use the filters to narrow changes by change type, component/connection, boundary
+membership, or validation severity. Reports can be exported as read-only JSON
+with the baseline revision identifier. Comparisons are calculated locally,
+capped for very large diagrams, and can be closed or cancelled. Opening or
+reviewing a comparison does not change the diagram, create an autosave, or
+modify the selected baseline.
