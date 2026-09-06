@@ -250,14 +250,14 @@ follow-up rather than replacing the browser's native text-selection behavior.
 
 ## 12. Visual version comparison
 
-| ID | Priority | Requirement |
-| --- | --- | --- |
-| V3-DAC-DIF-001 | Must | Users can compare the current diagram with a named snapshot or project revision without modifying either version. |
-| V3-DAC-DIF-002 | Must | The comparison identifies added, removed, moved, renamed, restyled, reparented, and metadata-changed components and connections. |
-| V3-DAC-DIF-003 | Must | Source comparison and canvas comparison use stable semantic identities so movement is not misreported as deletion and addition. |
-| V3-DAC-DIF-004 | Must | The UI provides an accessible change list linked bidirectionally to highlighted source and canvas elements. |
-| V3-DAC-DIF-005 | Must | Colours are supplemented with labels, icons, or patterns so comparison does not rely on colour alone. |
-| V3-DAC-DIF-006 | Must | Large comparisons are bounded, cancellable, and do not mutate autosave state. |
+| ID | Priority | Status | Requirement |
+| --- | --- | --- | --- |
+| V3-DAC-DIF-001 | Must | Done | Users can compare the current diagram with a named snapshot or project revision without modifying either version. |
+| V3-DAC-DIF-002 | Must | Done | The comparison identifies added, removed, moved, renamed, restyled, reparented, and metadata-changed components and connections. |
+| V3-DAC-DIF-003 | Must | Done | Source comparison and canvas comparison use stable semantic identities so movement is not misreported as deletion and addition. |
+| V3-DAC-DIF-004 | Must | Done | The UI provides an accessible change list linked bidirectionally to highlighted source and canvas elements. |
+| V3-DAC-DIF-005 | Must | Done | Colours are supplemented with labels, icons, or patterns so comparison does not rely on colour alone. |
+| V3-DAC-DIF-006 | Must | Done | Large comparisons are bounded, cancellable, and do not mutate autosave state. |
 | V3-DAC-DIF-007 | Should | Users can filter by change type, component type, boundary, and severity of affected validation rules. |
 | V3-DAC-DIF-008 | Could | A comparison can be exported as a read-only report with source revision identifiers. |
 

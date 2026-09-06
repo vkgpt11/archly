@@ -88,6 +88,7 @@ import DiagramCodeEditor from './DiagramCodeEditor'
 import type { DiagramModule } from '../diagramImports'
 import { applyViewState, compileDiagramViews, type DiagramViewState } from '../diagramViews'
 import { validateDiagramRules, type DiagramRuleViolation } from '../diagramRules'
+import { compareDiagramSnapshots, type DiagramDiffItem, type DiagramSnapshot } from '../diagramDiff'
 
 type CanvasTool = 'select' | 'pan' | 'connect'
 
@@ -123,6 +124,7 @@ type ArchitectureNodeData = {
   collapsed?: boolean
   manualSize?: boolean
   hiddenCount?: number
+  diffKind?: string
 }
 
 type Snapshot = { nodes: Node[]; edges: Edge[] }
@@ -151,6 +153,9 @@ type Props = {
   onActiveViewChange?: (view: string) => void
   diagramViewStates?: Record<string, DiagramViewState>
   onDiagramViewStatesChange?: (states: Record<string, DiagramViewState>) => void
+  diagramSnapshots?: DiagramSnapshot[]
+  onDiagramSnapshotsChange?: (snapshots: DiagramSnapshot[]) => void
+  comparisonBaseline?: DiagramSnapshot
   userScope?: string
 }
 
@@ -295,6 +300,7 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
       }}
     >
       {kind === 'image' && data.imageSrc ? <img className="canvas-image" src={data.imageSrc} alt={data.alt || label || 'Canvas image'} /> : kind !== 'text' && <span className="component-kind-icon" aria-hidden="true" style={{ color: data.iconId ? iconColorById[data.iconId] : undefined }}><Icon /></span>}
+      {data.diffKind && <span className="diagram-diff-badge" aria-label={`Changed: ${data.diffKind}`}>{data.diffKind}</span>}
       <button
         className="component-lock nodrag nowheel"
         onPointerDown={(event) => event.stopPropagation()}
@@ -351,9 +357,9 @@ function EditableConnectionEdge(props: EdgeProps<Edge>) {
 
   return <>
     <BaseEdge id={props.id} path={path} markerStart={props.markerStart} markerEnd={props.markerEnd} style={props.style} interactionWidth={20} />
-    {(label || props.selected) && <EdgeLabelRenderer>
+    {(label || props.selected || props.data?.diffKind) && <EdgeLabelRenderer>
       <input
-        className={`edge-inline-label nodrag nopan${props.selected ? ' selected' : ''}`}
+        className={`edge-inline-label nodrag nopan${props.selected ? ' selected' : ''}${props.data?.diffKind ? ' diagram-diff-edge-label' : ''}`}
         aria-label="Line text"
         value={props.selected ? label : sequenceLabel}
         onFocus={() => { selectThisEdge(); if (!editing.current) history.remember(); editing.current = true }}
@@ -366,6 +372,7 @@ function EditableConnectionEdge(props: EdgeProps<Edge>) {
           width: `${getEdgeLabelWidth(props.selected ? label : sequenceLabel)}px`,
         }}
       />
+      {Boolean(props.data?.diffKind) && <span className="diagram-diff-edge-badge" style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY - 22}px)` }}>{String(props.data?.diffKind)}</span>}
     </EdgeLabelRenderer>}
   </>
 }
@@ -374,6 +381,7 @@ const NODE_TYPES = { architecture: ArchitectureNode }
 const EDGE_TYPES = { editable: EditableConnectionEdge }
 const EMPTY_DIAGRAM_MODULES: DiagramModule[] = []
 const EMPTY_VIEW_STATES: Record<string, DiagramViewState> = {}
+const EMPTY_DIAGRAM_SNAPSHOTS: DiagramSnapshot[] = []
 const supportedKindNames = new Set(['service', 'web', 'mobile', 'database', 'cache', 'queue', 'storage', 'external', 'actor', 'container', 'note', 'text', 'image', 'custom'])
 
 function normalizedNode(node: Node): Node {
@@ -386,7 +394,7 @@ function normalizedNode(node: Node): Node {
   }
 }
 
-function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onViewportChange, diagramCode: initialDiagramCode = '', onDiagramCodeChange, activeVariant: initialActiveVariant = '', onActiveVariantChange, diagramModules: initialDiagramModules = EMPTY_DIAGRAM_MODULES, onDiagramModulesChange, activeView: initialActiveView = '', onActiveViewChange, diagramViewStates = EMPTY_VIEW_STATES, onDiagramViewStatesChange, userScope }: Props) {
+function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onViewportChange, diagramCode: initialDiagramCode = '', onDiagramCodeChange, activeVariant: initialActiveVariant = '', onActiveVariantChange, diagramModules: initialDiagramModules = EMPTY_DIAGRAM_MODULES, onDiagramModulesChange, activeView: initialActiveView = '', onActiveViewChange, diagramViewStates = EMPTY_VIEW_STATES, onDiagramViewStatesChange, diagramSnapshots: initialDiagramSnapshots = EMPTY_DIAGRAM_SNAPSHOTS, onDiagramSnapshotsChange, comparisonBaseline, userScope }: Props) {
   const flow = useReactFlow()
   const [tool, setTool] = useState<CanvasTool>('select')
   const [libraryOpen, setLibraryOpen] = useState(false)
@@ -401,6 +409,9 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
   const [modulesOpen, setModulesOpen] = useState(false)
   const [problemsOpen, setProblemsOpen] = useState(false)
   const [activeView, setActiveView] = useState(initialActiveView)
+  const [diagramSnapshots, setDiagramSnapshots] = useState(initialDiagramSnapshots)
+  const [comparisonOpen, setComparisonOpen] = useState(false)
+  const [comparisonName, setComparisonName] = useState(comparisonBaseline?.name || '')
   const [codeError, setCodeError] = useState('')
   const [mutationError, setMutationError] = useState('')
   const [livePreview, setLivePreview] = useState(false)
@@ -431,6 +442,8 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
   useEffect(() => { setActiveVariant(initialActiveVariant) }, [initialActiveVariant])
   useEffect(() => { setDiagramModules(initialDiagramModules) }, [initialDiagramModules])
   useEffect(() => { setActiveView(initialActiveView) }, [initialActiveView])
+  useEffect(() => { setDiagramSnapshots(initialDiagramSnapshots) }, [initialDiagramSnapshots])
+  useEffect(() => { if (comparisonBaseline && !comparisonName) setComparisonName(comparisonBaseline.name) }, [comparisonBaseline, comparisonName])
   const updateModules = (next: DiagramModule[]) => { setDiagramModules(next); onDiagramModulesChange?.(next); setCodeError('') }
   useEffect(() => {
     const generated = diagramToCode(nodes, edges)
@@ -452,6 +465,17 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
   }, [diagramCode, edges, nodes])
   const activeRuleViolations = useMemo(() => ruleViolations.filter((violation) => !violation.suppressed), [ruleViolations])
   const ruleProblemLines = useMemo(() => new Set(activeRuleViolations.map((violation) => violation.location.line)), [activeRuleViolations])
+  const comparisonSources = useMemo(() => [comparisonBaseline, ...diagramSnapshots].filter((item): item is DiagramSnapshot => Boolean(item)), [comparisonBaseline, diagramSnapshots])
+  const activeComparison = comparisonSources.find((item) => item.name === comparisonName)
+  const comparison = useMemo(() => comparisonOpen && activeComparison
+    ? compareDiagramSnapshots(activeComparison, { nodes, edges }, diagramCode)
+    : undefined, [activeComparison, comparisonOpen, diagramCode, edges, nodes])
+  const diffByElement = useMemo(() => {
+    const map = new Map<string, DiagramDiffItem['kind']>()
+    for (const item of comparison?.items || []) if (!map.has(`${item.elementType}:${item.elementId}`)) map.set(`${item.elementType}:${item.elementId}`, item.kind)
+    return map
+  }, [comparison])
+  const diffProblemLines = useMemo(() => new Set((comparison?.items || []).map((item) => item.sourceLine).filter((line): line is number => Number.isInteger(line))), [comparison])
   useEffect(() => {
     if (nodes.some((node) => node.type !== 'architecture')) setNodes((current) => current.map(normalizedNode))
   }, [nodes, setNodes])
@@ -910,6 +934,30 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
     ><DisplayIcon style={{ color: item.iconId ? iconColorById[item.iconId] : undefined }} /><strong>{item.label}</strong></button>
   })}</div>
 
+  const captureDiagramSnapshot = () => {
+    const fallback = `Snapshot ${new Date().toLocaleString()}`
+    const name = window.prompt('Name this diagram snapshot', fallback)?.trim()
+    if (!name) return
+    const snapshot: DiagramSnapshot = {
+      name: name.slice(0, 128),
+      nodes: structuredClone(nodesRef.current).map((node) => ({ ...node, selected: false })),
+      edges: structuredClone(edgesRef.current).map((edge) => ({ ...edge, selected: false })),
+      createdAt: new Date().toISOString(),
+      diagramCode,
+    }
+    const next = [snapshot, ...diagramSnapshots.filter((item) => item.name !== snapshot.name)].slice(0, 20)
+    setDiagramSnapshots(next)
+    onDiagramSnapshotsChange?.(next)
+    setComparisonName(snapshot.name)
+    setComparisonOpen(true)
+  }
+
+  const selectComparisonItem = (item: DiagramDiffItem) => {
+    setNodes((current) => current.map((node) => ({ ...node, selected: item.elementType === 'component' && node.id === item.elementId })))
+    setEdges((current) => current.map((edge) => ({ ...edge, selected: item.elementType === 'connection' && edge.id === item.elementId })))
+    if (item.sourceLine) setCodeOpen(true)
+  }
+
   const renderedNodes = useMemo(() => nodes.map((node) => {
     let parentId = node.data?.containerId
     let hidden = false
@@ -919,10 +967,15 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
       if (parent.data?.collapsed) { hidden = true; break }
       parentId = parent.data?.containerId
     }
-    if (node.data?.kind !== 'container') return { ...node, hidden }
+    const diffKind = diffByElement.get(`component:${node.id}`)
+    if (node.data?.kind !== 'container') return { ...node, hidden, className: [node.className, diffKind ? `diagram-diff-node diff-${diffKind}` : ''].filter(Boolean).join(' '), data: { ...node.data, ...(diffKind ? { diffKind } : {}) } }
     const hiddenCount = nodes.filter((candidate) => candidate.data?.containerId === node.id).length
-    return { ...node, hidden, data: { ...node.data, hiddenCount }, style: node.data?.collapsed ? { ...node.style, height: 64 } : node.style }
-  }), [nodes])
+    return { ...node, hidden, className: [node.className, diffKind ? `diagram-diff-node diff-${diffKind}` : ''].filter(Boolean).join(' '), data: { ...node.data, hiddenCount, ...(diffKind ? { diffKind } : {}) }, style: node.data?.collapsed ? { ...node.style, height: 64 } : node.style }
+  }), [diffByElement, nodes])
+  const renderedEdges = useMemo(() => edges.map((edge) => {
+    const diffKind = diffByElement.get(`connection:${edge.id}`)
+    return { ...edge, className: [edge.className, diffKind ? `diagram-diff-edge diff-${diffKind}` : ''].filter(Boolean).join(' '), data: { ...edge.data, ...(diffKind ? { diffKind } : {}) } }
+  }), [diffByElement, edges])
 
   const selectRuleViolation = (violation: DiagramRuleViolation) => {
     const affected = new Set(violation.affectedSymbols)
@@ -937,7 +990,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
       <CanvasHistoryContext.Provider value={historyApi}>
       <ReactFlow
         nodes={renderedNodes}
-        edges={edges}
+        edges={renderedEdges}
         nodeTypes={NODE_TYPES}
         edgeTypes={EDGE_TYPES}
         onNodesChange={onNodesChange}
@@ -1020,6 +1073,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
         <button className={tool === 'connect' ? 'active' : ''} aria-pressed={tool === 'connect'} onClick={() => setTool('connect')} title="Connect components" aria-label="Connect components"><Network /></button>
         <button className={moreOpen ? 'active' : ''} onClick={() => setMoreOpen((open) => !open)} title="More creation actions" aria-label="More creation actions"><MoreHorizontal /></button>
         <button className={codeOpen ? 'active' : ''} aria-pressed={codeOpen} onClick={openCodeEditor} title="Diagram as code" aria-label="Diagram as code"><Code2 /></button>
+        <button className={comparisonOpen ? 'active' : ''} aria-pressed={comparisonOpen} onClick={() => { setComparisonOpen((open) => !open); if (!comparisonName && comparisonSources[0]) setComparisonName(comparisonSources[0].name) }} title="Compare diagram versions" aria-label="Compare diagram versions" disabled={!comparisonSources.length}><GitBranch /></button>
         <span />
         <button className={propertiesOpen ? 'active' : ''} aria-pressed={propertiesOpen} disabled={!selectedNodes.length && !selectedEdges.length} onClick={() => setPropertiesOpen((open) => !open)} title="Properties" aria-label="Properties"><Cog /></button>
         <button onClick={deleteSelection} disabled={!selectedNodes.length && !selectedEdges.length} title="Delete selected" aria-label="Delete selected"><Trash2 /></button>
@@ -1107,11 +1161,25 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
           })}</div>
         </section>}
         <div className="diagram-code-input">
-          <div className="diagram-code-lines" ref={codeLineNumbers} aria-hidden="true">{diagramCode.split('\n').map((_, index) => <span className={Number(codeError.match(/^Line (\d+)/)?.[1]) === index + 1 ? 'error' : ruleProblemLines.has(index + 1) ? 'warning' : ''} key={index}>{index + 1}</span>)}</div>
+          <div className="diagram-code-lines" ref={codeLineNumbers} aria-hidden="true">{diagramCode.split('\n').map((_, index) => <span className={Number(codeError.match(/^Line (\d+)/)?.[1]) === index + 1 ? 'error' : diffProblemLines.has(index + 1) ? 'diff' : ruleProblemLines.has(index + 1) ? 'warning' : ''} key={index}>{index + 1}</span>)}</div>
           <DiagramCodeEditor value={diagramCode} diagnostic={codeError} onRun={drawFromCode} onChange={(next) => { setDiagramCode(next); onDiagramCodeChange?.(next); setCodeError(''); try { const available = compileVariantSource(next).variants.map((item) => item.name); if (activeVariant && !available.includes(activeVariant)) { setActiveVariant(''); onActiveVariantChange?.('') } } catch { /* Draw reports source diagnostics. */ } }} onScroll={(top) => { if (codeLineNumbers.current) codeLineNumbers.current.scrollTop = top }} />
         </div>
         {codeError ? <p className="diagram-code-error" role="alert">{codeError}</p> : <p className="diagram-code-help"><code>region east "us-east-1" {'{'}</code><br /><code>&nbsp;&nbsp;aws-lambda api "API"</code><br /><code>{'}'}</code><br /><code>api.right -&gt; db.left : "reads"</code></p>}
         <button className="diagram-code-draw" aria-label="Draw diagram" onClick={drawFromCode}><Sparkles />Draw diagram <kbd aria-hidden="true">Ctrl ↵</kbd></button>
+      </aside>}
+
+      {comparisonOpen && <aside className="diagram-comparison-panel" aria-label="Visual version comparison">
+        <header><div><strong>Compare versions</strong><span>Review changes without changing the diagram</span></div><button onClick={() => setComparisonOpen(false)} aria-label="Close version comparison"><X /></button></header>
+        <label>Compare current with<select aria-label="Comparison baseline" value={comparisonName} onChange={(event) => setComparisonName(event.target.value)}>{comparisonSources.map((item) => <option key={`${item.name}-${item.revision || ''}`} value={item.name}>{item.name}{item.revision ? ` (revision ${item.revision})` : ''}</option>)}</select></label>
+        <div className="diagram-comparison-actions"><button onClick={captureDiagramSnapshot}><Clock3 />Capture snapshot</button><button onClick={() => setComparisonOpen(false)}><X />Cancel</button></div>
+        {comparison?.truncated && <p className="diagram-comparison-warning" role="alert">This comparison was bounded because the diagram is very large. Refine the snapshot before trying again.</p>}
+        <section className="diagram-change-list" aria-label="Diagram changes" role="list">
+          {!comparison && <p className="muted">Choose a snapshot or opened revision.</p>}
+          {comparison && !comparison.items.length && !comparison.truncated && <p className="muted">No changes compared with {activeComparison?.name}.</p>}
+          {comparison?.items.map((item) => <button role="listitem" key={item.id} className={`diagram-change-item diff-${item.kind}`} onClick={() => selectComparisonItem(item)}>
+            <span className="diagram-change-kind">{item.kind}</span><strong>{item.label}</strong><span>{item.detail}</span>{item.sourceLine ? <small>Line {item.sourceLine} · Select on canvas</small> : <small>Select on canvas</small>}
+          </button>)}
+        </section>
       </aside>}
 
       {propertiesOpen && selectedNodes.length === 1 && <aside className="canvas-properties" aria-label="Properties inspector">

@@ -1,8 +1,9 @@
 import type { Edge, Node, Viewport } from '@xyflow/react'
 import type { DiagramModule } from './diagramImports'
 import type { DiagramViewState } from './diagramViews'
+import type { DiagramSnapshot } from './diagramDiff'
 
-export type CanvasData = { schemaVersion?: 1; nodes: Node[]; edges: Edge[]; viewport?: Viewport; diagramCode?: string; activeVariant?: string; diagramModules?: DiagramModule[]; activeView?: string; diagramViewStates?: Record<string, DiagramViewState> }
+export type CanvasData = { schemaVersion?: 1; nodes: Node[]; edges: Edge[]; viewport?: Viewport; diagramCode?: string; activeVariant?: string; diagramModules?: DiagramModule[]; activeView?: string; diagramViewStates?: Record<string, DiagramViewState>; diagramSnapshots?: DiagramSnapshot[] }
 
 export type Project = {
   id: string

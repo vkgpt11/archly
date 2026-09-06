@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { ApiError, api } from '../api'
 import type { CanvasData, Project } from '../types'
+import type { DiagramSnapshot } from '../diagramDiff'
 import { sanitizeRichText } from '../sanitizeRichText'
 import {
   canonicalCanvasJson, clearDraft, contentSignature, createDraft, draftRecovery, loadDraft,
@@ -147,6 +148,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack,
   const [diagramModules, setDiagramModules] = useState(initialCanvas.diagramModules || [])
   const [activeView, setActiveView] = useState(initialCanvas.activeView || '')
   const [diagramViewStates, setDiagramViewStates] = useState(initialCanvas.diagramViewStates || {})
+  const [diagramSnapshots, setDiagramSnapshots] = useState<DiagramSnapshot[]>(initialCanvas.diagramSnapshots || [])
   const [view, setView] = useState<View>('split')
   const [documentWidth, setDocumentWidth] = useState(25)
   const [linkEditorOpen, setLinkEditorOpen] = useState(false)
@@ -241,6 +243,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack,
     setDiagramModules(canvas.diagramModules || [])
     setActiveView(canvas.activeView || '')
     setDiagramViewStates(canvas.diagramViewStates || {})
+    setDiagramSnapshots(canvas.diagramSnapshots || [])
     setProject(server)
     clearDraft(server.id)
     setConflict(null)
@@ -329,7 +332,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack,
       ...latestProject.current,
       name: project.name,
       markdown: project.markdown,
-      canvasJson: serializeCanvas(nodes, edges, viewport, diagramCode || undefined, activeVariant || undefined, diagramModules, activeView || undefined, diagramViewStates),
+      canvasJson: serializeCanvas(nodes, edges, viewport, diagramCode || undefined, activeVariant || undefined, diagramModules, activeView || undefined, diagramViewStates, diagramSnapshots),
     }
     const signature = contentSignature(latestProject.current)
     if (signature === lastSavedSignature.current) {
@@ -347,7 +350,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack,
     setSaveState(navigator.onLine ? 'saving' : 'offline')
     const timer = window.setTimeout(() => void flushSave(), 900)
     return () => window.clearTimeout(timer)
-  }, [nodes, edges, viewport, diagramCode, activeVariant, diagramModules, activeView, diagramViewStates, project.id, project.name, project.markdown, canvasLoadError, conflictActive, flushSave, tabId])
+  }, [nodes, edges, viewport, diagramCode, activeVariant, diagramModules, activeView, diagramViewStates, diagramSnapshots, project.id, project.name, project.markdown, canvasLoadError, conflictActive, flushSave, tabId])
 
   useEffect(() => {
     const retryWhenOnline = () => { if (!conflictActive) void flushSave() }
@@ -549,7 +552,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack,
         )}
         {showCanvas && (
           <section className="canvas-panel" style={view === 'split' ? { flexBasis: `${100 - documentWidth}%` } : undefined}>
-            <Suspense fallback={<p className="muted">Loading canvas…</p>}><CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} viewport={viewport} onViewportChange={setViewport} diagramCode={diagramCode} onDiagramCodeChange={setDiagramCode} activeVariant={activeVariant} onActiveVariantChange={setActiveVariant} diagramModules={diagramModules} onDiagramModulesChange={setDiagramModules} activeView={activeView} onActiveViewChange={setActiveView} diagramViewStates={diagramViewStates} onDiagramViewStatesChange={setDiagramViewStates} userScope={userScope} /></Suspense>
+            <Suspense fallback={<p className="muted">Loading canvas…</p>}><CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} viewport={viewport} onViewportChange={setViewport} diagramCode={diagramCode} onDiagramCodeChange={setDiagramCode} activeVariant={activeVariant} onActiveVariantChange={setActiveVariant} diagramModules={diagramModules} onDiagramModulesChange={setDiagramModules} activeView={activeView} onActiveViewChange={setActiveView} diagramViewStates={diagramViewStates} onDiagramViewStatesChange={setDiagramViewStates} diagramSnapshots={diagramSnapshots} onDiagramSnapshotsChange={setDiagramSnapshots} comparisonBaseline={{ name: `Opened revision ${initialProject.revision}`, revision: initialProject.revision, nodes: initialCanvas.nodes, edges: initialCanvas.edges, diagramCode: initialCanvas.diagramCode, createdAt: initialProject.updatedAt }} userScope={userScope} /></Suspense>
           </section>
         )}
       </div>

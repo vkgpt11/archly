@@ -8,6 +8,7 @@ import { useState } from 'react'
 import type { Edge, Node } from '@xyflow/react'
 import type { DiagramModule } from '../diagramImports'
 import type { DiagramViewState } from '../diagramViews'
+import type { DiagramSnapshot } from '../diagramDiff'
 
 afterEach(() => { cleanup(); localStorage.clear() })
 
@@ -107,7 +108,23 @@ function BidirectionalHarness() {
   </div>
 }
 
+function ComparisonHarness() {
+  const [nodes, setNodes] = useState<Node[]>([{ id: 'api', type: 'architecture', position: { x: 80, y: 40 }, data: { label: 'Gateway', kind: 'service', fill: '#fff' } }])
+  const [edges, setEdges] = useState<Edge[]>([])
+  const baseline: DiagramSnapshot = { name: 'Before refactor', createdAt: '2026-08-24T00:00:00Z', nodes: [{ id: 'api', type: 'architecture', position: { x: 0, y: 0 }, data: { label: 'API', kind: 'service' } }], edges: [] }
+  return <div style={{ width: 1000, height: 700 }}><CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} diagramCode={'service api "Gateway"'} comparisonBaseline={baseline} /></div>
+}
+
 describe('CanvasWorkspace', () => {
+  it('compares a revision, highlights changed elements, and can cancel without editing the canvas', () => {
+    render(<ComparisonHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Compare diagram versions' }))
+    expect(screen.getByLabelText('Visual version comparison')).toHaveTextContent('moved')
+    expect(screen.getByLabelText('Visual version comparison')).toHaveTextContent('renamed')
+    fireEvent.click(screen.getByRole('button', { name: /Cancel/ }))
+    expect(screen.queryByLabelText('Visual version comparison')).not.toBeInTheDocument()
+  })
+
   it('creates, edits, and draws a project-owned diagram module', () => {
     render(<ModulesHarness />)
     fireEvent.click(screen.getByRole('button', { name: 'Diagram as code' }))

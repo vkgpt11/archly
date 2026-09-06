@@ -27,6 +27,12 @@ describe('project persistence', () => {
     expect(parsed.activeView).toBe('checkout')
     expect(parsed.diagramViewStates).toEqual(states)
   })
+  it('round-trips bounded named diagram snapshots', () => {
+    const snapshots = [{ name: 'Before refactor', createdAt: '2026-08-24T00:00:00Z', nodes: [], edges: [] }]
+    const parsed = parseCanvasJson(serializeCanvas([], [], undefined, undefined, undefined, undefined, undefined, undefined, snapshots))
+    expect(parsed.diagramSnapshots).toEqual(snapshots)
+    expect(() => parseCanvasJson(JSON.stringify({ schemaVersion: 1, nodes: [], edges: [], diagramSnapshots: Array.from({ length: 21 }, (_, index) => ({ name: String(index), createdAt: 'now', nodes: [], edges: [] })) }))).toThrow('at most 20')
+  })
   it('preserves exact diagram source including comments and whitespace', () => {
     const source = 'direction down\n\n# Keep this comment\nservice api "API"\n'
     const serialized = serializeCanvas([], [], { x: 0, y: 0, zoom: 1 }, source)

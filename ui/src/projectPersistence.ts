@@ -61,6 +61,12 @@ export function parseCanvasJson(value: string): CanvasData {
   }
   if (canvas.activeView !== undefined && (typeof canvas.activeView !== 'string' || canvas.activeView.length > 128)) throw new Error('Canvas active view must be a valid name.')
   if (canvas.diagramViewStates !== undefined && (!canvas.diagramViewStates || typeof canvas.diagramViewStates !== 'object' || Array.isArray(canvas.diagramViewStates) || Object.keys(canvas.diagramViewStates).length > 100)) throw new Error('Canvas view states must be an object with at most 100 views.')
+  if (canvas.diagramSnapshots !== undefined) {
+    if (!Array.isArray(canvas.diagramSnapshots) || canvas.diagramSnapshots.length > 20) throw new Error('Canvas diagram snapshots must be an array of at most 20 items.')
+    for (const snapshot of canvas.diagramSnapshots) {
+      if (!snapshot || typeof snapshot.name !== 'string' || snapshot.name.length > 128 || !Array.isArray(snapshot.nodes) || !Array.isArray(snapshot.edges) || typeof snapshot.createdAt !== 'string' || snapshot.diagramCode !== undefined && typeof snapshot.diagramCode !== 'string') throw new Error('Every diagram snapshot must contain a name, nodes, edges, and createdAt.')
+    }
+  }
   return canvas as CanvasData
 }
 
@@ -83,20 +89,20 @@ function durableEdge(edge: Edge): Edge {
   return durable
 }
 
-export function serializeCanvas(nodes: Node[], edges: Edge[], viewport?: Viewport, diagramCode?: string, activeVariant?: string, diagramModules?: CanvasData['diagramModules'], activeView?: string, diagramViewStates?: CanvasData['diagramViewStates']): string {
-  return JSON.stringify({ schemaVersion: 1, nodes: nodes.map(durableNode), edges: edges.map(durableEdge), ...(viewport ? { viewport } : {}), ...(diagramCode !== undefined ? { diagramCode } : {}), ...(activeVariant ? { activeVariant } : {}), ...(diagramModules?.length ? { diagramModules } : {}), ...(activeView ? { activeView } : {}), ...(diagramViewStates && Object.keys(diagramViewStates).length ? { diagramViewStates } : {}) })
+export function serializeCanvas(nodes: Node[], edges: Edge[], viewport?: Viewport, diagramCode?: string, activeVariant?: string, diagramModules?: CanvasData['diagramModules'], activeView?: string, diagramViewStates?: CanvasData['diagramViewStates'], diagramSnapshots?: CanvasData['diagramSnapshots']): string {
+  return JSON.stringify({ schemaVersion: 1, nodes: nodes.map(durableNode), edges: edges.map(durableEdge), ...(viewport ? { viewport } : {}), ...(diagramCode !== undefined ? { diagramCode } : {}), ...(activeVariant ? { activeVariant } : {}), ...(diagramModules?.length ? { diagramModules } : {}), ...(activeView ? { activeView } : {}), ...(diagramViewStates && Object.keys(diagramViewStates).length ? { diagramViewStates } : {}), ...(diagramSnapshots?.length ? { diagramSnapshots } : {}) })
 }
 
 export function canonicalCanvasJson(value: string): string {
   const canvas = parseCanvasJson(value)
-  return serializeCanvas(canvas.nodes, canvas.edges, canvas.viewport, canvas.diagramCode, canvas.activeVariant, canvas.diagramModules, canvas.activeView, canvas.diagramViewStates)
+  return serializeCanvas(canvas.nodes, canvas.edges, canvas.viewport, canvas.diagramCode, canvas.activeVariant, canvas.diagramModules, canvas.activeView, canvas.diagramViewStates, canvas.diagramSnapshots)
 }
 
 export function contentSignature(content: ProjectContent): string {
   const canvas = parseCanvasJson(content.canvasJson)
   return JSON.stringify({
     name: content.name,
-    canvasJson: serializeCanvas(canvas.nodes, canvas.edges, undefined, canvas.diagramCode, canvas.activeVariant, canvas.diagramModules, canvas.activeView, canvas.diagramViewStates),
+    canvasJson: serializeCanvas(canvas.nodes, canvas.edges, undefined, canvas.diagramCode, canvas.activeVariant, canvas.diagramModules, canvas.activeView, canvas.diagramViewStates, canvas.diagramSnapshots),
     markdown: content.markdown,
   })
 }
