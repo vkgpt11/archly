@@ -35,7 +35,7 @@ class PostgresAiOperationsTest {
 
     @Test void appliesEveryMigrationAndEnforcesCredentialConstraints() {
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
-        assertThat(jdbc.queryForObject("select max(version) from flyway_schema_history where success", String.class)).isEqualTo("10");
+        assertThat(jdbc.queryForObject("select version from flyway_schema_history where success order by installed_rank desc limit 1", String.class)).isEqualTo("10");
         assertThat(jdbc.queryForObject("select count(*) from ai_rate_limit_locks", Integer.class)).isEqualTo(64);
         assertThat(jdbc.queryForObject("select count(*) from pg_constraint where conname='ck_llm_provider'", Integer.class)).isEqualTo(1);
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> jdbc.update("insert into user_llm_settings (id,user_subject,provider,model,encrypted_api_key,api_key_hint,encryption_key_version,created_at,updated_at) values (gen_random_uuid(),'owner','OTHER','model','12345678901234567890123456789012','hint',1,now(),now())"))
