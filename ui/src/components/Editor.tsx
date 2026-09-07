@@ -6,7 +6,7 @@ import Link from '@tiptap/extension-link'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import Color from '@tiptap/extension-color'
 import Highlight from '@tiptap/extension-highlight'
-import TextStyle from '@tiptap/extension-text-style'
+import { TextStyle } from '@tiptap/extension-text-style'
 import Image from '@tiptap/extension-image'
 import { common, createLowlight } from 'lowlight'
 import {
@@ -159,6 +159,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack,
   const [shareOpen, setShareOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [generateOpen, setGenerateOpen] = useState(false)
+  const [aiHistoryCheckpoint, setAiHistoryCheckpoint] = useState<{ id: number; nodes: typeof nodes; edges: typeof edges } | null>(null)
   const [canvasLoadError, setCanvasLoadError] = useState(canvasLoad.error)
   const [saveState, setSaveState] = useState<SaveState>(recovery.mode === 'conflict' ? 'conflict' : recovery.mode === 'resume' ? 'saving' : 'saved')
   const [conflict, setConflict] = useState<SaveConflict | null>(() => recovery.mode === 'conflict' ? { local: recovery.draft!, server: initialProject } : null)
@@ -178,7 +179,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack,
 
   const richTextEditor = useEditor({
     extensions: [
-      StarterKit.configure({ codeBlock: false }),
+      StarterKit.configure({ codeBlock: false, link: false }),
       CodeBlockLowlight.configure({ lowlight }),
       TextStyle,
       Color,
@@ -235,7 +236,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack,
     const server = { ...value, canvasJson: canonicalCanvasJson(value.canvasJson), markdown: sanitizeRichText(value.markdown) }
     latestProject.current = server
     lastSavedSignature.current = contentSignature(server)
-    richTextEditor?.commands.setContent(server.markdown, false)
+    richTextEditor?.commands.setContent(server.markdown, { emitUpdate: false })
     setNodes(canvas.nodes)
     setEdges(canvas.edges)
     setViewport(canvas.viewport || { x: 0, y: 0, zoom: 1 })
@@ -553,13 +554,14 @@ export default function Editor({ token = '', shareToken, initialProject, onBack,
         )}
         {showCanvas && (
           <section className="canvas-panel" style={view === 'split' ? { flexBasis: `${100 - documentWidth}%` } : undefined}>
-            <Suspense fallback={<p className="muted">Loading canvas…</p>}><CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} viewport={viewport} onViewportChange={setViewport} diagramCode={diagramCode} onDiagramCodeChange={setDiagramCode} activeVariant={activeVariant} onActiveVariantChange={setActiveVariant} diagramModules={diagramModules} onDiagramModulesChange={setDiagramModules} activeView={activeView} onActiveViewChange={setActiveView} diagramViewStates={diagramViewStates} onDiagramViewStatesChange={setDiagramViewStates} diagramSnapshots={diagramSnapshots} onDiagramSnapshotsChange={setDiagramSnapshots} comparisonBaseline={{ name: `Opened revision ${initialProject.revision}`, revision: initialProject.revision, nodes: initialCanvas.nodes, edges: initialCanvas.edges, diagramCode: initialCanvas.diagramCode, createdAt: initialProject.updatedAt }} userScope={userScope} /></Suspense>
+            <Suspense fallback={<p className="muted">Loading canvas…</p>}><CanvasWorkspace nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} viewport={viewport} onViewportChange={setViewport} diagramCode={diagramCode} onDiagramCodeChange={setDiagramCode} activeVariant={activeVariant} onActiveVariantChange={setActiveVariant} diagramModules={diagramModules} onDiagramModulesChange={setDiagramModules} activeView={activeView} onActiveViewChange={setActiveView} diagramViewStates={diagramViewStates} onDiagramViewStatesChange={setDiagramViewStates} diagramSnapshots={diagramSnapshots} onDiagramSnapshotsChange={setDiagramSnapshots} comparisonBaseline={{ name: `Opened revision ${initialProject.revision}`, revision: initialProject.revision, nodes: initialCanvas.nodes, edges: initialCanvas.edges, diagramCode: initialCanvas.diagramCode, createdAt: initialProject.updatedAt }} userScope={userScope} historyCheckpoint={aiHistoryCheckpoint} /></Suspense>
           </section>
         )}
       </div>
       {shareOpen && <Suspense fallback={null}><ProjectSharingDialog token={token} projectId={project.id} onClose={() => setShareOpen(false)} /></Suspense>}
       {exportOpen && <Suspense fallback={null}><ProjectExportDialog project={latestProject.current} nodes={nodes} edges={edges} viewport={viewport} activeVariant={activeVariant} onClose={() => setExportOpen(false)} /></Suspense>}
       {generateOpen && <Suspense fallback={null}><GenerateDiagramDialog token={token} context={{ currentCanvas: canvasContext(nodes, edges), selectedSubsystem: selectedSubsystem(nodes, edges), hasSelection: nodes.some(node => node.selected), documentation: project.markdown.slice(0, 100_000) }} onClose={() => setGenerateOpen(false)} onOpenSettings={onOpenAiSettings} onGenerated={(canvas) => {
+        setAiHistoryCheckpoint({ id: Date.now(), nodes: structuredClone(nodes), edges: structuredClone(edges) })
         setNodes(canvas.nodes)
         setEdges(canvas.edges)
         setViewport(canvas.viewport || { x: 0, y: 0, zoom: 1 })

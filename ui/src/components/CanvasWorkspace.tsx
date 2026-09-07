@@ -157,6 +157,7 @@ type Props = {
   onDiagramSnapshotsChange?: (snapshots: DiagramSnapshot[]) => void
   comparisonBaseline?: DiagramSnapshot
   userScope?: string
+  historyCheckpoint?: { id: number; nodes: Node[]; edges: Edge[] } | null
 }
 
 
@@ -394,7 +395,7 @@ function normalizedNode(node: Node): Node {
   }
 }
 
-function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onViewportChange, diagramCode: initialDiagramCode = '', onDiagramCodeChange, activeVariant: initialActiveVariant = '', onActiveVariantChange, diagramModules: initialDiagramModules = EMPTY_DIAGRAM_MODULES, onDiagramModulesChange, activeView: initialActiveView = '', onActiveViewChange, diagramViewStates = EMPTY_VIEW_STATES, onDiagramViewStatesChange, diagramSnapshots: initialDiagramSnapshots = EMPTY_DIAGRAM_SNAPSHOTS, onDiagramSnapshotsChange, comparisonBaseline, userScope }: Props) {
+function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onViewportChange, diagramCode: initialDiagramCode = '', onDiagramCodeChange, activeVariant: initialActiveVariant = '', onActiveVariantChange, diagramModules: initialDiagramModules = EMPTY_DIAGRAM_MODULES, onDiagramModulesChange, activeView: initialActiveView = '', onActiveViewChange, diagramViewStates = EMPTY_VIEW_STATES, onDiagramViewStatesChange, diagramSnapshots: initialDiagramSnapshots = EMPTY_DIAGRAM_SNAPSHOTS, onDiagramSnapshotsChange, comparisonBaseline, userScope, historyCheckpoint }: Props) {
   const flow = useReactFlow()
   const [tool, setTool] = useState<CanvasTool>('select')
   const [libraryOpen, setLibraryOpen] = useState(false)
@@ -439,6 +440,7 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
   const canvasCodeSignature = useRef(diagramToCode(nodes, edges))
   const dragSnapshot = useRef<Snapshot | null>(null)
   const codeLineNumbers = useRef<HTMLDivElement>(null)
+  const appliedCheckpoint = useRef(0)
 
   useEffect(() => { nodesRef.current = nodes }, [nodes])
   useEffect(() => { edgesRef.current = edges }, [edges])
@@ -983,6 +985,12 @@ function CanvasWorkspaceInner({ nodes, edges, setNodes, setEdges, viewport, onVi
     setEdges((current) => current.map((edge) => ({ ...edge, selected: item.elementType === 'connection' && edge.id === item.elementId })))
     if (item.sourceLine) setCodeOpen(true)
   }
+
+  useEffect(() => {
+    if (!historyCheckpoint || historyCheckpoint.id === appliedCheckpoint.current) return
+    appliedCheckpoint.current = historyCheckpoint.id
+    remember({ nodes: historyCheckpoint.nodes, edges: historyCheckpoint.edges })
+  }, [historyCheckpoint])
 
   const exportComparisonReport = () => {
     if (!comparison || !activeComparison) return

@@ -52,6 +52,10 @@ jobs:
           cache: maven
       - run: chmod +x mvnw
       - run: ./mvnw --batch-mode verify
+      - name: Require PostgreSQL integration tests
+        run: |
+          test -f target/surefire-reports/TEST-io.archly.ai.PostgresAiOperationsTest.xml
+          ! grep -Eq 'skipped="[1-9][0-9]*"' target/surefire-reports/TEST-io.archly.ai.PostgresAiOperationsTest.xml
 
   containers:
     runs-on: ubuntu-latest

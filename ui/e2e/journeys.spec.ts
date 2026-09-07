@@ -11,11 +11,26 @@ function project(id: string, name: string) {
 async function installStatefulApi(page: Page, seed = [project('existing', 'Existing architecture')]) {
   let projects = [...seed]
   let shares: Array<Record<string, unknown>> = []
+  let llm = { provider: 'OPENAI', model: 'gpt-4.1-mini', hasApiKey: false, credentialStorageAvailable: true, apiKeyHint: null as string | null, updatedAt: null as string | null, lastSuccessfulUseAt: null as string | null, lastErrorCode: null as string | null }
   const handler = async (route: Route) => {
     const request = route.request()
     const url = new URL(request.url())
     const path = url.pathname
     if (path === '/api/auth/session') return route.fulfill({ json: { email: 'developer@gmail.com' } })
+    if (path === '/api/profile/llm' && request.method() === 'GET') return route.fulfill({ json: llm })
+    if (path === '/api/profile/llm' && request.method() === 'PUT') {
+      const body = request.postDataJSON() as { model: string; apiKey?: string }
+      llm = { ...llm, model: body.model, hasApiKey: true, apiKeyHint: '••••test', updatedAt: now }
+      return route.fulfill({ json: llm })
+    }
+    if (path === '/api/profile/llm/test' && request.method() === 'POST') return route.fulfill({ json: { ok: true } })
+    if (path === '/api/ai/diagrams/generate' && request.method() === 'POST') return route.fulfill({ json: {
+      summary: 'A generated checkout service with durable storage.',
+      canvas: { schemaVersion: 1, nodes: [
+        { id: 'generated-api', type: 'architecture', position: { x: 80, y: 80 }, data: { kind: 'service', label: 'Generated checkout API' } },
+        { id: 'generated-db', type: 'architecture', position: { x: 360, y: 80 }, data: { kind: 'database', label: 'Generated orders database' } },
+      ], edges: [{ id: 'generated-edge', source: 'generated-api', target: 'generated-db', type: 'editable', label: 'SQL', data: { protocol: 'PostgreSQL', encrypted: true } }], viewport: { x: 0, y: 0, zoom: 1 } },
+    } })
     if (path === '/api/projects' && request.method() === 'GET') return route.fulfill({ json: { items: projects.map((item) => ({
       id: item.id, name: item.name, revision: item.revision, createdAt: item.createdAt, updatedAt: item.updatedAt,
     })), page: 0, size: 24, totalItems: projects.length, totalPages: 1 } })
@@ -59,6 +74,36 @@ async function installStatefulApi(page: Page, seed = [project('existing', 'Exist
   await page.route('**/api/**', handler)
 }
 
+test('configures AI, previews and applies generation, then undoes and persists the undo after reload', async ({ page }) => {
+  await installStatefulApi(page)
+  await signIn(page)
+  await page.getByRole('button', { name: /Account menu for developer/ }).click()
+  await page.getByRole('menuitem', { name: 'Settings' }).click()
+  await page.getByLabel('Model').fill('gpt-4.1-mini')
+  await page.getByRole('textbox', { name: 'API key', exact: true }).fill('sk-e2e-test')
+  await page.getByRole('button', { name: 'Test connection' }).click()
+  await expect(page.getByRole('status')).toContainText('Connection successful')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByRole('status')).toContainText('connection saved')
+  await page.getByRole('button', { name: 'Close settings' }).click()
+
+  await page.getByRole('button', { name: 'Open Existing architecture' }).click()
+  await page.getByRole('button', { name: 'Generate architecture diagram' }).click()
+  await page.getByLabel('What should change?').fill('Add a checkout API with durable storage')
+  await page.getByRole('button', { name: 'Generate proposal' }).click()
+  await expect(page.getByText('A generated checkout service with durable storage.')).toBeVisible()
+  await expect(page.getByText('Generated checkout API')).not.toBeVisible()
+  await page.getByRole('button', { name: 'Apply changes' }).click()
+  await expect(page.getByText('Generated checkout API')).toBeVisible()
+  await page.getByRole('button', { name: 'Undo canvas change' }).click()
+  await expect(page.getByText('Generated checkout API')).not.toBeVisible()
+  await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 15_000 })
+  await page.reload()
+  await expect(page.getByText('Existing architecture', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Open Existing architecture' }).click()
+  await expect(page.getByText('Generated checkout API')).not.toBeVisible()
+})
+
 async function signIn(page: Page) {
   await page.goto('/')
   const signInButton = page.getByRole('button', { name: 'Continue as local developer' })
@@ -88,10 +133,12 @@ test('administrator opens aggregate analytics while normal users have no admin n
     if (path === '/api/admin/metrics/summary') return route.fulfill({ json: { period: '30d', timezone: 'UTC', start: now, end: now, users: { total: 4, newUsers: 2, active: 3 }, diagrams: { current: 9, archived: 1, created: 5, deleted: 1, perActiveUser: 1.67 }, conversion: { firstDiagramPercent: 75, firstSavePercent: 50 } } })
     if (path === '/api/admin/metrics/timeseries') return route.fulfill({ json: { metric: 'diagrams-created', timezone: 'UTC', buckets: [{ date: '2026-08-27', value: 5 }] } })
     if (path === '/api/admin/users') return route.fulfill({ json: { items: [{ id: 'one', maskedEmail: 'a***@gmail.com', firstLoginAt: now, lastLoginAt: now, projectCount: 2 }], page: 0, size: 25, totalItems: 1, totalPages: 1 } })
+    if (path === '/api/admin/metrics/ai-usage') return route.fulfill({ json: { monthlyEstimatedCostMicros: 0, monthlyBudgetMicros: 100000000, requests: 0, inputTokens: 0, outputTokens: 0, failures: 0, alert: false } })
     return route.fulfill({ status: 404 })
   })
   await signIn(page)
-  await page.getByRole('button', { name: 'Administration' }).click()
+  await page.getByRole('button', { name: /Account menu for admin/ }).click()
+  await page.getByRole('menuitem', { name: 'Switch to admin dashboard' }).click()
   await expect(page.getByRole('heading', { name: 'Usage overview' })).toBeVisible()
   await expect(page.getByText('Observed users').locator('..')).toContainText('4')
   await expect(page.getByText('a***@gmail.com')).toBeVisible()

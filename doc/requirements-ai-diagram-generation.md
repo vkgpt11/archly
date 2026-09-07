@@ -62,15 +62,16 @@ production release unless explicitly deferred with an accepted, documented risk.
 
 | ID | Priority | Requirement |
 | --- | --- | --- |
-| AI-REL-001 | Must | Provider clients enforce bounded connection, response, and total request timeouts shorter than the upstream browser timeout. |
+| AI-REL-001 | Must | Provider clients enforce bounded connection and response timeouts plus a strict end-to-end provider-call deadline, including all retries and repair attempts, shorter than the upstream browser timeout. |
 | AI-REL-002 | Must | Input characters, input tokens, output tokens, node count, edge count, response bytes, and generation duration have enforced limits. |
-| AI-REL-003 | Must | A distributed rate limiter applies per-user and system-wide limits consistently across Cloud Run instances and deployments. |
-| AI-REL-004 | Must | Administrators can configure requests per minute/day, monthly token or cost budgets, maximum diagram size, and an emergency generation disable switch. |
-| AI-REL-005 | Should | Transient timeouts, selected 5xx responses, and throttling receive bounded exponential-backoff retries with jitter; authentication and validation errors are never retried. |
-| AI-REL-006 | Should | Closing or cancelling generation aborts the browser request and provider request where supported. |
-| AI-REL-007 | Should | Idempotency prevents duplicate provider calls caused by double-clicks, reconnection, or retry. |
+| AI-REL-003 | Must | A distributed rate limiter applies configurable per-user and system-wide throughput limits consistently across Cloud Run instances and deployments. |
+| AI-REL-004 | Must | Administrators can configure per-user and system-wide requests per minute/day, monthly token or cost budgets, maximum diagram size, and an emergency generation disable switch. |
+| AI-REL-005 | Must | Transient timeouts, selected 5xx responses, and throttling receive bounded exponential-backoff retries with jitter; `Retry-After` is honored within the total deadline, while authentication and validation errors are never retried. |
+| AI-REL-006 | Must | Closing or cancelling generation aborts the browser request, backend work, and active upstream provider call; cancellation releases resources and does not continue consuming provider tokens where the provider transport supports termination. |
+| AI-REL-007 | Must | Idempotency prevents duplicate provider calls caused by double-clicks, reconnection, retry, or simultaneous requests, stores the bounded completed result, and replays that result for the same authenticated user and request fingerprint. |
 | AI-REL-008 | Should | One bounded structured-response repair attempt may run before a malformed result is rejected. |
 | AI-REL-009 | Must | Provider degradation never prevents non-AI project editing and communicates a clear recoverable state. |
+| AI-REL-010 | Must | Token-cost estimation uses administrator-configurable, model-specific input, cached-input, and output pricing rather than fixed global rates; unknown models are rejected or use an explicitly configured fallback. |
 
 ## 5. Generation workflow and data safety
 
@@ -103,10 +104,11 @@ production release unless explicitly deferred with an accepted, documented risk.
 | ID | Priority | Requirement |
 | --- | --- | --- |
 | AI-ADM-001 | Must | Privacy documentation explains exactly what prompts, diagrams, and documentation are sent, retention behavior, provider storage settings, credential handling, and deletion controls. |
-| AI-ADM-002 | Must | Safe metrics record provider, model, duration, outcome category, token counts, generated element counts, and estimated cost without prompts, credentials, responses, or project content by default. |
+| AI-ADM-002 | Must | Safe metrics record provider, model, end-to-end latency, provider latency, retry count, throttling, timeout, outcome category, token counts, generated element counts, and estimated cost without prompts, credentials, responses, or project content by default. |
 | AI-ADM-003 | Must | Administrator controls cover feature enablement, allowed providers/models, default model, limits, prompt and diagram bounds, budgets, and aggregate usage. |
-| AI-ADM-004 | Must | Provider dashboards and alerts cover latency, errors, timeouts, throttling, budget exhaustion, and unusual generation traffic without exposing personal credentials. |
+| AI-ADM-004 | Must | Provider dashboards show latency, errors, retries, timeouts, throttling, token and cost usage, and per-model trends without exposing prompts, project content, or personal credentials. |
 | AI-ADM-005 | Must | Production smoke tests verify encryption configuration, profile save, masked reads, successful generation, credential removal, and secret-free logs. |
+| AI-ADM-006 | Must | Budget thresholds, provider errors, timeout rates, throttling, and unusual generation traffic trigger configurable external alerts through an approved operations channel; dashboard-only warnings are insufficient. |
 
 ## 8. Verification requirements
 
@@ -120,6 +122,10 @@ production release unless explicitly deferred with an accepted, documented risk.
 | AI-TST-006 | Must | Cross-owner tests prove a user cannot read, mutate, delete, or use another user's settings or credential. |
 | AI-TST-007 | Must | Flyway and repository tests run against supported PostgreSQL through Testcontainers in addition to fast local tests. |
 | AI-TST-008 | Must | CI blocks release on AI unit, integration, contract, end-to-end, accessibility, secret-leak, dependency, and migration failures. |
+| AI-TST-009 | Must | Provider contract tests cover every safe error mapping, including invalid credentials, invalid models, quota exhaustion, throttling, timeout, refusal, incomplete response, malformed response, repair failure, and provider outage. |
+| AI-TST-010 | Must | Security tests prove credential ownership isolation and cover corrupted ciphertext, missing key versions, rotation failure and recovery, authenticated-context mismatch, and production startup rejection for missing, invalid, or non-Secret-Manager encryption configuration. |
+| AI-TST-011 | Must | A staging release gate runs live smoke tests against OpenAI, Google Secret Manager, and Cloud Run, including generation, request cancellation, account deletion, key rotation, backup recovery, and secret-free operational telemetry. |
+| AI-TST-012 | Must | Staging load tests exercise configured per-user and system-wide throughput, simultaneous idempotent requests, retry behavior, budget enforcement, cancellation, and recovery under expected and peak concurrency. |
 
 ## 9. Delivery sequence
 
@@ -148,6 +154,9 @@ The feature is production-ready only when all Must requirements above pass and:
    and never silently replace existing work.
 6. PostgreSQL migration, provider contracts, ownership isolation, accessibility,
    secret-leak, end-to-end, and production smoke suites pass.
+7. Staging proves live OpenAI cancellation and deadlines, Google Secret Manager
+   rotation/recovery, Cloud Run concurrency, account-deletion cleanup, external
+   alerts, and expected/peak load behavior before production promotion.
 
 ## 11. Explicitly deferred unless approved
 
