@@ -1,6 +1,8 @@
 package io.archly.admin;
 
 import io.archly.analytics.UserSessionService;
+import io.archly.ai.AiUsageService;
+import io.archly.ai.UserLlmSettingsService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -13,6 +15,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,10 +29,22 @@ public class AdminMetricsController {
     private final UserSessionService sessions;
     private final AdminAuditRepository audits;
     private final AdminRateLimiter rateLimiter;
+    private final AiUsageService aiUsage;
+    private final UserLlmSettingsService llmSettings;
 
     public AdminMetricsController(AdminAuthorizationService authorization, AdminMetricsService metrics,
-            UserSessionService sessions, AdminAuditRepository audits, AdminRateLimiter rateLimiter) {
-        this.authorization = authorization; this.metrics = metrics; this.sessions = sessions; this.audits = audits; this.rateLimiter = rateLimiter;
+            UserSessionService sessions, AdminAuditRepository audits, AdminRateLimiter rateLimiter, AiUsageService aiUsage, UserLlmSettingsService llmSettings) {
+        this.authorization = authorization; this.metrics = metrics; this.sessions = sessions; this.audits = audits; this.rateLimiter = rateLimiter; this.aiUsage = aiUsage; this.llmSettings = llmSettings;
+    }
+
+    @GetMapping("/metrics/ai-usage")
+    ResponseEntity<AiUsageService.Summary> aiUsage(@AuthenticationPrincipal Jwt jwt, HttpServletRequest request) {
+        authorizeAndAudit(jwt, "AI_USAGE_SUMMARY", request); return noStore(aiUsage.summary());
+    }
+
+    @PostMapping("/ai/rotate-credentials")
+    ResponseEntity<java.util.Map<String, Long>> rotateCredentials(@AuthenticationPrincipal Jwt jwt, HttpServletRequest request) {
+        authorizeAndAudit(jwt, "AI_CREDENTIAL_ROTATION", request); return noStore(java.util.Map.of("remaining", llmSettings.rotateBatch()));
     }
 
     @GetMapping("/metrics/summary")

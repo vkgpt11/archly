@@ -13,6 +13,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -22,10 +23,11 @@ public class AuthController {
     private final UserSessionService sessions;
     private final AdminAuthorizationService administrators;
     private final boolean secureCookie;
+    private final AccountDeletionService accountDeletion;
 
     public AuthController(UserSessionService sessions, AdminAuthorizationService administrators,
-            @Value("${archly.auth.cookie-secure:false}") boolean secureCookie) {
-        this.sessions = sessions; this.administrators = administrators; this.secureCookie = secureCookie;
+            @Value("${archly.auth.cookie-secure:false}") boolean secureCookie, AccountDeletionService accountDeletion) {
+        this.sessions = sessions; this.administrators = administrators; this.secureCookie = secureCookie; this.accountDeletion = accountDeletion;
     }
 
     @GetMapping("/session")
@@ -47,6 +49,13 @@ public class AuthController {
             .httpOnly(true).secure(secureCookie).sameSite(secureCookie ? "None" : "Lax")
             .path("/").maxAge(Duration.ZERO).build();
         return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE, expired.toString()).build();
+    }
+
+    @DeleteMapping("/account")
+    ResponseEntity<Void> deleteAccount(@AuthenticationPrincipal Jwt jwt, @RequestHeader(value="X-Confirm-Account-Deletion") String confirmation) {
+        if (!"DELETE".equals(confirmation)) return ResponseEntity.status(428).build();
+        accountDeletion.delete(jwt.getSubject(), jwt.getClaimAsString("email"));
+        return logout();
     }
 
     private ResponseCookie authenticationCookie(Jwt jwt) {

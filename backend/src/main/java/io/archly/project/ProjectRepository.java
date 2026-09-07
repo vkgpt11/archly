@@ -17,4 +17,5 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
     @Modifying
     @Query("update Project p set p.ownerUserId = :userId where p.ownerUserId is null and lower(p.ownerEmail) = lower(:email)")
     int linkOwnerByEmail(@Param("email") String email, @Param("userId") UUID userId);
+    java.util.List<Project> findAllByOwnerEmailIgnoreCase(String ownerEmail);
 }

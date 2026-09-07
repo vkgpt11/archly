@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../api'
 import AdminDashboard from './AdminDashboard'
 
-const mocks = vi.hoisted(() => ({ adminSummary: vi.fn(), adminTimeSeries: vi.fn(), adminUsers: vi.fn() }))
+const mocks = vi.hoisted(() => ({ adminSummary: vi.fn(), adminTimeSeries: vi.fn(), adminUsers: vi.fn(), adminAiUsage: vi.fn() }))
 vi.mock('../api', async (importOriginal) => {
   const original = await importOriginal<typeof import('../api')>()
   return { ...original, api: mocks }
@@ -16,11 +16,12 @@ describe('AdminDashboard', () => {
     mocks.adminSummary.mockResolvedValue({ period: '30d', timezone: 'UTC', start: '2026-08-01T00:00:00Z', end: '2026-08-29T00:00:00Z', users: { total: 12, newUsers: 3, active: 8 }, diagrams: { current: 24, archived: 2, created: 7, deleted: 1, perActiveUser: .88 }, conversion: { firstDiagramPercent: 50, firstSavePercent: 40 } })
     mocks.adminTimeSeries.mockResolvedValue({ metric: 'diagrams-created', timezone: 'UTC', buckets: [{ date: '2026-08-28', value: 2 }] })
     mocks.adminUsers.mockResolvedValue({ items: [{ id: 'one', maskedEmail: 'a***@gmail.com', firstLoginAt: '2026-08-01T00:00:00Z', lastLoginAt: '2026-08-28T00:00:00Z', projectCount: 3 }], page: 0, size: 25, totalItems: 1, totalPages: 1 })
+    mocks.adminAiUsage.mockResolvedValue({ monthlyEstimatedCostMicros: 2500000, monthlyBudgetMicros: 100000000, requests: 12, inputTokens: 1000, outputTokens: 500, failures: 1, alert: false })
   })
 
   it('renders aggregate metrics and masked users', async () => {
     render(<AdminDashboard token="token" onBack={() => {}} />)
-    expect(await screen.findByText('12')).toBeInTheDocument()
+    expect(await screen.findByText('Observed users')).toBeInTheDocument()
     expect(screen.getByText('24')).toBeInTheDocument()
     expect(screen.getByText('a***@gmail.com')).toBeInTheDocument()
     expect(screen.getByText(/aggregate activity in UTC/i)).toBeInTheDocument()
@@ -28,7 +29,7 @@ describe('AdminDashboard', () => {
 
   it('reloads metrics for a selected period', async () => {
     render(<AdminDashboard token="token" onBack={() => {}} />)
-    await screen.findByText('12')
+    await screen.findByText('Observed users')
     fireEvent.click(screen.getByRole('button', { name: '7d' }))
     expect(mocks.adminSummary).toHaveBeenLastCalledWith('token', '7d')
   })

@@ -11,12 +11,16 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.server.ResponseStatusException;
 import static org.springframework.http.HttpStatus.BAD_GATEWAY;
 
@@ -31,16 +35,26 @@ public class DiagramGenerationService {
     private final RestClient client;
     private final ObjectMapper mapper;
     private final UserLlmSettingsService settings;
+    private final Set<String> allowedModels;
+    private final AiUsageService usage;
 
     public DiagramGenerationService(
         RestClient.Builder builder,
         ObjectMapper mapper,
         @Value("${archly.ai.base-url:https://api.openai.com/v1}") String baseUrl,
-        UserLlmSettingsService settings
+        UserLlmSettingsService settings,
+        @Value("${archly.ai.connect-timeout:5s}") Duration connectTimeout,
+        @Value("${archly.ai.response-timeout:45s}") Duration responseTimeout,
+        @Value("${archly.ai.allowed-models:gpt-4.1-mini}") Set<String> allowedModels,
+        AiUsageService usage
     ) {
-        this.client = builder.baseUrl(baseUrl).build();
+        SimpleClientHttpRequestFactory requests = new SimpleClientHttpRequestFactory();
+        requests.setConnectTimeout(connectTimeout); requests.setReadTimeout(responseTimeout);
+        this.client = builder.baseUrl(baseUrl).requestFactory(requests).build();
         this.mapper = mapper;
         this.settings = settings;
+        this.allowedModels = allowedModels;
+        this.usage = usage;
     }
 
     public GenerateDiagramResponse generate(String userSubject, String prompt) {
@@ -48,26 +62,32 @@ public class DiagramGenerationService {
     }
 
     public GenerateDiagramResponse generate(String userSubject, GenerateDiagramRequest request) {
+        return generate(userSubject, request, UUID.randomUUID().toString());
+    }
+    public GenerateDiagramResponse generate(String userSubject, GenerateDiagramRequest request, String requestId) {
         UserLlmSettingsService.Configuration configuration = settings.requireConfiguration(userSubject);
+        if (!allowedModels.contains(configuration.model())) throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "The configured AI model is not allowed.");
+        usage.ensureBudget(userSubject); usage.ensureIdempotent(requestId);
         JsonNode response;
         try {
-            response = client.post().uri("/responses")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + configuration.apiKey())
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(requestBody(configuration.model(), request))
-                .retrieve()
-                .body(JsonNode.class);
-            settings.recordSuccess(userSubject);
+            response = providerRequest(configuration, requestBody(configuration.model(), request), requestId);
+            usage.record(requestId, userSubject, configuration.model(), response, "SUCCESS");
         } catch (RestClientException exception) {
             settings.recordFailure(userSubject, "PROVIDER_REQUEST_FAILED");
-            throw new ResponseStatusException(BAD_GATEWAY, "The AI provider could not generate a diagram. Try again.", exception);
+            usage.record(requestId, userSubject, configuration.model(), null, "PROVIDER_FAILURE");
+            throw providerError(exception);
         }
         try {
             String output = extractOutputText(response);
             JsonNode specification = mapper.readTree(output);
-            return toCanvas(specification);
+            GenerateDiagramResponse result = toCanvas(specification); settings.recordSuccess(userSubject); return result;
         } catch (Exception exception) {
-            throw new ResponseStatusException(BAD_GATEWAY, "The AI provider returned an invalid diagram. Try a more specific prompt.", exception);
+            try {
+                String malformed = extractOutputText(response);
+                ObjectNode repair = requestBody(configuration.model(), new GenerateDiagramRequest("Repair this malformed response without changing its intended architecture:\n" + malformed.substring(0, Math.min(3_800, malformed.length())), null, null, null, "create", null));
+                GenerateDiagramResponse result = toCanvas(mapper.readTree(extractOutputText(providerRequest(configuration, repair, UUID.randomUUID().toString()))));
+                settings.recordSuccess(userSubject); return result;
+            } catch (Exception repairFailure) { settings.recordFailure(userSubject, "MALFORMED_RESPONSE"); throw new ResponseStatusException(BAD_GATEWAY, "The AI provider returned an invalid diagram after one repair attempt.", repairFailure); }
         }
     }
 
@@ -75,6 +95,7 @@ public class DiagramGenerationService {
         UserLlmSettingsService.Configuration saved = apiKey == null || apiKey.isBlank()
             ? settings.requireConfiguration(userSubject) : new UserLlmSettingsService.Configuration(model.trim(), apiKey.trim());
         String selectedModel = model == null || model.isBlank() ? saved.model() : model.trim();
+        if (!allowedModels.contains(selectedModel)) throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "The configured AI model is not allowed.");
         try {
             client.post().uri("/responses")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + saved.apiKey())
@@ -82,9 +103,11 @@ public class DiagramGenerationService {
                 .body(mapper.createObjectNode().put("model", selectedModel).put("input", "Reply with OK.").put("store", false).put("max_output_tokens", 16))
                 .retrieve().toBodilessEntity();
             if (apiKey == null || apiKey.isBlank()) settings.recordSuccess(userSubject);
+            settings.recordTest(userSubject, true);
         } catch (RestClientException exception) {
             if (apiKey == null || apiKey.isBlank()) settings.recordFailure(userSubject, "CONNECTION_TEST_FAILED");
-            throw new ResponseStatusException(BAD_GATEWAY, "OpenAI rejected the connection test. Check the API key and model.", exception);
+            settings.recordTest(userSubject, false);
+            throw providerError(exception);
         }
     }
 
@@ -96,6 +119,7 @@ public class DiagramGenerationService {
         ObjectNode root = mapper.createObjectNode();
         root.put("model", model);
         root.put("store", false);
+        root.put("max_output_tokens", 8_000);
         root.put("instructions", "You are Archly's architecture copilot. Produce a technically credible, editable architecture. Reuse catalogue iconId values exactly when relevant. Model regions, VPCs/VNets, clusters, namespaces and trust boundaries as container nodes and assign children with containerKey. Preserve unaffected components when editing. Use explicit protocols, ports, encryption, direction and asynchronous semantics. Return the complete resulting diagram, not a patch, and only the requested schema.");
         ObjectNode input = mapper.createObjectNode();
         input.put("request", request.prompt());
@@ -153,6 +177,30 @@ public class DiagramGenerationService {
         return node;
     }
 
+    private JsonNode providerRequest(UserLlmSettingsService.Configuration configuration, ObjectNode body, String idempotencyKey) {
+        RestClientException last = null;
+        for (int attempt = 0; attempt < 3; attempt++) try {
+            return client.post().uri("/responses").header(HttpHeaders.AUTHORIZATION, "Bearer " + configuration.apiKey())
+                .header("Idempotency-Key", idempotencyKey).contentType(MediaType.APPLICATION_JSON).body(body).retrieve().body(JsonNode.class);
+        } catch (RestClientException exception) {
+            last = exception; if (!retryable(exception) || attempt == 2) throw exception;
+            try { Thread.sleep(250L * (1L << attempt)); } catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); throw new RestClientException("AI request cancelled", interrupted); }
+        }
+        throw last;
+    }
+
+    private boolean retryable(RestClientException error) { return error instanceof ResourceAccessException || error instanceof RestClientResponseException response && (response.getStatusCode().value() == 429 || response.getStatusCode().is5xxServerError()); }
+    private ResponseStatusException providerError(RestClientException error) {
+        if (error instanceof ResourceAccessException) return new ResponseStatusException(org.springframework.http.HttpStatus.GATEWAY_TIMEOUT, "The AI provider timed out.", error);
+        if (error instanceof RestClientResponseException response) return switch (response.getStatusCode().value()) {
+            case 401, 403 -> new ResponseStatusException(org.springframework.http.HttpStatus.UNAUTHORIZED, "The OpenAI API key is invalid or unauthorized.", error);
+            case 404 -> new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "The configured AI model is invalid or unavailable.", error);
+            case 429 -> new ResponseStatusException(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS, response.getResponseBodyAsString().contains("quota") ? "The OpenAI quota is exhausted." : "OpenAI is rate limiting requests. Try again later.", error);
+            default -> new ResponseStatusException(BAD_GATEWAY, response.getStatusCode().is5xxServerError() ? "OpenAI is temporarily unavailable." : "OpenAI refused the request.", error);
+        };
+        return new ResponseStatusException(BAD_GATEWAY, "The AI provider request failed.", error);
+    }
+
     private void nullableString(ObjectNode properties, String name, int maxLength) {
         ObjectNode value = properties.putObject(name);
         value.putArray("type").add("string").add("null");
@@ -164,7 +212,7 @@ public class DiagramGenerationService {
         for (JsonNode item : response.path("output")) {
             for (JsonNode content : item.path("content")) {
                 if ("output_text".equals(content.path("type").asText()) && content.hasNonNull("text")) {
-                    return content.get("text").asText();
+                    String text = content.get("text").asText(); if (text.length() > 1_000_000) throw new IllegalArgumentException("AI response too large"); return text;
                 }
             }
         }

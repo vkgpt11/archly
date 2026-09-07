@@ -20,24 +20,26 @@ class UserLlmSettings {
     private String apiKeyHint;
     private Instant lastSuccessfulUseAt;
     private String lastErrorCode;
+    @Column(nullable = false) private int encryptionKeyVersion;
 
     protected UserLlmSettings() {}
 
-    UserLlmSettings(String userSubject, String provider, String model, String encryptedApiKey, String apiKeyHint, Instant now) {
+    UserLlmSettings(String userSubject, String provider, String model, String encryptedApiKey, String apiKeyHint, int encryptionKeyVersion, Instant now) {
         this.id = UUID.randomUUID();
         this.userSubject = userSubject;
         this.provider = provider;
         this.model = model;
         this.encryptedApiKey = encryptedApiKey;
         this.apiKeyHint = apiKeyHint;
+        this.encryptionKeyVersion = encryptionKeyVersion;
         this.createdAt = now;
         this.updatedAt = now;
     }
 
-    void update(String provider, String model, String encryptedApiKey, String apiKeyHint, Instant now) {
+    void update(String provider, String model, String encryptedApiKey, String apiKeyHint, int keyVersion, Instant now) {
         this.provider = provider;
         this.model = model;
-        if (encryptedApiKey != null) { this.encryptedApiKey = encryptedApiKey; this.apiKeyHint = apiKeyHint; }
+        if (encryptedApiKey != null) { this.encryptedApiKey = encryptedApiKey; this.apiKeyHint = apiKeyHint; this.encryptionKeyVersion = keyVersion; }
         this.updatedAt = now;
         this.lastErrorCode = null;
     }
@@ -46,10 +48,13 @@ class UserLlmSettings {
     void recordFailure(String code) { lastErrorCode = code; }
 
     String getProvider() { return provider; }
+    String getUserSubject() { return userSubject; }
     String getModel() { return model; }
     String getEncryptedApiKey() { return encryptedApiKey; }
     String getApiKeyHint() { return apiKeyHint; }
     Instant getUpdatedAt() { return updatedAt; }
     Instant getLastSuccessfulUseAt() { return lastSuccessfulUseAt; }
     String getLastErrorCode() { return lastErrorCode; }
+    int getEncryptionKeyVersion() { return encryptionKeyVersion; }
+    void rotate(String ciphertext, int version, Instant now) { encryptedApiKey = ciphertext; encryptionKeyVersion = version; updatedAt = now; }
 }

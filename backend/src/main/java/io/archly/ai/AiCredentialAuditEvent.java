@@ -1,0 +1,3 @@
+package io.archly.ai;
+import jakarta.persistence.*; import java.time.Instant; import java.util.UUID;
+@Entity @Table(name="ai_credential_audit_events") class AiCredentialAuditEvent {@Id UUID id;@Column(nullable=false)String userSubject;@Column(nullable=false)String action;@Column(nullable=false)String provider;Integer keyVersion;@Column(nullable=false)String outcome;String correlationId;@Column(nullable=false)Instant occurredAt;protected AiCredentialAuditEvent(){}AiCredentialAuditEvent(String user,String action,String provider,Integer version,String outcome){id=UUID.randomUUID();userSubject=user;this.action=action;this.provider=provider;keyVersion=version;this.outcome=outcome;correlationId=org.slf4j.MDC.get("correlationId");occurredAt=Instant.now();}}

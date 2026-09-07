@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ApiError, api, type AdminPeriod, type AdminSummary, type AdminTimeSeries, type AdminUserPage } from '../api'
+import { ApiError, api, type AdminPeriod, type AdminSummary, type AdminTimeSeries, type AdminUserPage, type AiUsageSummary } from '../api'
 import UserMenu from '../components/UserMenu'
 import AiSettingsDialog from '../components/AiSettingsDialog'
 import type { AuthSession } from '../api'
@@ -22,6 +22,7 @@ export default function AdminDashboard({ token, user = { email: 'developer@gmail
   const [summary, setSummary] = useState<AdminSummary | null>(null)
   const [series, setSeries] = useState<Record<string, AdminTimeSeries>>({})
   const [users, setUsers] = useState<AdminUserPage | null>(null)
+  const [aiUsage, setAiUsage] = useState<AiUsageSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -41,12 +42,13 @@ export default function AdminDashboard({ token, user = { email: 'developer@gmail
   const load = useCallback(async () => {
     setLoading(true); setError('')
     try {
-      const [nextSummary, nextSeries, nextUsers] = await Promise.all([
+      const [nextSummary, nextSeries, nextUsers, nextAiUsage] = await Promise.all([
         api.adminSummary(token, period),
         Promise.all(seriesMetrics.map(([metric]) => api.adminTimeSeries(token, metric, period))),
         api.adminUsers(token, userPage),
+        api.adminAiUsage(token),
       ])
-      setSummary(nextSummary); setSeries(Object.fromEntries(nextSeries.map(value => [value.metric, value]))); setUsers(nextUsers)
+      setSummary(nextSummary); setSeries(Object.fromEntries(nextSeries.map(value => [value.metric, value]))); setUsers(nextUsers); setAiUsage(nextAiUsage)
     } catch (failure) {
       if (failure instanceof ApiError && failure.status === 401) setError('Your session expired. Sign in again to access administration.')
       else if (failure instanceof ApiError && failure.status === 403) setError('Your account does not have administrator access.')
@@ -80,7 +82,14 @@ export default function AdminDashboard({ token, user = { email: 'developer@gmail
           <Metric label="Deleted in period" value={summary.diagrams.deleted} />
           <Metric label="First diagram conversion" value={summary.conversion.firstDiagramPercent} suffix="%" />
           <Metric label="First save conversion" value={summary.conversion.firstSavePercent} suffix="%" />
+          {aiUsage && <Metric label="AI estimated monthly cost" value={aiUsage.monthlyEstimatedCostMicros / 1_000_000} suffix=" USD" />}
+          {aiUsage && <Metric label="AI monthly budget" value={aiUsage.monthlyBudgetMicros / 1_000_000} suffix=" USD" />}
+          {aiUsage && <Metric label="AI requests this month" value={aiUsage.requests} />}
+          {aiUsage && <Metric label="AI input tokens" value={aiUsage.inputTokens} />}
+          {aiUsage && <Metric label="AI output tokens" value={aiUsage.outputTokens} />}
+          {aiUsage && <Metric label="AI provider failures" value={aiUsage.failures} />}
         </div>
+        {aiUsage?.alert && <p className="admin-error" role="alert">AI usage has crossed the configured budget alert threshold.</p>}
         <section className="admin-panel"><h2>Activity over time</h2>
           <div className="admin-series-grid">{seriesMetrics.map(([metric, label]) => <Series key={metric} label={label} value={series[metric]} />)}</div>
         </section>

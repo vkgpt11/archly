@@ -8,4 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ProjectFolderRepository extends JpaRepository<ProjectFolder, UUID> {
     List<ProjectFolder> findAllByOwnerEmailOrderByNameAsc(String ownerEmail);
     Optional<ProjectFolder> findByOwnerEmailAndNameIgnoreCase(String ownerEmail, String name);
+    void deleteAllByOwnerEmail(String ownerEmail);
 }

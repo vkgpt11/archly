@@ -11,6 +11,7 @@ export type AdminSummary = {
 }
 export type AdminTimeSeries = { metric: string; timezone: 'UTC'; buckets: { date: string; value: number }[] }
 export type AdminUserPage = { items: { id: string; maskedEmail: string; firstLoginAt: string; lastLoginAt: string; projectCount: number }[]; page: number; size: number; totalItems: number; totalPages: number }
+export type AiUsageSummary = { monthlyEstimatedCostMicros: number; monthlyBudgetMicros: number; requests: number; inputTokens: number; outputTokens: number; failures: number; alert: boolean }
 export type LlmSettings = {
   provider: 'OPENAI'; model: string; hasApiKey: boolean; credentialStorageAvailable: boolean
   apiKeyHint: string | null; updatedAt: string | null; lastSuccessfulUseAt: string | null; lastErrorCode: string | null
@@ -29,12 +30,15 @@ const requestTimeoutMs = 15_000
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = requestTimeoutMs): Promise<Response> {
   const controller = new AbortController()
-  const timer = window.setTimeout(() => controller.abort(), timeoutMs)
+  let timedOut = false
+  const abort = () => controller.abort()
+  init.signal?.addEventListener('abort', abort, { once: true })
+  const timer = window.setTimeout(() => { timedOut = true; controller.abort() }, timeoutMs)
   try { return await fetch(url, { credentials: 'include', ...init, signal: controller.signal }) }
   catch (error) {
-    if (controller.signal.aborted) throw new ApiError(`The API did not respond within ${Math.round(timeoutMs / 1000)} seconds. Check the backend and try again.`, 408)
+    if (timedOut) throw new ApiError(`The API did not respond within ${Math.round(timeoutMs / 1000)} seconds. Check the backend and try again.`, 408)
     throw error
-  } finally { window.clearTimeout(timer) }
+  } finally { window.clearTimeout(timer); init.signal?.removeEventListener('abort', abort) }
 }
 
 async function request<T>(token: string, path: string, init?: RequestInit): Promise<T> {
@@ -119,9 +123,10 @@ export const api = {
   adminTimeSeries: (token: string, metric: string, period: AdminPeriod) => request<AdminTimeSeries>(token, `/admin/metrics/timeseries?metric=${encodeURIComponent(metric)}&period=${period}`),
   adminUsers: (token: string, page = 0, size = 25) => request<AdminUserPage>(token, `/admin/users?page=${page}&size=${size}`),
   adminCsv: (token: string, period: AdminPeriod) => download(token, `/admin/metrics/export?period=${period}`),
-  generateDiagram: (token: string, prompt: string, context: { currentCanvas?: string; documentation?: string; catalogue?: string; mode?: string; selectedSubsystem?: string } = {}) =>
+  adminAiUsage: (token: string) => request<AiUsageSummary>(token, '/admin/metrics/ai-usage'),
+  generateDiagram: (token: string, prompt: string, context: { currentCanvas?: string; documentation?: string; catalogue?: string; mode?: string; selectedSubsystem?: string } = {}, signal?: AbortSignal) =>
     longRequest<{ canvas: CanvasData; summary: string }>(token, '/ai/diagrams/generate', {
-      method: 'POST', body: JSON.stringify({ prompt, ...context }),
+      method: 'POST', body: JSON.stringify({ prompt, ...context }), signal, headers: { 'Idempotency-Key': crypto.randomUUID() },
     }),
   getLlmSettings: (token: string) => request<LlmSettings>(token, '/profile/llm'),
   saveLlmSettings: (token: string, provider: 'OPENAI', model: string, apiKey?: string) =>

@@ -14,6 +14,22 @@ archly:
   ai:
     base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
     encryption-key: ${ARCHLY_AI_ENCRYPTION_KEY:}
+    encryption-keys: ${ARCHLY_AI_ENCRYPTION_KEYS:}
+    encryption-key-version: ${ARCHLY_AI_ENCRYPTION_KEY_VERSION:1}
+    encryption-key-secret: ${ARCHLY_AI_ENCRYPTION_KEY_SECRET:}
+    enabled: ${ARCHLY_AI_ENABLED:true}
+    allowed-models: ${ARCHLY_AI_ALLOWED_MODELS:gpt-4.1-mini,gpt-4.1,gpt-5-mini}
+    connect-timeout: ${ARCHLY_AI_CONNECT_TIMEOUT:5s}
+    response-timeout: ${ARCHLY_AI_RESPONSE_TIMEOUT:45s}
+    daily-user-requests: ${ARCHLY_AI_DAILY_USER_REQUESTS:100}
+    monthly-user-requests: ${ARCHLY_AI_MONTHLY_USER_REQUESTS:1000}
+    monthly-budget-micros: ${ARCHLY_AI_MONTHLY_BUDGET_MICROS:100000000}
+    user-daily-budget-micros: ${ARCHLY_AI_USER_DAILY_BUDGET_MICROS:5000000}
+    user-monthly-budget-micros: ${ARCHLY_AI_USER_MONTHLY_BUDGET_MICROS:25000000}
+    budget-alert-percent: ${ARCHLY_AI_BUDGET_ALERT_PERCENT:80}
+    operational-retention-days: ${ARCHLY_AI_OPERATIONAL_RETENTION_DAYS:90}
+    audit-retention-days: ${ARCHLY_AI_AUDIT_RETENTION_DAYS:365}
+    cleanup-cron: ${ARCHLY_AI_CLEANUP_CRON:0 45 3 * * *}
   admin:
     emails: ${ARCHLY_ADMIN_EMAILS:}
   analytics:

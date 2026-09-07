@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 
@@ -28,8 +29,11 @@ public class DiagramGenerationController {
 
     @PostMapping("/generate")
     @Operation(summary = "Generate an architecture diagram")
-    GenerateDiagramResponse generate(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody GenerateDiagramRequest request) {
+    GenerateDiagramResponse generate(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody GenerateDiagramRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         rateLimiter.check(jwt.getClaimAsString("email"));
-        return service.generate(jwt.getSubject(), request);
+        String key = idempotencyKey == null || !idempotencyKey.matches("[A-Za-z0-9._:-]{8,128}") ? java.util.UUID.randomUUID().toString() : idempotencyKey;
+        rateLimiter.reserve(jwt.getSubject(), key);
+        return service.generate(jwt.getSubject(), request, key);
     }
 }

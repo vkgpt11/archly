@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Sparkles, X } from 'lucide-react'
 import { ApiError, api } from '../api'
 import type { CanvasData } from '../types'
@@ -20,20 +20,22 @@ export default function GenerateDiagramDialog({ token, context, onClose, onGener
   const [error, setError] = useState('')
   const [needsSettings, setNeedsSettings] = useState(false)
   const [result, setResult] = useState<{ canvas: CanvasData; summary: string; findings: string[] } | null>(null)
+  const activeRequest = useRef<AbortController | null>(null)
 
   async function generate() {
     const value = [prompt.trim(), systemType && `System type: ${systemType}.`, scale && `Scale and availability: ${scale}.`, constraints && `Constraints: ${constraints}.`].filter(Boolean).join('\n')
     if ((!value && mode !== 'explain') || generating) return
     setGenerating(true); setError(''); setResult(null)
     try {
-      const response = await api.generateDiagram(token, value || 'Explain this architecture.', { mode, currentCanvas: context.currentCanvas, selectedSubsystem: mode === 'selection' ? context.selectedSubsystem : undefined, documentation: includeDocs ? context.documentation : undefined, catalogue: catalogueForAi() })
+      activeRequest.current = new AbortController()
+      const response = await api.generateDiagram(token, value || 'Explain this architecture.', { mode, currentCanvas: context.currentCanvas, selectedSubsystem: mode === 'selection' ? context.selectedSubsystem : undefined, documentation: includeDocs ? context.documentation : undefined, catalogue: catalogueForAi() }, activeRequest.current.signal)
       const canvas = prepareAiCanvas(response.canvas)
       setResult({ canvas, summary: response.summary, findings: analyzeArchitecture(canvas) })
       if (rememberPrompts && value) try { const next = [value, ...recentPrompts.filter(item => item !== value)].slice(0, 10); localStorage.setItem(historyKey, JSON.stringify(next)); setRecentPrompts(next) } catch { /* optional history */ }
     } catch (cause) {
       setNeedsSettings(cause instanceof ApiError && cause.status === 428)
-      setError(cause instanceof ApiError ? cause.message : 'Could not generate the diagram. Try again.')
-    } finally { setGenerating(false) }
+      setError(cause instanceof DOMException && cause.name === 'AbortError' ? 'Request cancelled.' : cause instanceof ApiError ? cause.message : 'Could not generate the diagram. Try again.')
+    } finally { activeRequest.current = null; setGenerating(false) }
   }
 
   const canGenerate = mode === 'explain' || Boolean(prompt.trim() || systemType || scale || constraints)
@@ -51,7 +53,7 @@ export default function GenerateDiagramDialog({ token, context, onClose, onGener
       {error && <p className="dialog-error" role="alert">{error}</p>}
       {needsSettings && <button className="open-ai-settings" onClick={() => { onClose(); onOpenSettings() }}>Open AI settings</button>}
       {result && <section className="ai-result" aria-live="polite"><h3>{mode === 'explain' ? 'Architecture explanation' : 'Proposed architecture'}</h3><p>{result.summary}</p><h4>Quality analysis</h4><ul>{result.findings.map(item => <li key={item}>{item}</li>)}</ul></section>}
-      <footer><button onClick={onClose} disabled={generating}>Cancel</button>{result && mode !== 'explain' && <button className="primary-button" onClick={() => onGenerated(result.canvas)}>Apply changes</button>}<button className={result ? '' : 'primary-button'} onClick={() => void generate()} disabled={!canGenerate || generating}><Sparkles />{generating ? 'Working…' : result ? 'Regenerate' : mode === 'explain' ? 'Explain architecture' : 'Generate proposal'}</button></footer>
+      <footer><button onClick={() => generating ? activeRequest.current?.abort() : onClose()}>{generating ? 'Cancel request' : 'Cancel'}</button>{result && mode !== 'explain' && <button className="primary-button" onClick={() => onGenerated(result.canvas)}>Apply changes</button>}<button className={result ? '' : 'primary-button'} onClick={() => void generate()} disabled={!canGenerate || generating}><Sparkles />{generating ? 'Working…' : result ? 'Regenerate' : mode === 'explain' ? 'Explain architecture' : 'Generate proposal'}</button></footer>
     </section>
   </div>
 }
