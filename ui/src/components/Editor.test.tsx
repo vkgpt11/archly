@@ -196,6 +196,6 @@ describe('Editor conflict recovery', () => {
     expect(within(dialog).getByText('Markdown')).toBeInTheDocument()
     expect(within(dialog).getByText('Archly source')).toBeInTheDocument()
     expect(within(dialog).getByText('Copy image')).toBeInTheDocument()
-    expect(within(dialog).getByRole('checkbox', { name: 'Selection only' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('checkbox', { name: 'Selection only (partial export)' })).toBeInTheDocument()
   })
 })

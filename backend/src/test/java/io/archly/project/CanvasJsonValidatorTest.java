@@ -12,6 +12,19 @@ class CanvasJsonValidatorTest {
     private final CanvasJsonValidator validator = new CanvasJsonValidator(new ObjectMapper());
 
     @Test
+    void rejectsExecutableUrlsCyclicContainersAndInvalidSnapshotGraphs() {
+        assertThrows(ResponseStatusException.class, () -> validator.validate("""
+            {"nodes":[{"id":"a","position":{"x":0,"y":0},"data":{"url":"javascript:alert(1)"}}],"edges":[]}
+            """));
+        assertThrows(ResponseStatusException.class, () -> validator.validate("""
+            {"nodes":[{"id":"a","parentId":"a","position":{"x":0,"y":0},"data":{}}],"edges":[]}
+            """));
+        assertThrows(ResponseStatusException.class, () -> validator.validate("""
+            {"nodes":[],"edges":[],"diagramSnapshots":[{"name":"bad","createdAt":"today","nodes":[],"edges":[{"id":"e","source":"missing","target":"missing"}]}]}
+            """));
+    }
+
+    @Test
     void acceptsBoundedProjectModules() {
         assertDoesNotThrow(() -> validator.validate("""
             {"schemaVersion":1,"nodes":[],"edges":[],"diagramModules":[

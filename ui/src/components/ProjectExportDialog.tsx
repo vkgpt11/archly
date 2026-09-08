@@ -7,7 +7,7 @@ import { buildInterchange, type InterchangeFormat, type InterchangeResult } from
 type Props = { project: Project; nodes: Node[]; edges: Edge[]; viewport: Viewport; activeVariant?: string; onClose: () => void }
 type ExportChoice = 'png' | 'svg' | 'markdown' | 'source' | 'clipboard'
 
-export default function ProjectExportDialog({ project, nodes, edges, viewport, activeVariant, onClose }: Props) {
+export default function ProjectExportDialog({ project, nodes, edges, activeVariant, onClose }: Props) {
   const [selectionOnly, setSelectionOnly] = useState(false)
   const [message, setMessage] = useState('')
   const [preview, setPreview] = useState<InterchangeResult | null>(null)
@@ -19,8 +19,8 @@ export default function ProjectExportDialog({ project, nodes, edges, viewport, a
     setMessage('')
     try {
       const exports = await import('../diagramExport')
-      if (format === 'clipboard') await exports.copyDiagramToClipboard({ ...project, canvasJson: JSON.stringify({ nodes, edges, viewport, activeVariant }) }, selectionOnly)
-      else await exports.exportProject({ ...project, canvasJson: JSON.stringify({ nodes, edges, viewport, activeVariant }) }, format, selectionOnly)
+      if (format === 'clipboard') await exports.copyDiagramToClipboard({ ...project, canvasJson: JSON.stringify({ ...JSON.parse(project.canvasJson), nodes, edges }) }, selectionOnly)
+      else await exports.exportProject({ ...project, canvasJson: JSON.stringify({ ...JSON.parse(project.canvasJson), nodes, edges }) }, format, selectionOnly)
       setMessage(format === 'clipboard' ? 'Diagram copied.' : 'Export created.')
     } catch (error) { setMessage((error as Error).message) }
   }
@@ -28,8 +28,9 @@ export default function ProjectExportDialog({ project, nodes, edges, viewport, a
   return <div className="modal-backdrop" onMouseDown={onClose}>
     <section className="export-dialog" role="dialog" aria-modal="true" aria-labelledby="export-title" onMouseDown={(event) => event.stopPropagation()}>
       <header><div><p className="eyebrow">Download or copy</p><h2 id="export-title">Export project</h2></div><button className="modal-close" onClick={onClose} aria-label="Close export"><X /></button></header>
-      <label className="selection-export"><input type="checkbox" checked={selectionOnly} onChange={(event) => { setSelectionOnly(event.target.checked); setPreview(null) }} /> Selection only</label>
-      <div className="export-grid"><button onClick={() => void runExport('png')}><strong>PNG</strong><span>Raster image</span></button><button onClick={() => void runExport('svg')}><strong>SVG</strong><span>Vector image</span></button><button onClick={() => void runExport('markdown')}><strong>Markdown</strong><span>Documentation source</span></button><button onClick={() => void runExport('source')}><strong>Archly source</strong><span>Editable JSON</span></button><button onClick={() => void runExport('clipboard')}><strong>Copy image</strong><span>PNG to clipboard</span></button></div>
+      <label className="selection-export"><input type="checkbox" checked={selectionOnly} onChange={(event) => { setSelectionOnly(event.target.checked); setPreview(null) }} /> Selection only (partial export)</label>
+      {selectionOnly && <p role="note">Partial source exports include selected components, connection endpoints and parent containers. Documentation, DSL, modules, views and snapshots are omitted.</p>}
+      <div className="export-grid"><button onClick={() => void runExport('png')}><strong>PNG</strong><span>Raster image</span></button><button onClick={() => void runExport('svg')}><strong>SVG</strong><span>Vector image</span></button><button onClick={() => void runExport('markdown')}><strong>Markdown</strong><span>Documentation source</span></button><button onClick={() => void runExport('source')}><strong>Archly source</strong><span>{selectionOnly ? 'Partial diagram JSON' : 'Complete project backup'}</span></button><button onClick={() => void runExport('clipboard')}><strong>Copy image</strong><span>PNG to clipboard</span></button></div>
       <p className="fine-print">Clipboard image support depends on browser and permission settings. Download PNG if copying is unavailable.</p>
       {message && <p className="fine-print" role="status">{message}</p>}
       <div className="export-grid">{(['mermaid', 'plantuml', 'd2', 'metadata'] as const).map((format) => <button key={format} onClick={() => prepare(format)}>{format === 'metadata' ? 'Architecture metadata' : format === 'plantuml' ? 'PlantUML' : format === 'mermaid' ? 'Mermaid' : 'D2'}</button>)}</div>

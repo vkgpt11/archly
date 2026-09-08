@@ -1,3 +1,4 @@
+import ProjectImportDialog from './ProjectImportDialog'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { ApiError, api } from '../api'
 import type { Project, ProjectPage, ProjectSummary } from '../types'
@@ -21,6 +22,7 @@ export default function Dashboard({ token, isAdmin = false, user, onSignOut }: P
   const [selected, setSelected] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [importOpen, setImportOpen] = useState(false)
   const [templatesOpen, setTemplatesOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [scope, setScope] = useState<'active' | 'archived'>('active')
@@ -180,6 +182,7 @@ export default function Dashboard({ token, isAdmin = false, user, onSignOut }: P
       <section className="dashboard-content">
         <div className="dashboard-heading">
           <div><p className="eyebrow">Your workspace</p><h1>Architecture projects</h1></div>
+          <button onClick={() => setImportOpen(true)}>Import project</button>
           <button className="primary-button icon-text-button" onClick={() => setTemplatesOpen(true)}><Plus />New project</button>
         </div>
         <div className="project-filters">
@@ -223,6 +226,10 @@ export default function Dashboard({ token, isAdmin = false, user, onSignOut }: P
           </div>
         )}
         {nextPage !== null && <button className="text-button" onClick={() => void loadMoreProjects()}>Load more projects</button>}
+        {importOpen && <ProjectImportDialog token={token} projects={projects} onClose={() => setImportOpen(false)} onImported={(project) => {
+          setImportOpen(false); setSelected(project)
+          void api.listProjects(token).then(response => setProjects(normalizeProjectPage(response).items)).catch(reason => setError(reason.message))
+        }} />}
         {templatesOpen && <div className="template-backdrop" role="presentation" onMouseDown={() => setTemplatesOpen(false)}>
           <section className="template-dialog" role="dialog" aria-modal="true" aria-labelledby="template-title" onMouseDown={(event) => event.stopPropagation()}>
             <header><div><p className="eyebrow">New project</p><h2 id="template-title">Choose an architecture template</h2></div><button className="text-button icon-text-button" onClick={() => setTemplatesOpen(false)}><X />Close</button></header>

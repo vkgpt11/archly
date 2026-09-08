@@ -1,3 +1,4 @@
+import { createProjectPackage } from './projectPortability'
 import type { Project } from './types'
 
 export type ExportFormat = 'png' | 'svg' | 'markdown' | 'source'
@@ -223,14 +224,7 @@ export async function exportProject(project: Project, format: ExportFormat, sele
   const name = safeName(project.name) + (selectionOnly ? '-selection' : '')
   if (format === 'markdown') return download(markdownFromHtml(project.markdown), `${name}.md`, 'text/markdown')
   if (format === 'source') {
-    const canvas = JSON.parse(project.canvasJson)
-    const selectedIds = new Set<string>((canvas.nodes || []).filter((node: { selected?: boolean }) => node.selected).map((node: { id: string }) => node.id))
-    const sourceCanvas = selectionOnly ? {
-      ...canvas,
-      nodes: (canvas.nodes || []).filter((node: { id: string }) => selectedIds.has(node.id)),
-      edges: (canvas.edges || []).filter((edge: { selected?: boolean; source: string; target: string }) => edge.selected || selectedIds.has(edge.source) && selectedIds.has(edge.target)),
-    } : canvas
-    const source = JSON.stringify({ format: 'archly-diagram', version: 1, project: { name: project.name, canvas: sourceCanvas, markdown: project.markdown } }, null, 2)
+    const source = JSON.stringify(createProjectPackage(project, selectionOnly), null, 2)
     return download(source, `${name}.archly.json`, 'application/json')
   }
   const { toSvg } = await import('html-to-image')

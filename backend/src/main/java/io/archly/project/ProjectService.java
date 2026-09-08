@@ -80,6 +80,40 @@ public class ProjectService {
         }
     }
 
+    public void validateImport(ProjectDtos.ImportProjectRequest request) {
+        if (!"archly-project".equals(request.format()) || request.version() != 1
+            || !("full".equals(request.scope()) || "selection".equals(request.scope()))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported package format, version or scope. Use an Archly version 1 backup.");
+        }
+        var content = request.project();
+        canvasJsonValidator.validate(content.canvasJson());
+        projectContentValidator.validateMarkdown(content.markdown());
+    }
+
+    public ProjectResponse importProject(String email, ProjectDtos.ImportProjectRequest request) {
+        validateImport(request);
+        var content = request.project();
+        String markdown = richTextSanitizer.sanitize(content.markdown());
+        if (request.replaceProjectId() != null) {
+            Project target = findOwned(email, request.replaceProjectId());
+            if (request.revision() == null || target.getRevision() != request.revision()) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Project changed. Reload and review before importing.");
+            }
+            // The independent recovery copy and replacement commit or roll back together.
+            Project recovery = new Project(email, target.getName().substring(0, Math.min(95, target.getName().length())) + " — Before import",
+                target.getCanvasJson(), target.getMarkdown());
+            linkOwner(recovery, email);
+            recovery.organize(target.getFolder(), false);
+            repository.save(recovery);
+            return update(email, target.getId(), new UpdateProjectRequest(content.name(), content.canvasJson(), markdown, request.revision()));
+        }
+        Project imported = new Project(email, content.name().trim(), content.canvasJson(), markdown);
+        linkOwner(imported, email);
+        Project saved = repository.saveAndFlush(imported);
+        analytics.record(email, saved.getId(), ProductEvent.Type.PROJECT_CREATED);
+        return response(saved);
+    }
+
     public ProjectResponse duplicate(String email, UUID id) {
         Project source = findOwned(email, id);
         Project copy = new Project(email, source.getName() + " — Copy", source.getCanvasJson(),

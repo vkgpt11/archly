@@ -58,6 +58,36 @@ public class CanvasJsonValidator {
             if (data == null || !data.isObject()) reject("Every canvas node must have an object data field.");
         }
 
+        var nodesById = new java.util.HashMap<String, JsonNode>();
+        for (JsonNode node : nodes) nodesById.put(node.get("id").asText(), node);
+        Set<String> checkedParents = new HashSet<>();
+        for (JsonNode node : nodes) {
+            Set<String> ancestry = new HashSet<>();
+            JsonNode current = node;
+            while (current != null && !checkedParents.contains(current.get("id").asText())) {
+                if (!ancestry.add(current.get("id").asText())) reject("Cyclic parent container reference.");
+                if (!current.has("parentId")) break;
+                String parent = requiredText(current, "parentId", "node");
+                current = nodesById.get(parent);
+                if (current == null) reject("Missing parent container reference.");
+            }
+            checkedParents.addAll(ancestry);
+        }
+        validateSafeFields(root);
+        for (String field : new String[] {"diagramCode", "activeVariant"}) {
+            if (root.has(field) && !root.get(field).isTextual()) reject("Canvas " + field + " must be text.");
+        }
+        JsonNode snapshots = root.get("diagramSnapshots");
+        if (snapshots != null) {
+            if (!snapshots.isArray() || snapshots.size() > 20) reject("Canvas supports at most 20 diagram snapshots.");
+            for (JsonNode snapshot : snapshots) {
+                if (!snapshot.isObject()) reject("Invalid diagram snapshot.");
+                requiredText(snapshot, "name", "snapshot");
+                requiredText(snapshot, "createdAt", "snapshot");
+                if (snapshot.has("diagramSnapshots")) reject("Nested snapshots are not supported.");
+                validate(snapshot.toString());
+            }
+        }
         Set<String> edgeIds = new HashSet<>();
         for (JsonNode edge : edges) {
             if (!edge.isObject()) reject("Every canvas edge must be an object.");
@@ -110,6 +140,23 @@ public class CanvasJsonValidator {
                 }
             }
         }
+    }
+
+    private void validateSafeFields(JsonNode value) {
+        if (value.isObject()) {
+            var fields = value.fields();
+            while (fields.hasNext()) {
+                var entry = fields.next();
+                String key = entry.getKey().toLowerCase(java.util.Locale.ROOT);
+                if (Set.of("__proto__", "prototype", "constructor", "dangerouslysetinnerhtml").contains(key)) reject("Unsafe canvas property.");
+                if (entry.getValue().isTextual() && !Set.of("diagramcode", "source", "label", "description").contains(key)) {
+                    String text = entry.getValue().textValue().replaceAll("[\\s\\p{Cntrl}]", "").toLowerCase(java.util.Locale.ROOT);
+                    if (text.startsWith("javascript:") || text.startsWith("vbscript:") || text.contains("url(")
+                        || text.startsWith("data:") && !text.matches("data:image/(png|jpeg|webp);base64,[a-z0-9+/=]+")) reject("Unsafe canvas URL or style.");
+                }
+                validateSafeFields(entry.getValue());
+            }
+        } else if (value.isArray()) for (JsonNode child : value) validateSafeFields(child);
     }
 
     private JsonNode requiredArray(JsonNode root, String field) {

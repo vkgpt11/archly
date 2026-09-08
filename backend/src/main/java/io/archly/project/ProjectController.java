@@ -51,6 +51,19 @@ public class ProjectController {
         return service.create(jwt.getClaimAsString("email"), request);
     }
 
+    @PostMapping("/import/validate")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void validateImport(@Valid @RequestBody ProjectDtos.ImportProjectRequest request) {
+        service.validateImport(request);
+    }
+
+    @PostMapping("/import")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Import a project backup atomically")
+    ProjectResponse importProject(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody ProjectDtos.ImportProjectRequest request) {
+        return service.importProject(jwt.getClaimAsString("email"), request);
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get a project")
     ProjectResponse get(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {

@@ -38,6 +38,64 @@ class ProjectControllerTest {
     @MockitoBean JwtDecoder jwtDecoder;
 
     @Test
+    void importsIndependentContentAndPreservesReplacementRecovery() throws Exception {
+        var identity = jwt().jwt(token -> token.claim("email", "importer@gmail.com"));
+        var content = objectMapper.createObjectNode().put("name", "Backup").put("markdown", "<p>Original</p>")
+            .put("canvasJson", "{\"schemaVersion\":1,\"nodes\":[],\"edges\":[],\"diagramCode\":\"# exact source\",\"diagramModules\":[{\"id\":\"shared\",\"version\":\"1\",\"source\":\"# module\"}],\"diagramSnapshots\":[{\"name\":\"Before\",\"createdAt\":\"2026-09-08\",\"nodes\":[],\"edges\":[]}]}");
+        var backup = objectMapper.createObjectNode().put("format", "archly-project").put("version", 1).put("scope", "full");
+        backup.set("project", content);
+        mvc.perform(post("/api/projects/import/validate").with(identity).contentType(MediaType.APPLICATION_JSON).content(backup.toString()))
+            .andExpect(status().isNoContent());
+        String response = mvc.perform(post("/api/projects/import").with(identity).contentType(MediaType.APPLICATION_JSON).content(backup.toString()))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.canvasJson").value(content.get("canvasJson").asText()))
+            .andReturn().getResponse().getContentAsString();
+        var imported = objectMapper.readTree(response);
+        String id = imported.get("id").asText();
+        mvc.perform(get("/api/projects/" + id).with(jwt().jwt(token -> token.claim("email", "other@gmail.com"))))
+            .andExpect(status().isNotFound());
+        backup.put("replaceProjectId", id).put("revision", imported.get("revision").asLong());
+        content.put("markdown", "<p>Restored</p><script>alert(1)</script>");
+        mvc.perform(post("/api/projects/import").with(identity).contentType(MediaType.APPLICATION_JSON).content(backup.toString()))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value(id))
+            .andExpect(jsonPath("$.markdown").value("<p>Restored</p>"));
+        var listing = objectMapper.readTree(mvc.perform(get("/api/projects").with(identity))
+            .andExpect(jsonPath("$.totalItems").value(2)).andReturn().getResponse().getContentAsString());
+        for (var item : listing.get("items")) {
+            if (!item.get("id").asText().equals(id)) {
+                mvc.perform(get("/api/projects/" + item.get("id").asText()).with(identity))
+                    .andExpect(jsonPath("$.markdown").value("<p>Original</p>"))
+                    .andExpect(jsonPath("$.canvasJson").value(imported.get("canvasJson").asText()));
+            }
+        }
+        mvc.perform(post("/api/projects/import").with(identity).contentType(MediaType.APPLICATION_JSON).content(backup.toString()))
+            .andExpect(status().isConflict());
+        mvc.perform(get("/api/projects").with(identity)).andExpect(jsonPath("$.totalItems").value(2));
+    }
+
+    @Test
+    void rejectsOversizedImportBodiesBeforeParsing() throws Exception {
+        mvc.perform(post("/api/projects/import").with(jwt().jwt(token -> token.claim("email", "large@gmail.com")))
+            .contentType(MediaType.APPLICATION_JSON).content(" ".repeat(ProjectImportSizeFilter.MAX_BYTES + 1)))
+            .andExpect(status().isPayloadTooLarge());
+    }
+
+    @Test
+    void rejectsInvalidImportsWithoutCreatingProjects() throws Exception {
+        var identity = jwt().jwt(token -> token.claim("email", "invalidimport@gmail.com"));
+        var content = objectMapper.createObjectNode().put("name", "Bad").put("markdown", "")
+            .put("canvasJson", "{\"nodes\":[],\"edges\":[]}");
+        var backup = objectMapper.createObjectNode().put("format", "archly-project").put("version", 2).put("scope", "full");
+        backup.set("project", content);
+        mvc.perform(post("/api/projects/import").with(identity).contentType(MediaType.APPLICATION_JSON).content(backup.toString()))
+            .andExpect(status().isBadRequest());
+        backup.put("version", 1);
+        content.put("canvasJson", "{\"nodes\":[],\"edges\":[],\"diagramSnapshots\":[{\"name\":\"bad\"}]}");
+        mvc.perform(post("/api/projects/import").with(identity).contentType(MediaType.APPLICATION_JSON).content(backup.toString()))
+            .andExpect(status().isBadRequest());
+        mvc.perform(get("/api/projects").with(identity)).andExpect(jsonPath("$.totalItems").value(0));
+    }
+
+    @Test
     void requiresAuthentication() throws Exception {
         mvc.perform(get("/api/projects")).andExpect(status().isUnauthorized());
     }

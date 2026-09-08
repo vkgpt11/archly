@@ -93,6 +93,10 @@ export const api = {
   createProjectFolder: (token: string, name: string) => request<{ name: string }>(token, '/project-folders', { method: 'POST', body: JSON.stringify({ name }) }),
   createProject: (token: string, name: string) =>
     request<Project>(token, '/projects', { method: 'POST', body: JSON.stringify({ name }) }),
+  validateProjectImport: (token: string, backup: import('./projectPortability').ProjectPackage) =>
+    request<void>(token, '/projects/import/validate', { method: 'POST', body: JSON.stringify({ ...backup, project: { ...backup.project, revision: 0 } }) }),
+  importProject: (token: string, backup: import('./projectPortability').ProjectPackage, replaceProjectId?: string, revision?: number) =>
+    request<Project>(token, '/projects/import', { method: 'POST', body: JSON.stringify({ ...backup, project: { ...backup.project, revision: 0 }, replaceProjectId, revision }) }),
   getProject: (token: string, id: string) => request<Project>(token, `/projects/${id}`),
   saveProject: (token: string, project: Project) =>
     request<Project>(token, `/projects/${project.id}`, {

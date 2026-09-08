@@ -559,7 +559,7 @@ export default function Editor({ token = '', shareToken, initialProject, onBack,
         )}
       </div>
       {shareOpen && <Suspense fallback={null}><ProjectSharingDialog token={token} projectId={project.id} onClose={() => setShareOpen(false)} /></Suspense>}
-      {exportOpen && <Suspense fallback={null}><ProjectExportDialog project={latestProject.current} nodes={nodes} edges={edges} viewport={viewport} activeVariant={activeVariant} onClose={() => setExportOpen(false)} /></Suspense>}
+      {exportOpen && <Suspense fallback={null}><ProjectExportDialog project={{ ...latestProject.current, name: project.name, markdown: project.markdown, canvasJson: serializeCanvas(nodes, edges, viewport, diagramCode, activeVariant, diagramModules, activeView, diagramViewStates, diagramSnapshots) }} nodes={nodes} edges={edges} viewport={viewport} activeVariant={activeVariant} onClose={() => setExportOpen(false)} /></Suspense>}
       {generateOpen && <Suspense fallback={null}><GenerateDiagramDialog token={token} context={{ currentCanvas: canvasContext(nodes, edges), selectedSubsystem: selectedSubsystem(nodes, edges), hasSelection: nodes.some(node => node.selected), documentation: project.markdown.slice(0, 100_000) }} onClose={() => setGenerateOpen(false)} onOpenSettings={onOpenAiSettings} onGenerated={(canvas) => {
         setAiHistoryCheckpoint({ id: Date.now(), nodes: structuredClone(nodes), edges: structuredClone(edges) })
         setNodes(canvas.nodes)
