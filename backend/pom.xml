@@ -21,7 +21,7 @@
         <log4j2.version>2.25.5</log4j2.version>
         <postgresql.version>42.7.12</postgresql.version>
         <tomcat.version>10.1.59</tomcat.version>
-        <grpc.version>1.75.0</grpc.version>
+        <grpc.version>1.84.0</grpc.version>
     </properties>
     <dependencyManagement>
         <dependencies>
