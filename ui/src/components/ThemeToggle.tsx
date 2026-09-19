@@ -4,7 +4,8 @@ import { Moon, Sun } from 'lucide-react'
 type Theme = 'light' | 'dark'
 
 function preferredTheme(): Theme {
-  const saved = localStorage.getItem('archly-theme')
+  let saved: string | null = null
+  try { saved = localStorage.getItem('archly-theme') } catch { /* Third-party frames may prohibit browser storage. */ }
   if (saved === 'light' || saved === 'dark') return saved
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
@@ -15,7 +16,7 @@ export default function ThemeToggle() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     document.documentElement.style.colorScheme = theme
-    localStorage.setItem('archly-theme', theme)
+    try { localStorage.setItem('archly-theme', theme) } catch { /* Keep the selected theme in memory in restricted embeds. */ }
   }, [theme])
 
   const nextTheme = theme === 'light' ? 'dark' : 'light'

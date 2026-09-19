@@ -22,6 +22,8 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       ARCHLY_AUTH_DEV_BYPASS: ${ARCHLY_AUTH_DEV_BYPASS:-false}
       UI_ORIGINS: http://localhost:8088,http://127.0.0.1:8088
+      ARCHLY_EMBED_RENDERER_URL: ${ARCHLY_EMBED_RENDERER_URL:-}
+      ARCHLY_EMBED_RENDERER_KEY: ${ARCHLY_EMBED_RENDERER_KEY:-}
     depends_on:
       database:
         condition: service_healthy

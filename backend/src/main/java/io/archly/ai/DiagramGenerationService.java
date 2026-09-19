@@ -13,14 +13,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestClientResponseException;
-import org.springframework.web.client.ResourceAccessException;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.server.ResponseStatusException;
 import static org.springframework.http.HttpStatus.BAD_GATEWAY;
 
@@ -32,83 +25,118 @@ public class DiagramGenerationService {
     private static final int MAX_NODES = 40;
     private static final int MAX_EDGES = 80;
 
-    private final RestClient client;
+    private final AiProviderClient client;
     private final ObjectMapper mapper;
     private final UserLlmSettingsService settings;
     private final Set<String> allowedModels;
     private final AiUsageService usage;
+    private final AiPricing pricing;
+    private final AiRequestStore requests;
+    private final AiGenerationRateLimiter limiter;
+    private final Duration overallTimeout;
 
-    public DiagramGenerationService(
-        RestClient.Builder builder,
-        ObjectMapper mapper,
-        @Value("${archly.ai.base-url:https://api.openai.com/v1}") String baseUrl,
-        UserLlmSettingsService settings,
-        @Value("${archly.ai.connect-timeout:5s}") Duration connectTimeout,
-        @Value("${archly.ai.response-timeout:45s}") Duration responseTimeout,
+    public DiagramGenerationService(AiProviderClient client, ObjectMapper mapper, UserLlmSettingsService settings,
         @Value("${archly.ai.allowed-models:gpt-4.1-mini}") Set<String> allowedModels,
-        AiUsageService usage
-    ) {
-        SimpleClientHttpRequestFactory requests = new SimpleClientHttpRequestFactory();
-        requests.setConnectTimeout(connectTimeout); requests.setReadTimeout(responseTimeout);
-        this.client = builder.baseUrl(baseUrl).requestFactory(requests).build();
-        this.mapper = mapper;
-        this.settings = settings;
-        this.allowedModels = allowedModels;
-        this.usage = usage;
+        AiUsageService usage, AiPricing pricing, AiRequestStore requests, AiGenerationRateLimiter limiter,
+        @Value("${archly.ai.overall-timeout:50s}") Duration overallTimeout) {
+        this.client=client; this.mapper=mapper; this.settings=settings; this.allowedModels=allowedModels;
+        this.usage=usage; this.pricing=pricing; this.requests=requests; this.limiter=limiter; this.overallTimeout=overallTimeout;
+        if (overallTimeout.isNegative() || overallTimeout.isZero() || overallTimeout.compareTo(Duration.ofSeconds(50)) > 0)
+            throw new IllegalArgumentException("AI overall timeout must be positive and at most 50 seconds, below the browser timeout.");
     }
 
-    public GenerateDiagramResponse generate(String userSubject, String prompt) {
-        return generate(userSubject, new GenerateDiagramRequest(prompt, null, null, null, "create", null));
+    public GenerateDiagramResponse generate(String user, String prompt) {
+        return generate(user, new GenerateDiagramRequest(prompt, null, null, null, "create", null));
     }
-
-    public GenerateDiagramResponse generate(String userSubject, GenerateDiagramRequest request) {
-        return generate(userSubject, request, UUID.randomUUID().toString());
+    public GenerateDiagramResponse generate(String user, GenerateDiagramRequest request) {
+        return generate(user, request, UUID.randomUUID().toString());
     }
-    public GenerateDiagramResponse generate(String userSubject, GenerateDiagramRequest request, String requestId) {
-        UserLlmSettingsService.Configuration configuration = settings.requireConfiguration(userSubject);
+    public GenerateDiagramResponse generate(String user, GenerateDiagramRequest request, String key) {
+        AiDeadline deadline = new AiDeadline(overallTimeout);
+        final String fingerprint;
+        try { fingerprint = AiRequestStore.hash(mapper.writeValueAsString(request)); }
+        catch (Exception exception) { throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Invalid AI request."); }
+        var claim = requests.begin(user, key, fingerprint, overallTimeout);
+        while (!claim.owned()) {
+            if (claim.result() != null) return claim.result();
+            if (claim.status() != null) throw new ResponseStatusException(org.springframework.http.HttpStatus.valueOf(claim.status()), claim.message());
+            deadline.pause(Duration.ofMillis(100));
+            claim = requests.read(user, claim.id(), fingerprint);
+            if (claim == null) throw new ResponseStatusException(org.springframework.http.HttpStatus.GONE, "This AI request expired. Use a new key.");
+        }
+        String id = claim.id();
+        try { return generateOwned(user, request, id, deadline); }
+        catch (ResponseStatusException failure) { requests.fail(user, id, failure); throw failure; }
+        catch (RuntimeException failure) {
+            var safe = new ResponseStatusException(BAD_GATEWAY, "The AI request could not be completed.");
+            requests.fail(user, id, safe); throw safe;
+        }
+    }
+    private GenerateDiagramResponse generateOwned(String user, GenerateDiagramRequest request, String id, AiDeadline deadline) {
+        long started = System.nanoTime();
+        var configuration = settings.requireConfiguration(user);
         if (!allowedModels.contains(configuration.model())) throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "The configured AI model is not allowed.");
-        usage.ensureBudget(userSubject); usage.ensureIdempotent(requestId);
-        JsonNode response;
+        var accounting = new AiUsageAccumulator(pricing.require(configuration.model()));
+        limiter.check(user, configuration.model()); usage.ensureBudget(user);
+        ObjectNode body = requestBody(configuration.model(), request);
+        long inputBound = Math.max(32_000, body.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8).length);
+        usage.reserve(id,user,Math.multiplyExact(6,pricing.require(configuration.model()).cost(inputBound,0,8000)));
+        String outcome = "FAILED";
         try {
-            response = providerRequest(configuration, requestBody(configuration.model(), request), requestId);
-            usage.record(requestId, userSubject, configuration.model(), response, "SUCCESS");
-        } catch (RestClientException exception) {
-            settings.recordFailure(userSubject, "PROVIDER_REQUEST_FAILED");
-            usage.record(requestId, userSubject, configuration.model(), null, "PROVIDER_FAILURE");
-            throw providerError(exception);
-        }
-        try {
-            String output = extractOutputText(response);
-            JsonNode specification = mapper.readTree(output);
-            GenerateDiagramResponse result = toCanvas(specification); settings.recordSuccess(userSubject); return result;
-        } catch (Exception exception) {
-            try {
-                String malformed = extractOutputText(response);
-                ObjectNode repair = requestBody(configuration.model(), new GenerateDiagramRequest("Repair this malformed response without changing its intended architecture:\n" + malformed.substring(0, Math.min(3_800, malformed.length())), null, null, null, "create", null));
-                GenerateDiagramResponse result = toCanvas(mapper.readTree(extractOutputText(providerRequest(configuration, repair, UUID.randomUUID().toString()))));
-                settings.recordSuccess(userSubject); return result;
-            } catch (Exception repairFailure) { settings.recordFailure(userSubject, "MALFORMED_RESPONSE"); throw new ResponseStatusException(BAD_GATEWAY, "The AI provider returned an invalid diagram after one repair attempt.", repairFailure); }
+            JsonNode response = providerRequest(configuration, body, id + "-initial", deadline, accounting, false);
+            GenerateDiagramResponse result;
+            try { result = parseResult(response, deadline); }
+            catch (IllegalArgumentException | com.fasterxml.jackson.core.JsonProcessingException malformed) {
+                String text = extractOutputText(response);
+                ObjectNode repair = requestBody(configuration.model(), new GenerateDiagramRequest("Repair this malformed response without changing its intended architecture:\n" + text.substring(0, Math.min(3_800, text.length())), null, null, null, "create", null));
+                JsonNode repaired = providerRequest(configuration, repair, id + "-repair", deadline, accounting, true);
+                try { result = parseResult(repaired, deadline); }
+                catch (IllegalArgumentException | com.fasterxml.jackson.core.JsonProcessingException failure) {
+                    throw new ResponseStatusException(BAD_GATEWAY, "The AI provider returned an invalid diagram after one repair attempt.");
+                }
+            }
+            deadline.remaining();
+            requests.complete(user, id, result);
+            settings.recordSuccess(user); outcome = "SUCCESS"; return result;
+        } catch (ResponseStatusException failure) {
+            outcome = failure.getStatusCode().value() == 504 ? "DEADLINE" : failure.getStatusCode().value() == 408 ? "CANCELLED" : "FAILED";
+            settings.recordFailure(user, outcome); throw failure;
+        } finally {
+            usage.record(id, user, configuration.model(), accounting, outcome, pricing.version, (System.nanoTime()-started)/1_000_000);
         }
     }
-
-    public void testConnection(String userSubject, String model, String apiKey) {
-        UserLlmSettingsService.Configuration saved = apiKey == null || apiKey.isBlank()
-            ? settings.requireConfiguration(userSubject) : new UserLlmSettingsService.Configuration(model.trim(), apiKey.trim());
+    private GenerateDiagramResponse parseResult(JsonNode response, AiDeadline deadline) throws com.fasterxml.jackson.core.JsonProcessingException {
+        deadline.remaining();
+        if ("incomplete".equals(response.path("status").asText())) throw new ResponseStatusException(BAD_GATEWAY, "The AI provider returned an incomplete response. Try a smaller request.");
+        for (JsonNode item : response.path("output")) for (JsonNode content : item.path("content"))
+            if ("refusal".equals(content.path("type").asText())) throw new ResponseStatusException(BAD_GATEWAY, "The AI provider declined this request.");
+        var result = toCanvas(mapper.readTree(extractOutputText(response)));
+        deadline.remaining(); return result;
+    }
+    private JsonNode providerRequest(UserLlmSettingsService.Configuration configuration, ObjectNode body, String key,
+            AiDeadline deadline, AiUsageAccumulator accounting, boolean repair) {
+        long bytes = body.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
+        return client.request(configuration, body, key, deadline,
+            response -> accounting.add(response, bytes, body.path("max_output_tokens").asLong(), repair));
+    }
+    public void testConnection(String user, String model, String apiKey) {
+        AiDeadline deadline = new AiDeadline(overallTimeout);
+        var saved = apiKey == null || apiKey.isBlank() ? settings.requireConfiguration(user) : new UserLlmSettingsService.Configuration(model.trim(), apiKey.trim());
         String selectedModel = model == null || model.isBlank() ? saved.model() : model.trim();
         if (!allowedModels.contains(selectedModel)) throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "The configured AI model is not allowed.");
+        var accounting = new AiUsageAccumulator(pricing.require(selectedModel));
+        usage.ensureBudget(user);
+        String id = AiRequestStore.hash(user + UUID.randomUUID());
+        usage.reserve(id,user,Math.multiplyExact(3,pricing.require(selectedModel).cost(1000,0,16)));
+        long started = System.nanoTime(); String outcome = "FAILED";
         try {
-            client.post().uri("/responses")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + saved.apiKey())
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(mapper.createObjectNode().put("model", selectedModel).put("input", "Reply with OK.").put("store", false).put("max_output_tokens", 16))
-                .retrieve().toBodilessEntity();
-            if (apiKey == null || apiKey.isBlank()) settings.recordSuccess(userSubject);
-            settings.recordTest(userSubject, true);
-        } catch (RestClientException exception) {
-            if (apiKey == null || apiKey.isBlank()) settings.recordFailure(userSubject, "CONNECTION_TEST_FAILED");
-            settings.recordTest(userSubject, false);
-            throw providerError(exception);
-        }
+            providerRequest(new UserLlmSettingsService.Configuration(selectedModel, saved.apiKey()), mapper.createObjectNode().put("model", selectedModel).put("input", "Reply with OK.").put("store", false).put("max_output_tokens", 16), id, deadline, accounting, false);
+            if (apiKey == null || apiKey.isBlank()) settings.recordSuccess(user);
+            settings.recordTest(user, true); outcome = "SUCCESS";
+        } catch (ResponseStatusException failure) {
+            if (apiKey == null || apiKey.isBlank()) settings.recordFailure(user, "CONNECTION_TEST_FAILED");
+            settings.recordTest(user, false); throw failure;
+        } finally { usage.record(id, user, selectedModel, accounting, outcome, pricing.version, (System.nanoTime()-started)/1_000_000); }
     }
 
     ObjectNode requestBody(String model, String prompt) {
@@ -175,30 +203,6 @@ public class DiagramGenerationService {
         nullableString(edgeProps, "direction", 20);
         nullableString(edgeProps, "description", 240);
         return node;
-    }
-
-    private JsonNode providerRequest(UserLlmSettingsService.Configuration configuration, ObjectNode body, String idempotencyKey) {
-        RestClientException last = null;
-        for (int attempt = 0; attempt < 3; attempt++) try {
-            return client.post().uri("/responses").header(HttpHeaders.AUTHORIZATION, "Bearer " + configuration.apiKey())
-                .header("Idempotency-Key", idempotencyKey).contentType(MediaType.APPLICATION_JSON).body(body).retrieve().body(JsonNode.class);
-        } catch (RestClientException exception) {
-            last = exception; if (!retryable(exception) || attempt == 2) throw exception;
-            try { Thread.sleep(250L * (1L << attempt)); } catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); throw new RestClientException("AI request cancelled", interrupted); }
-        }
-        throw last;
-    }
-
-    private boolean retryable(RestClientException error) { return error instanceof ResourceAccessException || error instanceof RestClientResponseException response && (response.getStatusCode().value() == 429 || response.getStatusCode().is5xxServerError()); }
-    private ResponseStatusException providerError(RestClientException error) {
-        if (error instanceof ResourceAccessException) return new ResponseStatusException(org.springframework.http.HttpStatus.GATEWAY_TIMEOUT, "The AI provider timed out.", error);
-        if (error instanceof RestClientResponseException response) return switch (response.getStatusCode().value()) {
-            case 401, 403 -> new ResponseStatusException(org.springframework.http.HttpStatus.UNAUTHORIZED, "The OpenAI API key is invalid or unauthorized.", error);
-            case 404 -> new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "The configured AI model is invalid or unavailable.", error);
-            case 429 -> new ResponseStatusException(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS, response.getResponseBodyAsString().contains("quota") ? "The OpenAI quota is exhausted." : "OpenAI is rate limiting requests. Try again later.", error);
-            default -> new ResponseStatusException(BAD_GATEWAY, response.getStatusCode().is5xxServerError() ? "OpenAI is temporarily unavailable." : "OpenAI refused the request.", error);
-        };
-        return new ResponseStatusException(BAD_GATEWAY, "The AI provider request failed.", error);
     }
 
     private void nullableString(ObjectNode properties, String name, int maxLength) {

@@ -84,7 +84,7 @@ class ProjectControllerTest {
         var identity = jwt().jwt(token -> token.claim("email", "invalidimport@gmail.com"));
         var content = objectMapper.createObjectNode().put("name", "Bad").put("markdown", "")
             .put("canvasJson", "{\"nodes\":[],\"edges\":[]}");
-        var backup = objectMapper.createObjectNode().put("format", "archly-project").put("version", 2).put("scope", "full");
+        var backup = objectMapper.createObjectNode().put("format", "archly-project").put("version", 3).put("scope", "full");
         backup.set("project", content);
         mvc.perform(post("/api/projects/import").with(identity).contentType(MediaType.APPLICATION_JSON).content(backup.toString()))
             .andExpect(status().isBadRequest());

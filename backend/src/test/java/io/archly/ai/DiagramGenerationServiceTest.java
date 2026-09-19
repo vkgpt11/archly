@@ -11,7 +11,7 @@ import static org.mockito.Mockito.mock;
 class DiagramGenerationServiceTest {
     private final ObjectMapper mapper = new ObjectMapper();
     private final DiagramGenerationService service = new DiagramGenerationService(
-        RestClient.builder(), mapper, "https://example.invalid/v1", mock(UserLlmSettingsService.class), java.time.Duration.ofSeconds(1), java.time.Duration.ofSeconds(1), java.util.Set.of("test-model"), mock(AiUsageService.class)
+        mock(AiProviderClient.class), mapper, mock(UserLlmSettingsService.class), java.util.Set.of("test-model"), mock(AiUsageService.class), mock(AiPricing.class), mock(AiRequestStore.class), mock(AiGenerationRateLimiter.class), java.time.Duration.ofSeconds(1)
     );
 
     @Test

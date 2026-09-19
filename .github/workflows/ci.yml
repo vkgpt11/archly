@@ -36,6 +36,8 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps
       - run: npm run test:e2e
+      - name: Verify authenticated diagram PNG rendering
+        run: node scripts/verify-embed-renderer.mjs
       - run: npm audit --omit=dev --audit-level=high
 
   backend:
@@ -67,6 +69,7 @@ jobs:
           GOOGLE_CLIENT_ID: ci-client-id.apps.googleusercontent.com
       - run: docker build -t archly-backend backend
       - run: docker build --build-arg VITE_GOOGLE_CLIENT_ID=ci-client-id.apps.googleusercontent.com -t archly-ui ui
+      - run: docker build -f deployment/embed-renderer.Dockerfile -t archly-embed-renderer .
 
   vulnerability-scan:
     permissions:

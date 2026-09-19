@@ -26,10 +26,12 @@ public class ProjectShareService {
     private final ProjectShareRepository shares;
     private final ProjectService projectService;
     private final RequestRateLimiter rateLimiter;
+    private final com.fasterxml.jackson.databind.ObjectMapper mapper;
 
     public ProjectShareService(ProjectRepository projects, ProjectShareRepository shares, ProjectService projectService,
-                               RequestRateLimiter rateLimiter) {
+                               RequestRateLimiter rateLimiter, com.fasterxml.jackson.databind.ObjectMapper mapper) {
         this.projects = projects; this.shares = shares; this.projectService = projectService; this.rateLimiter = rateLimiter;
+        this.mapper = mapper;
     }
 
     public ShareLinkResponse create(String email, UUID projectId, CreateShareRequest request) {
@@ -41,6 +43,15 @@ public class ProjectShareService {
         String token = UUID.randomUUID() + "." + UUID.randomUUID();
         int days = request.expiresInDays() == null ? 30 : request.expiresInDays();
         ProjectShare share = shares.save(new ProjectShare(project, hash(token), request.permission(), Instant.now().plus(Duration.ofDays(days))));
+        if ("EMBED".equals(request.permission())) {
+            try {
+                var canvas = mapper.readTree(project.getCanvasJson());
+                String view = canvas.path("activeView").asText("");
+                String variant = canvas.path("activeVariant").asText("");
+                if (view.length() > 128 || variant.length() > 128) throw new IllegalArgumentException();
+                share.bindEmbed(view, variant);
+            } catch (Exception invalid) { throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Save a valid diagram before creating an embed."); }
+        }
         return new ShareLinkResponse(share.getId(), token, share.getPermission(), false, share.getCreatedAt(), share.getExpiresAt());
     }
 
@@ -61,7 +72,23 @@ public class ProjectShareService {
     @Transactional(readOnly = true)
     public SharedProjectResponse getShared(String token) {
         ProjectShare share = active(token);
+        if ("EMBED".equals(share.getPermission())) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Share unavailable");
         return new SharedProjectResponse(ProjectDtos.ProjectResponse.from(share.getProject()), share.getPermission());
+    }
+
+    @Transactional(readOnly = true)
+    public Project embeddedProject(String token) {
+        return embeddedTarget(token).project();
+    }
+
+    public record EmbedTarget(Project project, String view, String variant) {}
+    @Transactional(readOnly = true)
+    public EmbedTarget embeddedTarget(String token) {
+        ProjectShare share = active(token);
+        if (!"EMBED".equals(share.getPermission())) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Embed unavailable");
+        Project project = share.getProject();
+        project.getCanvasJson();
+        return new EmbedTarget(project, share.getEmbedView(), share.getEmbedVariant());
     }
 
     public SharedProjectResponse updateShared(String token, UpdateProjectRequest request) {

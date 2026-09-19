@@ -11,6 +11,9 @@ final class CookieBearerTokenResolver implements BearerTokenResolver {
 
     @Override
     public String resolve(HttpServletRequest request) {
+        // Public diagrams must not depend on an unrelated/expired owner cookie.
+        String path = request.getRequestURI().substring(request.getContextPath().length());
+        if ("GET".equals(request.getMethod()) && path.startsWith("/api/embeds/")) return null;
         String headerToken = authorizationHeader.resolve(request);
         if (headerToken != null) return headerToken;
         if (request.getCookies() == null) return null;

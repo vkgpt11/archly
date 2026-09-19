@@ -35,6 +35,15 @@ export default function Dashboard({ token, isAdmin = false, user, onSignOut }: P
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   useEffect(() => {
+    const id = window.location.hash.match(/^#\/project\/([0-9a-f-]+)$/i)?.[1]
+    if (!id) return
+    let active = true
+    api.getProject(token, id).then((project) => { if (active) setSelected(project) })
+      .catch(() => { if (active) setError('You do not have edit access to this project, or it is no longer available.') })
+    return () => { active = false }
+  }, [token])
+
+  useEffect(() => {
     const syncAdminRoute = () => setAdminOpen(window.location.hash === '#/admin')
     window.addEventListener('hashchange', syncAdminRoute)
     syncAdminRoute()

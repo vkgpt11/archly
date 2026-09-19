@@ -5,12 +5,14 @@ import { ApiError, api, type AuthSession } from './api'
 
 const Dashboard = lazy(() => import('./components/Dashboard'))
 const SharedProjectView = lazy(() => import('./components/SharedProjectView'))
+const DiagramEmbedView = lazy(() => import('./components/DiagramEmbedView'))
 const loading = <main className="shared-error"><p>Loading Archly…</p></main>
 
 type Props = { googleEnabled?: boolean }
 
 export default function App({ googleEnabled = true }: Props) {
   const shareToken = window.location.pathname.match(/^\/share\/([^/]+)$/)?.[1]
+  const embedToken = window.location.pathname.match(/^\/embed\/([A-Za-z0-9._-]+)$/)?.[1]
   const [credential, setCredential] = useState<string | null>(null)
   const [session, setSession] = useState<AuthSession | null>(null)
   const [error, setError] = useState('')
@@ -19,14 +21,14 @@ export default function App({ googleEnabled = true }: Props) {
   const devBypassEnabled = import.meta.env.VITE_DEV_AUTH === 'true'
 
   useEffect(() => {
-    if (shareToken) return
+    if (shareToken || embedToken) return
     let active = true
     api.restoreSession()
       .then((restored) => { if (active) { setSession(restored); setCredential('') } })
       .catch(() => {})
       .finally(() => { if (active) setRestoringSession(false) })
     return () => { active = false }
-  }, [shareToken])
+  }, [shareToken, embedToken])
 
   const authenticate = async (token: string) => {
     setError('')
@@ -49,6 +51,7 @@ export default function App({ googleEnabled = true }: Props) {
   }
 
   if (shareToken) return <Suspense fallback={loading}><SharedProjectView shareToken={decodeURIComponent(shareToken)} /></Suspense>
+  if (embedToken) return <Suspense fallback={loading}><DiagramEmbedView token={embedToken} /></Suspense>
 
   if (restoringSession) return loading
 

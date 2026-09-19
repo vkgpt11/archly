@@ -87,8 +87,9 @@ export default function AdminDashboard({ token, user = { email: 'developer@gmail
           {aiUsage && <Metric label="AI requests this month" value={aiUsage.requests} />}
           {aiUsage && <Metric label="AI input tokens" value={aiUsage.inputTokens} />}
           {aiUsage && <Metric label="AI output tokens" value={aiUsage.outputTokens} />}
-          {aiUsage && <Metric label="AI provider failures" value={aiUsage.failures} />}
+          {aiUsage && <Metric label="AI failed requests" value={aiUsage.failures} />}
         </div>
+        {Boolean(aiUsage?.unknownUsageAttempts) && <p role="status">Usage was unavailable for {aiUsage?.unknownUsageAttempts} provider attempts. Estimated cost includes conservative allowances; token totals include reported usage only.</p>}
         {aiUsage?.alert && <p className="admin-error" role="alert">AI usage has crossed the configured budget alert threshold.</p>}
         <section className="admin-panel"><h2>Activity over time</h2>
           <div className="admin-series-grid">{seriesMetrics.map(([metric, label]) => <Series key={metric} label={label} value={series[metric]} />)}</div>

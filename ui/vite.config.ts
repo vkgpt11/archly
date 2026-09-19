@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [react()],
   build: {
     rollupOptions: {
+      input: { app: 'index.html', embedProjection: 'embed-project.html' },
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined

@@ -21,7 +21,7 @@ public class RichTextSanitizer {
         .addAttributes("code", "class")
         .addAttributes("img", "src", "alt", "title", "width")
         .addProtocols("a", "href", "http", "https", "mailto")
-        .addProtocols("img", "src", "data");
+        .addProtocols("img", "src", "data", "archly-asset");
     private static final Pattern COLOR_VALUE = Pattern.compile(
         "(?i)^(#[0-9a-f]{3,8}|rgba?\\(\\s*\\d{1,3}\\s*,\\s*\\d{1,3}\\s*,\\s*\\d{1,3}(?:\\s*,\\s*(?:0|1|0?\\.\\d+))?\\s*\\))$");
     private static final Pattern CODE_CLASS = Pattern.compile("^language-[a-z0-9_-]{1,40}$");
@@ -40,7 +40,7 @@ public class RichTextSanitizer {
             if (!CODE_CLASS.matcher(element.attr("class")).matches()) element.removeAttr("class");
         });
         document.select("img").forEach(element -> {
-            if (!element.attr("src").matches("(?i)^data:image/(png|jpeg|webp);base64,[a-z0-9+/=\\s]+$")) {
+            if (!element.attr("src").matches("^archly-asset:[0-9a-fA-F-]{36}$") && !element.attr("src").matches("(?i)^data:image/(png|jpeg|webp);base64,[a-z0-9+/=\\s]+$")) {
                 element.remove();
                 return;
             }

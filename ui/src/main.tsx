@@ -6,10 +6,11 @@ import './styles.css'
 import '@xyflow/react/dist/style.css'
 
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
-const app = <App googleEnabled={Boolean(clientId)} />
+const embedded = /^\/embed\//.test(window.location.pathname)
+const app = <App googleEnabled={Boolean(clientId) && !embedded} />
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {clientId ? <GoogleOAuthProvider clientId={clientId}>{app}</GoogleOAuthProvider> : app}
+    {clientId && !embedded ? <GoogleOAuthProvider clientId={clientId}>{app}</GoogleOAuthProvider> : app}
   </StrictMode>,
 )

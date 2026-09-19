@@ -7,6 +7,9 @@ spring:
     hibernate:
       ddl-auto: validate
 archly:
+  ai:
+    pricing-version: test-v1
+    pricing-json: '{"gpt-4.1-mini":{"input":0.40,"cachedInput":0.10,"output":1.60}}'
   admin:
     emails: admin@gmail.com
   google:

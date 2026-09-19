@@ -20,6 +20,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 @Transactional
 public class ProjectService {
+    private final ProjectAssetService assets;
     private final ProjectRepository repository;
     private final RichTextSanitizer richTextSanitizer;
     private final CanvasJsonValidator canvasJsonValidator;
@@ -31,7 +32,8 @@ public class ProjectService {
     public ProjectService(ProjectRepository repository, RichTextSanitizer richTextSanitizer,
                           CanvasJsonValidator canvasJsonValidator, ProjectContentValidator projectContentValidator,
                           ProjectShareRepository shareRepository, ProductAnalyticsService analytics,
-                          UserSessionService sessions) {
+                          UserSessionService sessions, ProjectAssetService assets) {
+        this.assets = assets;
         this.repository = repository;
         this.richTextSanitizer = richTextSanitizer;
         this.canvasJsonValidator = canvasJsonValidator;
@@ -70,9 +72,11 @@ public class ProjectService {
         }
         canvasJsonValidator.validate(request.canvasJson());
         projectContentValidator.validateMarkdown(request.markdown());
+        assets.validateReferences(project, request.canvasJson(), request.markdown());
         project.update(request.name().trim(), request.canvasJson(), richTextSanitizer.sanitize(request.markdown()));
         try {
             Project saved = repository.saveAndFlush(project);
+            assets.reconcile(saved);
             analytics.record(email, id, ProductEvent.Type.PROJECT_CONTENT_SAVED);
             return response(saved);
         } catch (OptimisticLockException | OptimisticLockingFailureException exception) {
@@ -81,13 +85,14 @@ public class ProjectService {
     }
 
     public void validateImport(ProjectDtos.ImportProjectRequest request) {
-        if (!"archly-project".equals(request.format()) || request.version() != 1
+        if (!"archly-project".equals(request.format()) || (request.version() != 1 && request.version() != 2)
             || !("full".equals(request.scope()) || "selection".equals(request.scope()))) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported package format, version or scope. Use an Archly version 1 backup.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported package format, version or scope. Use an Archly version 1 or 2 backup.");
         }
         var content = request.project();
         canvasJsonValidator.validate(content.canvasJson());
         projectContentValidator.validateMarkdown(content.markdown());
+        assets.validateManifest(request.version(), content.canvasJson(), content.markdown(), request.assets());
     }
 
     public ProjectResponse importProject(String email, ProjectDtos.ImportProjectRequest request) {
@@ -104,22 +109,30 @@ public class ProjectService {
                 target.getCanvasJson(), target.getMarkdown());
             linkOwner(recovery, email);
             recovery.organize(target.getFolder(), false);
+            var recoveryContent = assets.copy(target,recovery,target.getCanvasJson(),target.getMarkdown());
+            recovery.update(recovery.getName(),recoveryContent.canvasJson(),recoveryContent.markdown());
             repository.save(recovery);
-            return update(email, target.getId(), new UpdateProjectRequest(content.name(), content.canvasJson(), markdown, request.revision()));
+            var restored = assets.importAssets(target,content.canvasJson(),markdown,request.assets());
+            return update(email,target.getId(),new UpdateProjectRequest(content.name(),restored.canvasJson(),restored.markdown(),request.revision()));
         }
         Project imported = new Project(email, content.name().trim(), content.canvasJson(), markdown);
         linkOwner(imported, email);
+        var restored = assets.importAssets(imported,content.canvasJson(),markdown,request.assets());
+        imported.update(imported.getName(),restored.canvasJson(),restored.markdown());
         Project saved = repository.saveAndFlush(imported);
+        assets.reconcile(saved);
         analytics.record(email, saved.getId(), ProductEvent.Type.PROJECT_CREATED);
         return response(saved);
     }
 
     public ProjectResponse duplicate(String email, UUID id) {
         Project source = findOwned(email, id);
-        Project copy = new Project(email, source.getName() + " — Copy", source.getCanvasJson(),
+        Project copy = new Project(email, source.getName().substring(0,Math.min(110,source.getName().length())) + " — Copy", source.getCanvasJson(),
             richTextSanitizer.sanitize(source.getMarkdown()));
         linkOwner(copy, email);
         copy.organize(source.getFolder(), false);
+        var content = assets.copy(source,copy,source.getCanvasJson(),source.getMarkdown());
+        copy.update(copy.getName(),content.canvasJson(),content.markdown());
         Project saved = repository.save(copy);
         analytics.record(email, saved.getId(), ProductEvent.Type.PROJECT_DUPLICATED);
         return response(saved);

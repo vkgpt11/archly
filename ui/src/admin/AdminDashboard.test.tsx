@@ -27,6 +27,13 @@ describe('AdminDashboard', () => {
     expect(screen.getByText(/aggregate activity in UTC/i)).toBeInTheDocument()
   })
 
+  it('distinguishes unknown provider usage from reported token totals', async () => {
+    mocks.adminAiUsage.mockResolvedValue({ monthlyEstimatedCostMicros: 2500000, monthlyBudgetMicros: 100000000, requests: 12, inputTokens: 1000, outputTokens: 500, failures: 1, alert: false, unknownUsageAttempts: 2 })
+    render(<AdminDashboard token="token" onBack={() => {}} />)
+    expect(await screen.findByText(/Usage was unavailable for 2 provider attempts/)).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('token totals include reported usage only')
+  })
+
   it('reloads metrics for a selected period', async () => {
     render(<AdminDashboard token="token" onBack={() => {}} />)
     await screen.findByText('Observed users')

@@ -12,7 +12,7 @@ public final class ProjectDtos {
     public record ImportProjectRequest(
         @NotBlank String format, int version, @NotBlank String scope,
         @jakarta.validation.constraints.NotNull @jakarta.validation.Valid UpdateProjectRequest project,
-        UUID replaceProjectId, Long revision
+        UUID replaceProjectId, Long revision, @Size(max = 1000) List<ProjectAssetService.ManifestAsset> assets
     ) {}
     public record CreateProjectRequest(@NotBlank @Size(max = 120) String name) {}
     public record UpdateProjectRequest(

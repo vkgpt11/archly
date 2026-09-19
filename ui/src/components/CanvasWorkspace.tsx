@@ -1,5 +1,5 @@
 import {
-  Background, BackgroundVariant, BaseEdge, ConnectionMode, EdgeLabelRenderer, Handle, MarkerType,
+  Background, BackgroundVariant, BaseEdge, ConnectionMode, Controls, EdgeLabelRenderer, Handle, MarkerType,
   MiniMap, ReactFlow, ReactFlowProvider, Position, addEdge, applyEdgeChanges,
   getBezierPath, getSmoothStepPath, getStraightPath, reconnectEdge, useReactFlow,
   type Connection, type Edge, type EdgeChange, type EdgeProps, type Node, type NodeChange, type NodeProps, type Viewport,
@@ -128,7 +128,7 @@ type ArchitectureNodeData = {
 }
 
 type Snapshot = { nodes: Node[]; edges: Edge[] }
-type CanvasHistoryApi = { remember: () => void; openProperties: () => void }
+type CanvasHistoryApi = { remember: () => void; openProperties: () => void; readOnly?: boolean }
 const CanvasHistoryContext = createContext<CanvasHistoryApi | null>(null)
 
 function useCanvasHistory() {
@@ -259,13 +259,13 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
   const iconFirst = kind !== 'text' && kind !== 'note' && kind !== 'container' && kind !== 'image'
 
   useEffect(() => {
-    if (kind === 'container' || data.manualSize) return
+    if (history.readOnly || kind === 'container' || data.manualSize) return
     const current = getNode(id)
     const automatic = getComponentSize(label, kind)
     const size = { width: data.customWidth || automatic.width, height: data.customHeight || automatic.height }
     if (current?.width === size.width && current?.height === size.height) return
     updateNode(id, { ...size, style: { ...current?.style, ...size } })
-  }, [data.customHeight, data.customWidth, data.manualSize, getNode, id, kind, label, updateNode])
+  }, [data.customHeight, data.customWidth, data.manualSize, getNode, history.readOnly, id, kind, label, updateNode])
 
   function updateContent(nextLabel: string) {
     const current = getNode(id)
@@ -286,6 +286,7 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
       className={`architecture-node architecture-node-${kind}${iconFirst ? ' icon-first' : ''}${selected ? ' selected' : ''}${data.locked ? ' locked' : ''}`}
       style={{ background: data.fill, borderColor: data.border, color: data.textColor, borderWidth: data.borderWidth, opacity: data.opacity, borderRadius: data.shape === 'ellipse' ? '50%' : data.shape === 'rectangle' ? 0 : data.shape === 'rounded' ? 16 : undefined }}
       onPointerDown={(event) => {
+        if (history.readOnly) return
         if (!event.shiftKey) return
         event.stopPropagation()
         const groupId = data.groupId
@@ -295,6 +296,7 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
         }))), 0)
       }}
       onDoubleClick={(event) => {
+        if (history.readOnly) return
         event.stopPropagation()
         setNodes((current) => current.map((node) => ({ ...node, selected: node.id === id })))
         history.openProperties()
@@ -302,16 +304,16 @@ function ArchitectureNode({ id, data, selected }: NodeProps<Node<ArchitectureNod
     >
       {kind === 'image' && data.imageSrc ? <img className="canvas-image" src={data.imageSrc} alt={data.alt || label || 'Canvas image'} /> : kind !== 'text' && <span className="component-kind-icon" aria-hidden="true" style={{ color: data.iconId ? iconColorById[data.iconId] : undefined }}><Icon /></span>}
       {data.diffKind && <span className="diagram-diff-badge" aria-label={`Changed: ${data.diffKind}`}>{data.diffKind}</span>}
-      <button
+      {!history.readOnly && <button
         className="component-lock nodrag nowheel"
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => { event.stopPropagation(); toggleLock() }}
         title={data.locked ? 'Unlock component' : 'Lock component'}
         aria-label={data.locked ? 'Unlock component' : 'Lock component'}
-      >{data.locked ? <Lock /> : <Unlock />}</button>
+      >{data.locked ? <Lock /> : <Unlock />}</button>}
       <div className="architecture-node-copy">
-        {kind === 'container' && <button className="container-collapse nodrag nowheel" aria-label={data.collapsed ? 'Expand container' : 'Collapse container'} onClick={(event) => { event.stopPropagation(); history.remember(); updateNode(id, { data: { ...data, collapsed: !data.collapsed } }) }}><ChevronDown /></button>}
-        {selected && kind !== 'image' ? <textarea className="nodrag nowheel" aria-label="Component name" value={label}
+        {!history.readOnly && kind === 'container' && <button className="container-collapse nodrag nowheel" aria-label={data.collapsed ? 'Expand container' : 'Collapse container'} onClick={(event) => { event.stopPropagation(); history.remember(); updateNode(id, { data: { ...data, collapsed: !data.collapsed } }) }}><ChevronDown /></button>}
+        {!history.readOnly && selected && kind !== 'image' ? <textarea className="nodrag nowheel" aria-label="Component name" value={label}
           onFocus={() => { if (!editing.current) history.remember(); editing.current = true }}
           onChange={(event) => updateContent(iconFirst ? event.target.value.replace(/\s*[\r\n]+\s*/g, ' ') : event.target.value)}
           onBlur={() => { updateContent(label.trim() || 'Untitled component'); editing.current = false }}
@@ -359,7 +361,7 @@ function EditableConnectionEdge(props: EdgeProps<Edge>) {
   return <>
     <BaseEdge id={props.id} path={path} markerStart={props.markerStart} markerEnd={props.markerEnd} style={props.style} interactionWidth={20} />
     {(label || props.selected || props.data?.diffKind) && <EdgeLabelRenderer>
-      <input
+      {history.readOnly ? <span className="edge-inline-label embed-edge-label" style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`, width: `${getEdgeLabelWidth(sequenceLabel)}px` }}>{sequenceLabel}</span> : <input
         className={`edge-inline-label nodrag nopan${props.selected ? ' selected' : ''}${props.data?.diffKind ? ' diagram-diff-edge-label' : ''}`}
         aria-label="Line text"
         value={props.selected ? label : sequenceLabel}
@@ -372,7 +374,7 @@ function EditableConnectionEdge(props: EdgeProps<Edge>) {
           transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
           width: `${getEdgeLabelWidth(props.selected ? label : sequenceLabel)}px`,
         }}
-      />
+      />}
       {Boolean(props.data?.diffKind) && <span className="diagram-diff-edge-badge" style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY - 22}px)` }}>{String(props.data?.diffKind)}</span>}
     </EdgeLabelRenderer>}
   </>
@@ -380,6 +382,44 @@ function EditableConnectionEdge(props: EdgeProps<Edge>) {
 
 const NODE_TYPES = { architecture: ArchitectureNode }
 const EDGE_TYPES = { editable: EditableConnectionEdge }
+const readOnlyHistory: CanvasHistoryApi = { remember: () => undefined, openProperties: () => undefined, readOnly: true }
+
+export function ReadOnlyDiagram({ nodes, edges }: { nodes: Node[]; edges: Edge[] }) {
+  const rendered = useMemo(() => {
+    const byId = new Map(nodes.map((node) => [node.id, node]))
+    return nodes.map((node) => {
+      let parent = node.data?.containerId
+      let hidden = false
+      const visited = new Set<string>([node.id])
+      while (typeof parent === 'string' && !visited.has(parent)) {
+        visited.add(parent)
+        const ancestor = byId.get(parent)
+        if (!ancestor) break
+        if (ancestor.data?.collapsed) { hidden = true; break }
+        parent = ancestor.data?.containerId
+      }
+      const kind = String(node.data.kind || 'service') as ArchitectureKind
+      const automatic = getComponentSize(String(node.data.label || ''), kind)
+      const width = Number(node.data.customWidth || node.style?.width || node.width || automatic.width)
+      const height = node.data.collapsed ? 64 : Number(node.data.customHeight || node.style?.height || node.height || automatic.height)
+      return { ...node, width, height, selected: false, hidden, draggable: false, selectable: false, connectable: false,
+        data: { ...node.data, hiddenCount: nodes.filter((child) => child.data?.containerId === node.id).length },
+        style: { ...node.style, width, height } }
+    })
+  }, [nodes])
+  const hidden = new Set(rendered.filter((node) => node.hidden).map((node) => node.id))
+  return <div className="embed-canvas" aria-label="Read-only architecture diagram">
+    <CanvasHistoryContext.Provider value={readOnlyHistory}>
+      <ReactFlow nodes={rendered} edges={edges.map((edge) => ({ ...edge, selected: false, hidden: hidden.has(edge.source) || hidden.has(edge.target) }))}
+        nodeTypes={NODE_TYPES} edgeTypes={EDGE_TYPES} fitView fitViewOptions={{ padding: 0.15 }}
+        minZoom={0.02} maxZoom={3} nodesDraggable={false} nodesConnectable={false} edgesReconnectable={false}
+        elementsSelectable={false} deleteKeyCode={null} selectionKeyCode={null} nodesFocusable={false} edgesFocusable={false}>
+        <Background variant={BackgroundVariant.Dots} gap={16} />
+        <Controls showInteractive={false} />
+      </ReactFlow>
+    </CanvasHistoryContext.Provider>
+  </div>
+}
 const EMPTY_DIAGRAM_MODULES: DiagramModule[] = []
 const EMPTY_VIEW_STATES: Record<string, DiagramViewState> = {}
 const EMPTY_DIAGRAM_SNAPSHOTS: DiagramSnapshot[] = []

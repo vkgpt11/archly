@@ -28,6 +28,8 @@ public class ProjectShare {
     private Instant revokedAt;
     @Column(nullable = false)
     private Instant expiresAt;
+    @Column(length = 128) private String embedView;
+    @Column(length = 128) private String embedVariant;
 
     protected ProjectShare() {}
 
@@ -50,4 +52,7 @@ public class ProjectShare {
     public Instant getRevokedAt() { return revokedAt; }
     public Instant getExpiresAt() { return expiresAt; }
     public boolean isExpired() { return !expiresAt.isAfter(Instant.now()); }
+    public String getEmbedView() { return embedView; }
+    public String getEmbedVariant() { return embedVariant; }
+    public void bindEmbed(String view, String variant) { embedView = view; embedVariant = variant; }
 }

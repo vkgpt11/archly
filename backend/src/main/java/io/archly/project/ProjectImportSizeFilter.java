@@ -20,17 +20,18 @@ public class ProjectImportSizeFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI().substring(request.getContextPath().length());
-        return !"POST".equals(request.getMethod()) || !(path.equals("/api/projects/import") || path.equals("/api/projects/import/validate"));
+        return !"POST".equals(request.getMethod()) || !(path.equals("/api/projects/import") || path.equals("/api/projects/import/validate") || path.matches("/api/(projects|shares)/[^/]+/assets"));
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        byte[] body = request.getInputStream().readNBytes(MAX_BYTES + 1);
-        if (body.length > MAX_BYTES) {
+        int limit = request.getRequestURI().endsWith("/assets") ? 2_000_000 : MAX_BYTES;
+        byte[] body = request.getInputStream().readNBytes(limit + 1);
+        if (body.length > limit) {
             response.setStatus(413);
             response.setContentType("application/json");
-            response.getWriter().write("{\"message\":\"Project import must be smaller than 12 MB.\"}");
+            response.getWriter().write("{\"message\":\"Request exceeds the " + limit + " byte limit.\"}");
             return;
         }
         chain.doFilter(new HttpServletRequestWrapper(request) {

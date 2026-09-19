@@ -1,0 +1,18 @@
+# Optional overlay: export ARCHLY_EMBED_RENDERER_KEY (32+ random characters).
+services:
+  backend:
+    environment:
+      ARCHLY_EMBED_RENDERER_URL: http://embed-renderer:8090/render
+      ARCHLY_EMBED_RENDERER_KEY: ${ARCHLY_EMBED_RENDERER_KEY:?Set a random renderer key of at least 32 characters}
+    depends_on:
+      embed-renderer:
+        condition: service_started
+  embed-renderer:
+    build:
+      context: ..
+      dockerfile: deployment/embed-renderer.Dockerfile
+    environment:
+      ARCHLY_EMBED_RENDERER_KEY: ${ARCHLY_EMBED_RENDERER_KEY:?Set a random renderer key of at least 32 characters}
+    init: true
+    shm_size: 256mb
+    # No host port: reachable only on the Compose network.

@@ -20,20 +20,16 @@ import org.springframework.security.oauth2.jwt.Jwt;
 @SecurityRequirement(name = "bearerAuth")
 public class DiagramGenerationController {
     private final DiagramGenerationService service;
-    private final AiGenerationRateLimiter rateLimiter;
 
-    public DiagramGenerationController(DiagramGenerationService service, AiGenerationRateLimiter rateLimiter) {
+    public DiagramGenerationController(DiagramGenerationService service) {
         this.service = service;
-        this.rateLimiter = rateLimiter;
     }
 
     @PostMapping("/generate")
     @Operation(summary = "Generate an architecture diagram")
     GenerateDiagramResponse generate(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody GenerateDiagramRequest request,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
-        rateLimiter.check(jwt.getClaimAsString("email"));
         String key = idempotencyKey == null || !idempotencyKey.matches("[A-Za-z0-9._:-]{8,128}") ? java.util.UUID.randomUUID().toString() : idempotencyKey;
-        rateLimiter.reserve(jwt.getSubject(), key);
         return service.generate(jwt.getSubject(), request, key);
     }
 }

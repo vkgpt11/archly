@@ -11,7 +11,7 @@ export type AdminSummary = {
 }
 export type AdminTimeSeries = { metric: string; timezone: 'UTC'; buckets: { date: string; value: number }[] }
 export type AdminUserPage = { items: { id: string; maskedEmail: string; firstLoginAt: string; lastLoginAt: string; projectCount: number }[]; page: number; size: number; totalItems: number; totalPages: number }
-export type AiUsageSummary = { monthlyEstimatedCostMicros: number; monthlyBudgetMicros: number; requests: number; inputTokens: number; outputTokens: number; failures: number; alert: boolean }
+export type AiUsageSummary = { monthlyEstimatedCostMicros: number; monthlyBudgetMicros: number; requests: number; inputTokens: number; outputTokens: number; failures: number; alert: boolean; cachedInputTokens?: number; unknownUsageAttempts?: number; providerAttempts?: number; repairAttempts?: number }
 export type LlmSettings = {
   provider: 'OPENAI'; model: string; hasApiKey: boolean; credentialStorageAvailable: boolean
   apiKeyHint: string | null; updatedAt: string | null; lastSuccessfulUseAt: string | null; lastErrorCode: string | null
