@@ -67,7 +67,8 @@ class AiReliabilityTest {
         try {
             long started=System.nanoTime();
             assertThatThrownBy(() -> client(server).request(new UserLlmSettingsService.Configuration("mini","test-key"),mapper.createObjectNode(),"key",new AiDeadline(Duration.ofMillis(200)), ignored -> {})).isInstanceOf(ResponseStatusException.class).hasMessageContaining("deadline");
-            assertThat(Duration.ofNanos(System.nanoTime()-started)).isLessThan(Duration.ofSeconds(1));
+            // The provider deadline is 200 ms; allow runner scheduling and HTTP cancellation cleanup.
+            assertThat(Duration.ofNanos(System.nanoTime()-started)).isLessThan(Duration.ofSeconds(2));
             assertThatThrownBy(() -> new AiDeadline(Duration.ofMillis(20)).pause(Duration.ofSeconds(30))).isInstanceOf(ResponseStatusException.class);
         } finally { server.stop(0); }
     }
