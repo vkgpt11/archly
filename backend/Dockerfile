@@ -5,7 +5,7 @@ COPY .mvn .mvn
 COPY mvnw pom.xml ./
 RUN chmod +x mvnw && ./mvnw -q -DskipTests dependency:go-offline
 COPY src src
-RUN ./mvnw -q clean package
+RUN ./mvnw -q -DskipTests clean package
 
 FROM eclipse-temurin:17-jre-alpine
 RUN addgroup -S archly && adduser -S archly -G archly
